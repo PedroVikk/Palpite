@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Palpite — Quem é esse?</title>
+<link rel="preconnect" href="https://raw.githubusercontent.com">
+<link rel="stylesheet" href="/style.css?v=9">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='46' fill='%23ef4444'/><text x='50' y='72' font-size='62' font-weight='bold' text-anchor='middle' fill='%23fff' font-family='sans-serif'>?</text></svg>">
+</head>
+<body>
+
+<div id="toast" class="toast" hidden></div>
+
+<!-- ------------------------------------------------ tela inicial -->
+<section id="screen-home" class="screen center">
+  <header class="brand">
+    <div class="mark">?</div>
+    <h1>Palpite</h1>
+    <p>Treze universos, de Pokémon a Fórmula 1: adivinhe o secreto em turnos, com seus amigos.</p>
+  </header>
+
+  <div class="card">
+    <label class="field">
+      <span>Seu nome</span>
+      <input id="input-name" maxlength="16" placeholder="Treinador" autocomplete="nickname">
+    </label>
+
+    <button id="btn-create" class="btn primary big">Criar sala</button>
+
+    <div class="divider"><span>ou</span></div>
+
+    <form id="form-join" class="join-row">
+      <input id="input-code" maxlength="4" placeholder="CÓDIGO" class="code-input" autocomplete="off" spellcheck="false">
+      <button class="btn" type="submit">Entrar</button>
+    </form>
+  </div>
+</section>
+
+<!-- ------------------------------------------------ lobby -->
+<section id="screen-lobby" class="screen" hidden>
+  <div class="card wide">
+    <div class="lobby-head">
+      <div>
+        <span class="label">Código da sala</span>
+        <div class="room-code" id="lobby-code">----</div>
+      </div>
+      <button id="btn-copy" class="btn ghost">Copiar convite</button>
+    </div>
+
+    <h3>Jogadores <span id="lobby-count" class="muted"></span></h3>
+    <ul id="lobby-players" class="player-list"></ul>
+
+    <h3>Configurações <span id="settings-lock" class="muted"></span></h3>
+    <div class="settings">
+      <label class="field">
+        <span>Modo</span>
+        <select id="set-mode">
+          <option value="classic">Clássico — o servidor sorteia o segredo</option>
+          <option value="duel">Duelo de escolhas — o jogador da vez escolhe</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Universo</span>
+        <select id="set-universe"></select>
+      </label>
+      <div class="field">
+        <span id="groups-label">Gerações</span>
+        <div id="set-groups" class="chips"></div>
+      </div>
+      <div class="field-row">
+        <label class="field"><span>Rodadas</span><input id="set-rounds" type="number" min="1" max="20"></label>
+        <label class="field"><span>Segundos por turno (por jogador)</span><input id="set-turnSeconds" type="number" min="5" max="180" step="5"></label>
+        <label class="field"><span>Chutes por jogador</span><input id="set-guessesPerPlayer" type="number" min="1" max="20"></label>
+      </div>
+      <label class="chip endless">
+        <input type="checkbox" id="set-endless">
+        <span>Indefinido — joga até alguém acertar, sem limite de chutes</span>
+      </label>
+      <p class="muted" id="pool-size"></p>
+    </div>
+
+    <button id="btn-start" class="btn primary big">Começar partida</button>
+    <p id="lobby-hint" class="muted center-text"></p>
+    <button id="btn-leave-lobby" class="btn ghost small">Sair da sala</button>
+  </div>
+</section>
+
+<!-- ------------------------------------------------ jogo -->
+<section id="screen-game" class="screen" hidden>
+  <header class="topbar">
+    <div class="topbar-left">
+      <span class="pill" id="game-round">Rodada 1</span>
+      <span class="pill" id="game-mode"></span>
+      <span class="pill code" id="game-code"></span>
+    </div>
+    <div class="timer" id="game-timer"></div>
+  </header>
+
+  <ul id="scoreboard" class="scoreboard"></ul>
+
+  <div id="banner" class="banner"></div>
+
+  <div id="guess-area" class="guess-area">
+    <div class="autocomplete">
+      <input id="input-guess" placeholder="Digite o nome..." autocomplete="off" spellcheck="false">
+      <ul id="suggestions" class="suggestions" hidden></ul>
+    </div>
+    <button id="btn-guess" class="btn primary">Chutar</button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="hints">
+      <thead>
+        <tr id="hint-head"><th>Chute</th></tr>
+      </thead>
+      <tbody id="hint-rows"></tbody>
+    </table>
+    <p id="empty-hint" class="muted center-text">Nenhum chute ainda. Boa sorte!</p>
+  </div>
+
+  <div id="reveal" class="reveal" hidden>
+    <img id="reveal-img" alt="">
+    <div>
+      <span class="label">O segredo era</span>
+      <h2 id="reveal-name"></h2>
+      <p id="reveal-meta" class="muted"></p>
+    </div>
+  </div>
+
+  <div class="game-actions">
+    <button id="btn-next" class="btn primary" hidden>Próxima rodada</button>
+    <button id="btn-end" class="btn" hidden>Encerrar partida</button>
+    <button id="btn-restart" class="btn primary" hidden>Jogar de novo</button>
+    <button id="btn-leave" class="btn ghost small">Sair da sala</button>
+  </div>
+</section>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js?v=9" type="module"></script>
+</body>
+</html>

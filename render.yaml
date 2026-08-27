@@ -1,0 +1,15 @@
+# Deploy gratuito no Render: https://render.com
+# 1. Suba este repositorio no GitHub
+# 2. Render > New > Blueprint > aponte para o repo
+# O plano free hiberna apos 15 min sem uso (o primeiro acesso demora ~30s).
+services:
+  - type: web
+    name: palpite
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
