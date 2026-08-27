@@ -27,7 +27,7 @@
     "build:mlp": "node scripts/build-mlp.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": "^20.19.0 || >=22.12.0"
   },
   "dependencies": {
     "express": "^4.19.2",
