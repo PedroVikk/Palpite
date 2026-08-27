@@ -279,6 +279,40 @@ select { appearance: none; cursor: pointer; }
   85% { transform: rotate(12deg); }
 }
 
+/* ------------------------------------------------------- desafio do dia */
+
+.daily-cta {
+  width: 100%;
+  max-width: 440px;
+  margin-top: var(--sp-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--partial);
+  border-radius: var(--r-card);
+  padding: var(--sp-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: filter .15s, transform .06s;
+}
+.daily-cta:hover { filter: brightness(1.2); }
+.daily-cta:active { transform: translateY(2px); }
+.daily-cta strong { font-family: var(--font-display); font-size: 18px; }
+.daily-cta .tag {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--partial);
+}
+
+.daily-head { display: flex; align-items: flex-end; gap: var(--sp-md); flex-wrap: wrap; }
+.daily-head .field { max-width: 280px; }
+
 /* ---------------------------------------------------------------- lobby */
 
 .room-code {
@@ -505,7 +539,26 @@ select { appearance: none; cursor: pointer; }
   border: 2px solid var(--partial);
   box-shadow: 0 0 24px #d99a1055;
 }
-.gameover h2 { font-size: 32px; }
+.gameover h2 { font-size: 32px; margin-bottom: var(--sp-xs); }
+
+/* dentro do cartao centralizado a revelacao empilha, em vez de ir lado a lado */
+.gameover .reveal {
+  flex-direction: column;
+  text-align: center;
+  background: #0b1120;
+  margin-bottom: var(--sp-md);
+}
+.gameover .reveal .chips { justify-content: center; }
+
+/* linha de botoes, usada no fim de rodada e no fim de partida */
+.game-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-xs);
+  flex-wrap: wrap;
+  margin-top: var(--sp-md);
+}
 
 .ranking { list-style: none; padding: 0; margin: var(--sp-md) 0 0; display: flex; flex-direction: column; }
 .ranking li {

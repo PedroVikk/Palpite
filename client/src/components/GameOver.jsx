@@ -1,23 +1,29 @@
+import Reveal from './Reveal.jsx';
 import { ExitIcon, RestartIcon, TrophyIcon } from './Icon.jsx';
 
 /**
- * Placar final. O texto do titulo vem pronto do servidor — ele ja sabe se
- * houve vitoria, empate ou se ninguem pontuou.
+ * Placar final. O segredo vem primeiro porque e o que todo mundo quer ver;
+ * o titulo (`summary`) e o placar, e `message` explica como a partida acabou.
+ * O trofeu so aparece se alguem pontuou — coroar um 0 a 0 e estranho.
  */
-export default function GameOver({ state, myId, isHost, onRestart, onLeave }) {
+export default function GameOver({ state, universe, myId, isHost, onRestart, onLeave }) {
   const ranking = [...state.players].sort((a, b) => b.score - a.score);
   const top = ranking[0]?.score ?? 0;
+  const someoneScored = top > 0;
 
   return (
     <div className="gameover">
       <div className="crest">Fim de partida</div>
       <div className="card">
-        <div className="trophy"><TrophyIcon /></div>
-        <h2>{state.message}</h2>
+        {state.secret && <Reveal universe={universe} secret={state.secret} />}
+
+        {someoneScored && <div className="trophy"><TrophyIcon /></div>}
+        <h2>{state.summary ?? state.message}</h2>
+        {state.summary && state.message && <p className="muted">{state.message}</p>}
 
         <ul className="ranking">
           {ranking.map((player, i) => (
-            <li key={player.id} className={player.score === top && top > 0 ? 'top' : ''}>
+            <li key={player.id} className={someoneScored && player.score === top ? 'top' : ''}>
               <span className="place">{i + 1}</span>
               <strong>{player.name}</strong>
               {player.id === myId && <span className="muted">(você)</span>}
@@ -26,7 +32,7 @@ export default function GameOver({ state, myId, isHost, onRestart, onLeave }) {
           ))}
         </ul>
 
-        <div className="chips" style={{ justifyContent: 'center', marginTop: 'var(--sp-md)' }}>
+        <div className="game-actions">
           <button className="btn link" onClick={onLeave}>
             <ExitIcon width={16} height={16} /> Sair da sala
           </button>

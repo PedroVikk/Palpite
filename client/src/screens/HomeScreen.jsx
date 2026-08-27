@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function HomeScreen({ name, onName, onCreate, onJoin, toast }) {
+export default function HomeScreen({ name, onName, onCreate, onJoin, onDaily, toast }) {
   // convite chega como ?sala=XXXX: o codigo ja vem preenchido
   const [code, setCode] = useState(() =>
     (new URLSearchParams(location.search).get('sala') ?? '').toUpperCase());
@@ -50,6 +50,13 @@ export default function HomeScreen({ name, onName, onCreate, onJoin, toast }) {
           <button className="btn" type="submit">Entrar</button>
         </form>
       </div>
+
+      {/* sem sala e sem codigo: um segredo por universo, igual para todo mundo */}
+      <button className="daily-cta" onClick={onDaily}>
+        <span className="tag">Todo dia</span>
+        <strong>Desafio diário</strong>
+        <span className="muted">Um segredo por universo, o mesmo para todo mundo. Jogue sozinho.</span>
+      </button>
     </main>
   );
 }

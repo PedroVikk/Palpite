@@ -46,6 +46,7 @@ function createRoom(settings) {
     timer: null,
     winnerId: null,
     message: null,
+    summary: null,
     lastActivity: Date.now(),
   };
   rooms.set(room.code, room);
@@ -93,6 +94,7 @@ function publicState(room) {
     deadline: room.deadline,
     winnerId: room.winnerId,
     message: room.message,
+    summary: room.summary,
     secret: showSecret && room.secret ? room.secret : null,
   };
 }
@@ -149,6 +151,7 @@ function startRound(room) {
   room.rows = [];
   room.winnerId = null;
   room.message = null;
+  room.summary = null;
   room.secret = null;
   room.guessesLeft = {};
   for (const p of room.players.values()) room.guessesLeft[p.id] = guessBudget(room);
@@ -225,7 +228,10 @@ function finishMatch(room) {
       ? `Empate entre ${champs.map(p => p.name).join(', ')} com ${top} pontos!`
       : `${champs[0].name} venceu com ${top} pontos!`;
 
-  room.message = room.message ? `${room.message} ${final}` : final;
+  // separado de `message` de proposito: o placar final e o titulo da tela, e
+  // a mensagem e o rodape ("encerrada pelo host"). Grudar os dois virava um
+  // paragrafo unico no lugar do titulo.
+  room.summary = final;
   broadcast(room);
 }
 
@@ -402,7 +408,7 @@ function onConnection(socket) {
     if (!room || !player || room.hostId !== player.id) return;
     if (room.phase !== 'playing' && room.phase !== 'roundEnd') return;
     if (room.phase === 'playing') {
-      room.message = `Partida encerrada pelo host. O segredo era ${room.secret?.name ?? '???'}.`;
+      room.message = 'Partida encerrada pelo host.';
     }
     finishMatch(room);
   });

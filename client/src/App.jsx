@@ -5,6 +5,7 @@ import { rememberName, rememberPlayerId, savedName, savedPlayerId } from './lib/
 import HomeScreen from './screens/HomeScreen.jsx';
 import LobbyScreen from './screens/LobbyScreen.jsx';
 import GameScreen from './screens/GameScreen.jsx';
+import DailyScreen from './screens/DailyScreen.jsx';
 
 /** Com o que uma sala nasce. O host ajusta tudo depois, no lobby. */
 const NEW_ROOM = {
@@ -21,6 +22,8 @@ export default function App() {
   const [myId, setMyId] = useState(null);
   const [name, setName] = useState(savedName);
   const [toast, setToast] = useState(null);
+  // ?diario=<universo> abre o desafio direto, para o link ser compartilhavel
+  const [daily, setDaily] = useState(() => new URLSearchParams(location.search).has('diario'));
 
   const toastTimer = useRef(null);
   const showToast = useCallback((message) => {
@@ -83,14 +86,28 @@ export default function App() {
     history.replaceState(null, '', location.pathname);
   };
 
+  const openDaily = () => setDaily(true);
+  const closeDaily = () => {
+    setDaily(false);
+    history.replaceState(null, '', location.pathname);
+  };
+
   const shared = { state, myId, toast: showToast, onLeave: leave };
 
   return (
     <>
       {toast && <div className="toast" role="status">{toast}</div>}
 
-      {!state && (
-        <HomeScreen name={name} onName={setName} onCreate={createRoom} onJoin={joinRoom} toast={showToast} />
+      {!state && daily && <DailyScreen toast={showToast} onExit={closeDaily} />}
+      {!state && !daily && (
+        <HomeScreen
+          name={name}
+          onName={setName}
+          onCreate={createRoom}
+          onJoin={joinRoom}
+          onDaily={openDaily}
+          toast={showToast}
+        />
       )}
       {state?.phase === 'lobby' && <LobbyScreen {...shared} />}
       {state && state.phase !== 'lobby' && <GameScreen {...shared} />}

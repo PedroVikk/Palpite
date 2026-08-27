@@ -9,8 +9,10 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { UNIVERSES } from '../shared/universes.js';
-import { indexOf } from './catalog.js';
+import { UNIVERSES, getUniverse } from '../shared/universes.js';
+import { datasetOf, indexOf } from './catalog.js';
+import { compareGuess } from './game.js';
+import { isKnownUniverse, poolSizeOf, secretOf, today } from './daily.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLIENT_DIST = path.join(ROOT, 'client', 'dist');
@@ -69,6 +71,34 @@ export function createApp() {
     const index = indexOf(req.params.universe);
     if (!index) return res.status(404).json({ error: 'Universo desconhecido.' });
     sendIndex(req, res, index);
+  });
+
+  /** Qual e o desafio de hoje — sem entregar a resposta, claro. */
+  app.get('/api/daily/:universe', (req, res) => {
+    const { universe } = req.params;
+    if (!isKnownUniverse(universe)) return res.status(404).json({ error: 'Universo desconhecido.' });
+    res.set('Cache-Control', 'no-store');   // vira a meia-noite; cachear atrasaria a troca
+    res.json({ date: today(), universe, poolSize: poolSizeOf(universe) });
+  });
+
+  /**
+   * Um chute contra o segredo do dia. E GET porque nao muda nada no servidor:
+   * o progresso do jogador mora no navegador dele.
+   */
+  app.get('/api/daily/:universe/guess/:id', (req, res) => {
+    const { universe, id } = req.params;
+    if (!isKnownUniverse(universe)) return res.status(404).json({ error: 'Universo desconhecido.' });
+
+    const guess = datasetOf(universe).byId.get(Number(id));
+    if (!guess) return res.status(404).json({ error: 'Chute inválido.' });
+
+    const secret = secretOf(universe);
+    if (!secret) return res.status(503).json({ error: 'Sem desafio para hoje neste universo.' });
+
+    const row = compareGuess(guess, secret, getUniverse(universe));
+    res.set('Cache-Control', 'no-store');
+    // o segredo so viaja depois que a pessoa acertou
+    res.json({ date: today(), row, correct: row.correct, secret: row.correct ? secret : null });
   });
 
   // sem isto uma rota /api errada cairia no index.html do SPA

@@ -311,7 +311,9 @@ try {
   inf1.socket.emit('game:end');
   await until(inf1, s => s.phase === 'gameOver', 'host encerrou a partida');
   check('segredo revelado ao encerrar', inf1.state.secret !== null);
-  check('placar final anunciado', /venceu|Empate|ninguém pontuou/.test(inf1.state.message ?? ''));
+  // o placar final vai em `summary`; `message` fica com o motivo do encerramento
+  check('placar final anunciado', /venceu|Empate|ninguém pontuou/.test(inf1.state.summary ?? ''));
+  check('motivo do encerramento separado do placar', /encerrada pelo host/.test(inf1.state.message ?? ''));
 
   // ----------------------------------------------------------- padroes e duelo
   console.log('\n== Padrao sem fim e cronometro ==');

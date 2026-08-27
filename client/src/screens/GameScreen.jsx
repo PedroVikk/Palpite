@@ -54,16 +54,25 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
         <Scoreboard state={state} myId={myId} />
 
         {state.phase === 'gameOver' ? (
-          <GameOver state={state} myId={myId} isHost={isHost} onRestart={restart} onLeave={onLeave} />
+          <GameOver
+            state={state}
+            universe={universe}
+            myId={myId}
+            isHost={isHost}
+            onRestart={restart}
+            onLeave={onLeave}
+          />
         ) : (
           <>
             {banner.text && <div className={`banner ${banner.tone}`}>{banner.text}</div>}
 
             <GuessBar
               items={items}
-              state={state}
+              guessedIds={state.rows.map(row => row.id)}
+              groups={state.settings.groups}
               active={isMyTurn || isMyChoice}
               choosing={isMyChoice}
+              focusKey={state.phase}
               onSubmit={submit}
             />
 
@@ -71,7 +80,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
 
             {state.secret && <Reveal universe={universe} secret={state.secret} />}
 
-            <div className="chips" style={{ justifyContent: 'center' }}>
+            <div className="game-actions">
               {isHost && state.phase === 'roundEnd' && (
                 <button className="btn primary" onClick={() => socket.emit('game:next')}>Próxima rodada</button>
               )}

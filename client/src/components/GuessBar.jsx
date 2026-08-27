@@ -5,8 +5,13 @@ import { SearchIcon, SendIcon } from '../components/Icon.jsx';
 /**
  * Campo de chute com autocomplete. So o item escolhido na lista e enviado —
  * texto livre nunca vira palpite, senao um erro de digitacao gastaria a vez.
+ *
+ * Nao conhece sala: recebe o que ja foi chutado e os grupos ligados soltos,
+ * para servir tanto a partida quanto o desafio diario.
  */
-export default function GuessBar({ items, state, active, choosing, onSubmit }) {
+export default function GuessBar({
+  items, guessedIds, groups = [], active, choosing = false, focusKey, onSubmit,
+}) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const [open, setOpen] = useState(false);
@@ -15,13 +20,8 @@ export default function GuessBar({ items, state, active, choosing, onSubmit }) {
 
   const suggestions = useMemo(() => {
     if (!query.trim()) return [];
-    return search(query, {
-      items,
-      choosing,
-      groups: state.settings.groups,
-      guessed: state.rows.map(row => row.id),
-    });
-  }, [query, items, choosing, state.settings.groups, state.rows]);
+    return search(query, { items, choosing, groups, guessed: guessedIds });
+  }, [query, items, choosing, groups, guessedIds]);
 
   useEffect(() => { setIndex(0); }, [query]);
 
@@ -29,7 +29,7 @@ export default function GuessBar({ items, state, active, choosing, onSubmit }) {
   useEffect(() => {
     if (active) inputRef.current?.focus();
     else setOpen(false);
-  }, [active, state.phase]);
+  }, [active, focusKey]);
 
   useEffect(() => {
     const onDocumentClick = (event) => {
