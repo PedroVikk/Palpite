@@ -1,9 +1,9 @@
 /**
  * Regras puras do jogo (sem sockets, sem estado global).
- * A comparacao e guiada pelo schema do universo (public/universes.js),
+ * A comparacao e guiada pelo schema do universo (shared/universes.js),
  * entao adicionar uma franquia nova nao mexe aqui.
  */
-import { UNIVERSES, DEFAULT_UNIVERSE, getUniverse } from '../public/universes.js';
+import { UNIVERSES, DEFAULT_UNIVERSE, getUniverse } from '../shared/universes.js';
 
 export { UNIVERSES, getUniverse };
 

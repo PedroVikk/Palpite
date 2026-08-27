@@ -6,7 +6,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { UNIVERSES } from '../public/universes.js';
+import { UNIVERSES } from '../shared/universes.js';
 import { io } from 'socket.io-client';
 
 const PORT = 3999;
@@ -184,7 +184,7 @@ try {
   check('escolhedor nao pontuou', may.state.players[0].score === 0);
 
   // ----------------------------------------------------------- todos os universos
-  // Um bloco generico: cada universo novo em public/universes.js entra aqui
+  // Um bloco generico: cada universo novo em shared/universes.js entra aqui
   // sozinho, sem precisar de teste escrito a mao.
   console.log('\n== Todos os universos ==');
   const arena = [];

@@ -1,18 +1,18 @@
 # Palpite
 
-Um jogo de adivinhação multiplayer no estilo Pokédle, com **treze universos**.
+Um jogo de adivinhação multiplayer no estilo Pokédle, com **quinze universos**.
 Um secreto por rodada, todo mundo na mesma sala, **um chute por vez**. Cada
 chute vira uma linha de dicas visível para todos — verde acerta, amarelo chega
 perto, seta indica se o secreto é maior ou menor.
 
-Node + Socket.IO no servidor, HTML/CSS/JS puro no navegador (sem build, sem
-framework). Os dados são baixados **uma vez** de APIs públicas para arquivos
-JSON locais — em partida o jogo não depende delas, só as imagens vêm dos CDNs.
+Express + Socket.IO no servidor, React + Vite no navegador. Os dados são
+baixados **uma vez** de APIs públicas para arquivos JSON locais — em partida o
+jogo não depende delas, só as imagens vêm dos CDNs.
 
 ## Como rodar
 
 ```bash
-npm install
+npm install && npm run build
 npm start
 ```
 
@@ -42,6 +42,8 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Harry Potter** | 437 | 91 | 4 casas de Hogwarts | Casa, Espécie, Gênero, Ascendência, Papel, Vivo, Cabelo |
 | **Senhor dos Anéis** | 25 | 25 | 7 raças | Raça, Reino, Grupo, Gênero, Altura, Armas, Filmes |
 | **Fórmula 1** | 853 | 265 | 8 décadas de estreia | País, Equipe, Temporadas, Vitórias, Títulos, Estreia, Nascimento |
+| **Carros** | 1570 | 1020 | 9 origens de marca | Marca, Categoria, Tração, Combustível, Cilindros, Cilindrada, Estreia, Último ano |
+| **My Little Pony** | 555 | 211 | 6 espécies | Espécie, Gênero, Residência, Ocupação |
 
 **Sorteáveis** são os que têm dados completos o bastante para uma rodada justa.
 Qualquer um pode ser **chutado** — a restrição vale só para o secreto. Por isso
@@ -50,6 +52,14 @@ secundários sem altura, afiliação ou episódio de estreia. No Yu-Gi-Oh, das 1
 cartas ficam as 3000 mais vistas no site, e só as 600 mais vistas viram segredo.
 Na Fórmula 1, sorteáveis são os vencedores de corrida, quem tem 5+ temporadas ou
 quem correu de 2020 para cá — os outros 588 são nomes de uma prova só.
+
+Em **Carros**, cada item é um modelo (as versões de motor viram um só "Toyota
+Corolla"), e o secreto precisa de 3+ anos de linha e ficha completa — elétricos
+podem ser chutados, mas não sorteados, porque não têm cilindros nem cilindrada.
+Atenção a *Estreia*: a base do EPA começa em 1984, então para modelos mais
+antigos é o primeiro ano **na base**, não o lançamento real. **My Little Pony**
+é o único universo sem coluna numérica (a API não traz número nenhum), então lá
+não aparecem as setas ▲/▼.
 
 ### De onde vêm os dados
 
@@ -67,6 +77,8 @@ quem correu de 2020 para cá — os outros 588 são nomes de uma prova só.
 | [HP-API](https://hp-api.onrender.com/) | não |
 | [LOTR API (vlayer)](https://lotr-api.vlayer.vercel.app/) | não |
 | [F1 API](https://f1api.dev/) | não |
+| [EPA fueleconomy.gov](https://www.fueleconomy.gov/feg/ws/) | não |
+| [PonyAPI](https://ponyapi.net/) | não |
 
 Quatro fontes pedidas **não** deram para usar direto e foram substituídas:
 
@@ -114,37 +126,50 @@ mundo, com placar acumulado ao longo das rodadas.
 ## Como ler as dicas
 
 - **Verde**: exato.
+- **Vermelho**: errado.
 - **Amarelo em tipo**: esse tipo existe no secreto, mas no outro slot.
 - **Amarelo em lista** (afiliação, clã, funções): há itens em comum, mas as
   listas não são idênticas.
 - **Amarelo em número**: diferença de até 10%.
 - **▲ / ▼**: o valor do secreto é maior / menor que o do seu chute.
 - **Cinza em itálico**: falta o dado de um dos lados, então não dá para comparar.
+  Não é a mesma coisa que errar, por isso não fica vermelho.
 
 Listas longas aparecem cortadas (`A, B, C +2`); passe o mouse para ver tudo.
 Em Clash Royale e LoL dá para buscar pelo nome em português ou em inglês.
 
 ## Estrutura
 
+Backend Express + Socket.IO, cliente React construído com Vite. Em produção o
+Express serve o build; não há segundo processo nem segunda porta.
+
 ```
-public/universes.js        schema dos universos (colunas, grupos, rótulos)
+shared/universes.js        schema dos universos (colunas, grupos, rótulos)
+                           — importado pelo servidor e pelo cliente
+src/server.js              bootstrap: junta HTTP e socket na mesma porta
+src/http.js                Express: API, estáticos e fallback de SPA
+src/rooms.js               salas, turnos, timers e eventos Socket.IO
 src/game.js                comparação e pontuação — puro, guiado pelo schema
-src/server.js              salas, turnos, timers e eventos Socket.IO
-public/                    interface (index.html, style.css, app.js)
+src/catalog.js             datasets em memória + índice enxuto do cliente
+client/src/                interface React (telas, componentes, estilos)
 scripts/build-*.mjs        uma ingestão por universo -> data/<nome>.json
 scripts/smoke-test.mjs     teste end-to-end com jogadores simulados
 ```
+
+Para desenvolver o front com recarga instantânea, deixe os dois rodando: `npm
+run dev` (servidor na 3000) e `npm run dev:client` (Vite na 5173, com proxy de
+`/api` e `/socket.io` para a 3000).
 
 ### Adicionar um universo novo
 
 1. Escreva um `scripts/build-<nome>.mjs` que gere `data/<nome>.json`. Cada item
    precisa de `id`, `name`, `group`, `sprite`, `artwork`, `eligible` e uma chave
    por coluna. Opcional: `aliases` (nomes alternativos para a busca).
-2. Adicione a entrada em `public/universes.js` com `groups` e `columns`.
+2. Adicione a entrada em `shared/universes.js` com `groups` e `columns`.
 
-Nada em `src/game.js`, `src/server.js` ou `public/app.js` precisa mudar — as
-colunas da tabela, os filtros do lobby e a comparação saem do schema. O teste
-também é genérico: o universo novo passa a ser testado sozinho.
+Nada em `src/game.js`, `src/rooms.js` ou no cliente precisa mudar — as colunas
+da tabela, os filtros do lobby e a comparação saem do schema. O teste também é
+genérico: o universo novo passa a ser testado sozinho.
 
 Tipos de coluna: `text` (igual/diferente), `slot` (igual, ou existe no outro
 slot → amarelo), `list` (conjuntos iguais → verde, interseção → amarelo) e
@@ -157,7 +182,7 @@ npm test
 ```
 
 Sobe o servidor de verdade, conecta jogadores falsos e joga partidas completas
-nos dois modos e **nos treze universos**, verificando turnos, dicas, timeout,
+nos dois modos e **nos quinze universos**, verificando turnos, dicas, timeout,
 pontuação, filtros de grupo, sigilo do segredo e reconexão. São 157 verificações.
 
 ## Atualizar os dados

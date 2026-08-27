@@ -1,6 +1,6 @@
 /**
  * Definicao dos universos jogaveis. Compartilhado entre servidor e navegador:
- * o servidor importa via ../public/universes.js, o cliente via <script type="module">.
+ * o servidor importa via ../shared/universes.js, o cliente importa em build.
  *
  * Cada dataset em data/<dataFile> e uma lista de itens com, no minimo:
  *   id, name, group, sprite, artwork, eligible  +  uma chave por coluna.
@@ -47,6 +47,56 @@ const COUNTRY_PT = {
   Thailand: 'Tailândia', India: 'Índia', Liechtenstein: 'Liechtenstein', Chile: 'Chile',
   'Czech Republic': 'Tchéquia', Malaysia: 'Malásia', Hungary: 'Hungria', Poland: 'Polônia',
   Indonesia: 'Indonésia', China: 'China',
+};
+
+const CAR_CATEGORY_PT = {
+  subcompacto: 'Subcompacto', compacto: 'Compacto', medio: 'Médio',
+  grande: 'Grande', esportivo: 'Esportivo 2 lugares', suv: 'SUV',
+  picape: 'Picape', perua: 'Perua', van: 'Van',
+};
+
+const CAR_DRIVE_PT = {
+  dianteira: 'Dianteira', traseira: 'Traseira', integral: 'Integral', '4x4': '4x4',
+};
+
+const CAR_FUEL_PT = {
+  gasolina: 'Gasolina', diesel: 'Diesel', eletrico: 'Elétrico', hibrido: 'Híbrido',
+  'gas-natural': 'Gás natural', hidrogenio: 'Hidrogênio',
+};
+
+const MLP_KIND_PT = {
+  earth: 'Pônei terrestre', unicorn: 'Unicórnio', pegasus: 'Pégaso',
+  alicorn: 'Alicórnio', crystal: 'Pônei de cristal', human: 'Humano',
+  pony: 'Pônei', dragon: 'Dragão', griffon: 'Grifo', hippogriff: 'Hipogrifo',
+  seapony: 'Pônei-do-mar', changeling: 'Changeling', yak: 'Iaque',
+  siren: 'Sereia', zebra: 'Zebra', donkey: 'Burro', mule: 'Mula',
+  buffalo: 'Búfalo', kirin: 'Kirin', minotaur: 'Minotauro', centaur: 'Centauro',
+  draconequus: 'Draconequus', umbrum: 'Umbrum', 'sea-serpent': 'Serpente marinha',
+  breezie: 'Breezie', dog: 'Cão', cat: 'Gato', bear: 'Urso', rabbit: 'Coelho',
+  owl: 'Coruja', phoenix: 'Fênix', tortoise: 'Tartaruga', parrot: 'Papagaio',
+  cow: 'Vaca', bull: 'Touro', ram: 'Carneiro', alligator: 'Jacaré',
+  gargoyle: 'Gárgula', hedgehog: 'Ouriço', raccoon: 'Guaxinim', rock: 'Pedra',
+};
+
+const MLP_GENDER_PT = { female: 'Fêmea', male: 'Macho' };
+
+const MLP_PLACE_PT = {
+  ponyville: 'Ponyville', canterlot: 'Canterlot', 'crystal-empire': 'Império de Cristal',
+  manehattan: 'Manehattan', cloudsdale: 'Cloudsdale', 'mundo-humano': 'Mundo humano',
+  appleloosa: 'Appleloosa', griffonstone: 'Griffonstone', 'dragon-lands': 'Terras dos Dragões',
+  seaquestria: 'Seaquestria', 'mount-aris': 'Monte Aris', 'las-pegasus': 'Las Pegasus',
+  baltimare: 'Baltimare', fillydelphia: 'Fillydelphia', vanhoover: 'Vanhoover',
+  yakyakistan: 'Yakyakistan', 'changeling-kingdom': 'Reino Changeling',
+  everfree: 'Floresta Everfree', 'our-town': 'Nossa Vila', 'rock-farm': 'Fazenda de Pedras',
+  klugetown: 'Klugetown', 'dodge-junction': 'Dodge Junction', somnambula: 'Somnambula',
+  'silver-shoals': 'Silver Shoals', maretropolis: 'Maretropolis', 'sires-hollow': 'Sire\'s Hollow',
+};
+
+const MLP_JOB_PT = {
+  estudante: 'Estudante', realeza: 'Realeza', wonderbolts: 'Wonderbolts',
+  ensino: 'Ensino', moda: 'Moda', saude: 'Saúde', imprensa: 'Imprensa',
+  esporte: 'Esporte', guarda: 'Guarda', campo: 'Campo', artes: 'Artes',
+  comercio: 'Comércio',
 };
 
 export const UNIVERSES = {
@@ -425,6 +475,62 @@ export const UNIVERSES = {
       { key: 'titles', label: 'Títulos', kind: 'number' },
       { key: 'debut', label: 'Estreia', kind: 'number' },
       { key: 'birthYear', label: 'Nascimento', kind: 'number' },
+    ],
+  },
+
+  cars: {
+    id: 'cars',
+    label: 'Carros',
+    secretLabel: 'o carro secreto',
+    dataFile: 'cars.json',
+    groupLabel: 'Origem da marca',
+    groups: [
+      { id: 'eua', label: 'EUA' },
+      { id: 'japao', label: 'Japão' },
+      { id: 'alemanha', label: 'Alemanha' },
+      { id: 'reino-unido', label: 'Reino Unido' },
+      { id: 'italia', label: 'Itália' },
+      { id: 'coreia', label: 'Coreia do Sul' },
+      { id: 'suecia', label: 'Suécia' },
+      { id: 'franca', label: 'França' },
+      { id: 'outros', label: 'Outras' },
+    ],
+    defaultGroups: ['eua', 'japao', 'alemanha', 'reino-unido', 'italia', 'coreia', 'suecia', 'franca', 'outros'],
+    columns: [
+      { key: 'make', label: 'Marca', kind: 'text' },
+      { key: 'category', label: 'Categoria', kind: 'text', labels: CAR_CATEGORY_PT },
+      { key: 'drive', label: 'Tração', kind: 'text', labels: CAR_DRIVE_PT },
+      { key: 'fuel', label: 'Combustível', kind: 'text', labels: CAR_FUEL_PT },
+      { key: 'cylinders', label: 'Cilindros', kind: 'number' },
+      { key: 'displacement', label: 'Cilindrada', kind: 'number', unit: 'L', tolerance: 0.15 },
+      // anos sem tolerancia: 3% de 2000 seriam 60 anos de "quase"
+      { key: 'debut', label: 'Estreia', kind: 'number' },
+      { key: 'lastYear', label: 'Último ano', kind: 'number' },
+    ],
+  },
+
+  mlp: {
+    id: 'mlp',
+    label: 'My Little Pony',
+    secretLabel: 'o personagem secreto',
+    dataFile: 'mlp.json',
+    groupLabel: 'Espécie',
+    groups: [
+      { id: 'terrestre', label: 'Pônei terrestre' },
+      { id: 'unicornio', label: 'Unicórnio' },
+      { id: 'pegaso', label: 'Pégaso' },
+      { id: 'alicornio', label: 'Alicórnio' },
+      { id: 'humano', label: 'Humano' },
+      { id: 'outros', label: 'Outras espécies' },
+    ],
+    defaultGroups: ['terrestre', 'unicornio', 'pegaso', 'alicornio', 'humano', 'outros'],
+    // a PonyAPI nao traz nenhum numero, entao este e o unico universo sem
+    // coluna numerica — aqui nao ha setas ▲/▼
+    columns: [
+      { key: 'kinds', label: 'Espécie', kind: 'list', labels: MLP_KIND_PT },
+      { key: 'gender', label: 'Gênero', kind: 'text', labels: MLP_GENDER_PT },
+      { key: 'residence', label: 'Residência', kind: 'text', labels: MLP_PLACE_PT },
+      { key: 'occupation', label: 'Ocupação', kind: 'text', labels: MLP_JOB_PT },
     ],
   },
 };

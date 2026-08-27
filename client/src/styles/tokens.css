@@ -1,0 +1,60 @@
+/**
+ * Tokens do "Palpite Strategy System".
+ *
+ * Vieram da prosa do DESIGN.md e das telas entregues. O bloco `colors:` do
+ * topo daquele arquivo e um tema Material auto-gerado que diverge do design
+ * real (declara primary rosa #ffb3ad) — foi descartado de proposito.
+ */
+:root {
+  /* Camadas: chao, cartao, popover. Profundidade por tom, nao por borda. */
+  --floor: #020617;
+  --surface: #0f172a;
+  --surface-2: #1e293b;
+  --surface-3: #283349;
+  --line: #1e293b;
+  --line-strong: #2e3447;
+
+  --text: #dce1fb;
+  --muted: #94a3b8;
+
+  --primary: #ef4444;
+  --primary-dark: #c72f2f;
+  --primary-bright: #f15757;
+
+  /* Estados das dicas — a informacao principal da tabela.
+     "Errou" e vermelho proprio, mais escuro que o vermelho de acao, para nao
+     ser confundido com botao. "Sem dado" continua neutro: nao errar e nao ter
+     dado sao coisas diferentes. */
+  --hit: #22a06b;
+  --partial: #d99a10;
+  --miss: #a4232e;
+  --miss-text: #ffe4e6;
+  --unknown: #151b2d;
+  --unknown-text: #475569;
+
+  /* Cinza neutro do design, usado onde nao ha juizo de certo/errado
+     (jogador desconectado, interruptor desligado). */
+  --neutral: #3a465e;
+
+  /* Formas: cartao macio, chip pilula, celula quase reta (grade densa). */
+  --r-card: 14px;
+  --r-field: 10px;
+  --r-cell: 4px;
+  --r-pill: 999px;
+
+  /* Ritmo de 4px */
+  --sp-xs: 8px;
+  --sp-sm: 16px;
+  --sp-md: 24px;
+  --sp-lg: 40px;
+  --sp-xl: 64px;
+
+  /* Geist estrutura, Inter le. */
+  --font-display: 'Geist Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-body: 'Inter Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  --shadow-card: 0 8px 20px #00000026;
+  --shadow-pop: 0 8px 20px #00000040;
+
+  --page: 1280px;
+}
