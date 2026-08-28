@@ -29,7 +29,7 @@ npx cloudflared tunnel --url http://localhost:3000
 
 | Universo | Itens | Sorteáveis | Grupos | Colunas de dica |
 | --- | ---: | ---: | --- | --- |
-| **Pokémon** | 1025 | 1025 | Gerações 1–9 | Tipo 1, Tipo 2, Geração, Cor, Evolução, Altura, Peso |
+| **Pokémon** | 1025 | 1025 | Gerações 1–9 | Tipo 1, Tipo 2, Geração, Cores, Evolução, Altura, Peso |
 | **Bleach** | 221 | 106 | Shinigami, Humanos, Quincy, Arrancar | Raça, Gênero, Afiliação, Bankai, Estreia, Altura, Peso |
 | **Clash Royale** | 120 | 120 | 5 raridades | Raridade, Tipo, Elixir, Arena, Alvo, Velocidade, Vida |
 | **Naruto** | 1431 | 230 | 8 vilas + Akatsuki | Gênero, Clã, Afiliação, Classificação, Natureza, Patente, Estreia, Altura |
@@ -125,6 +125,26 @@ Cinco fontes pedidas **não** deram para usar direto e foram substituídas:
   responde `402 DEPLOYMENT_DISABLED` — está fora do ar. Hunter × Hunter vem da
   API do MediaWiki da **Hunterpedia**: `list=embeddedin` acha as 610 páginas que
   transcluem a ficha de personagem, e o resto é limpar wikitexto.
+
+### As cores do Pokémon saem do sprite
+
+O `color` da PokéAPI é a categoria de busca da Pokédex, não a aparência: é um
+rótulo único, escolhido a dedo, e às vezes ele contradiz o desenho. Moltres
+entra como *amarelo* com um sprite 75% vermelho; Rapidash, *amarelo* com 77% de
+vermelho; Staraptor, *marrom* sendo 61% cinza. Em 61 dos 1025 a cor declarada
+ocupava menos de 5% dos pixels visíveis.
+
+Então `build:pokedex` mede o próprio sprite e grava um campo `colors` com as
+cores que ocupam pelo menos 18% dele (no máximo três, e a dominante entra
+sempre). O vocabulário continua o mesmo da Pokédex, para a coluna seguir
+traduzida, e a coluna virou `list`: conjunto igual fica verde, interseção fica
+amarela — como já acontece com Clã ou Afiliação no Naruto.
+
+Isso resolve as duas metades do problema. Charizard deixa de ser só *vermelho*
+e vira *marrom, vermelho, azul* (asas). Bulbasaur, que é ciano, sai como *verde
+e azul* — o matiz dele fica exatamente na fronteira entre os dois, e duas cores
+ali dizem a verdade que uma só não diz. 257 Pokémon ficaram com uma cor, 558 com
+duas e 210 com três.
 
 ## Modos
 

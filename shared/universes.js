@@ -246,7 +246,8 @@ export const UNIVERSES = {
       { key: 'type1', label: 'Tipo 1', kind: 'slot', slots: ['type1', 'type2'], labels: TYPE_PT },
       { key: 'type2', label: 'Tipo 2', kind: 'slot', slots: ['type1', 'type2'], labels: TYPE_PT },
       { key: 'generation', label: 'Ger.', kind: 'number', prefix: 'Gen ' },
-      { key: 'color', label: 'Cor', kind: 'text', labels: COLOR_PT },
+      // as cores saem do sprite, nao do rotulo unico da Pokedex (build-pokedex.mjs)
+      { key: 'colors', label: 'Cores', kind: 'list', labels: COLOR_PT },
       { key: 'stage', label: 'Evolução', kind: 'number', labels: { 1: '1ª forma', 2: '2ª forma', 3: '3ª forma' } },
       { key: 'height', label: 'Altura', kind: 'number', unit: 'm', tolerance: 0.1 },
       { key: 'weight', label: 'Peso', kind: 'number', unit: 'kg', tolerance: 0.1 },
