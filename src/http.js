@@ -18,6 +18,16 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLIENT_DIST = path.join(ROOT, 'client', 'dist');
 const isProd = process.env.NODE_ENV === 'production';
 
+/**
+ * Identifica o deploy atual. O Render carimba o commit em RENDER_GIT_COMMIT;
+ * fora dele a hora de subida do processo ja basta, porque todo deploy reinicia
+ * o processo. O cliente compara isto com o que veio carimbado no index e, se
+ * mudou, recarrega — assim uma aba aberta durante um deploy nao fica com o
+ * bundle velho.
+ */
+export const BUILD_VERSION =
+  (process.env.RENDER_GIT_COMMIT || '').slice(0, 12) || String(Date.now());
+
 /** Em dev o cliente roda noutra porta (Vite); em producao sai do mesmo host. */
 export const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
@@ -60,6 +70,12 @@ export function createApp() {
 
   // ------------------------------------------------------------------- api
   app.get('/healthz', (_req, res) => res.type('text').send('ok'));
+
+  /** Versao do deploy no ar. Nunca cacheia: e o que o cliente consulta para saber se recarrega. */
+  app.get('/api/version', (_req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json({ version: BUILD_VERSION });
+  });
 
   /** Schema dos universos. O cliente importa shared/ em build; isto e para consumo externo. */
   app.get('/api/universes', (_req, res) => {
@@ -117,10 +133,17 @@ export function createApp() {
   app.use('/assets', express.static(path.join(CLIENT_DIST, 'assets'), { immutable: true, maxAge: '1y' }));
   app.use(express.static(CLIENT_DIST, { index: false, maxAge: '1h' }));
 
+  // o index sai carimbado com a versao do deploy; lido uma vez, servido sempre
+  // fresco (aponta para os assets com hash, entao nunca pode envelhecer)
+  const indexHtml = fs.readFileSync(path.join(CLIENT_DIST, 'index.html'), 'utf8').replace(
+    '</head>',
+    `<script>window.__APP_VERSION__=${JSON.stringify(BUILD_VERSION)}</script></head>`,
+  );
+
   // fallback de SPA: link direto e F5 em qualquer rota devolvem o index
   app.get('*', (_req, res) => {
-    res.set('Cache-Control', 'no-cache');   // o index aponta para os assets: nunca pode envelhecer
-    res.sendFile(path.join(CLIENT_DIST, 'index.html'));
+    res.set('Cache-Control', 'no-cache');
+    res.type('html').send(indexHtml);
   });
 
   return app;

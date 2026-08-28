@@ -413,6 +413,13 @@ try {
   check('duelo fixa as rodadas', roomDuelo.state.settings.rounds === 2);
   check('duelo recusa o "ate acertar" e mantem teto de chutes', roomDuelo.state.settings.guessesPerPlayer > 0);
 
+  // ------------------------------------------------------ versao do deploy
+  console.log('\n== Cache buster ==');
+  const versao = await fetch(`${URL}/api/version`);
+  const { version } = await versao.json();
+  check('/api/version responde', versao.ok && typeof version === 'string' && version.length > 0);
+  check('/api/version nao e cacheado', versao.headers.get('cache-control') === 'no-store');
+
   // ----------------------------------------------------------- reconexao
   console.log('\n== Reconexao ==');
   // volta como quem pontuou no duelo (o escolhedor e sorteado, entao pode ser

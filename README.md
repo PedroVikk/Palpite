@@ -152,6 +152,16 @@ mundo, com placar acumulado ao longo das rodadas.
   Quem não chuta a tempo perde a vez (e um chute, se houver limite).
 - **Chutes por jogador** — quando todos zeram, a rodada acaba sem vencedor.
 
+## Cache entre deploys
+
+Os assets do Vite têm hash no nome e ficam cravados no cache por um ano, mas o
+`index.html` nunca é cacheado e sai carimbado com a versão do deploy
+(`RENDER_GIT_COMMIT`, ou a hora de subida do processo fora do Render). O cliente
+compara esse carimbo com `/api/version` ao voltar o foco da aba e a cada minuto:
+se mudou, um deploy novo entrou no ar e a aba recarrega sozinha. O índice do
+catálogo também vai com `?v=<versão>`, então um deploy invalida o cache dele sem
+esperar a hora de `max-age`.
+
 ## Pontuação
 
 - Quem acerta ganha `100 - 5 × (chutes já feitos na rodada)`, com piso de 25.
