@@ -121,6 +121,19 @@ export function createApp() {
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Rota inexistente.' }));
 
   // ------------------------------------------------------------- estaticos
+  /**
+   * O espelho das miniaturas (npm run mirror:sprites). O caminho ja carrega
+   * universo e id, e o arquivo so muda em outro deploy: pode cravar no cache.
+   * Vem antes do early return abaixo para valer tambem quando so a API sobe,
+   * em dev. Com fallthrough desligado, miniatura ausente da 404 em vez de cair
+   * no index.html do SPA.
+   */
+  app.use('/sprites', express.static(path.join(ROOT, 'data', 'sprites'), {
+    immutable: true,
+    maxAge: '1y',
+    fallthrough: false,
+  }));
+
   if (!fs.existsSync(path.join(CLIENT_DIST, 'index.html'))) {
     // rodar so a API e legitimo em dev (o Vite serve o cliente na 5173),
     // entao isto avisa em vez de derrubar o processo

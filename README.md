@@ -203,7 +203,10 @@ src/game.js                comparação e pontuação — puro, guiado pelo sche
 src/catalog.js             datasets em memória + índice enxuto do cliente
 client/src/                interface React (telas, componentes, estilos)
 scripts/build-*.mjs        uma ingestão por universo -> data/<nome>.json
+scripts/mirror-sprites.mjs baixa as miniaturas -> data/sprites/<universo>/
 scripts/smoke-test.mjs     teste end-to-end com jogadores simulados
+data/*.json                os datasets prontos, versionados junto do código
+data/sprites/              as miniaturas espelhadas, servidas pelo próprio app
 ```
 
 Para desenvolver o front com recarga instantânea, deixe os dois rodando: `npm
@@ -248,6 +251,41 @@ Ou um de cada vez: `build:pokedex`, `build:bleach`, `build:clash`,
 `build:rickmorty`, `build:heroes`, `build:potter`, `build:lotr`, `build:f1`,
 `build:cars`, `build:mlp`, `build:onepiece`, `build:dragonball`, `build:hxh`.
 As respostas ficam em `.cache/`, então rodar de novo é instantâneo.
+
+Depois de regerar um dataset, `npm run mirror:sprites` baixa as miniaturas que
+entraram — veja [Se as APIs caírem](#se-as-apis-caírem).
+
+## Se as APIs caírem
+
+O jogo não fala com API nenhuma em tempo de execução: os dezoito datasets vivem
+em `data/*.json`, versionados junto do código, e o `src/catalog.js` lê tudo do
+disco na subida. Com todas as fontes fora do ar, as partidas continuam iguais.
+
+As imagens eram a exceção — `sprite` e `artwork` apontavam para onze CDNs de
+terceiros. Por isso as miniaturas também moram aqui:
+
+```bash
+npm run mirror:sprites
+```
+
+Baixa cada `sprite`, reduz para 128px (o tamanho em que ela aparece na busca de
+chute e na tabela de dicas) e grava em `data/sprites/<universo>/<id>.webp`: são
+9.008 arquivos, 27,8 MB no total — os originais crus dariam ~1,5 GB. Rodar de
+novo pega só o que falta, `--only=<universo>` limita a um universo e `--force`
+refaz tudo.
+
+O script não mexe nos JSONs: quem troca a URL remota pelo caminho local é o
+catálogo, na leitura. Assim os `build-*.mjs` continuam gravando a URL de origem,
+e regerar um dataset não apaga o espelho nem enche o diff de caminhos locais.
+Quem não foi espelhado — 74 sprites cuja URL já dá 404 na origem — segue
+apontando para a CDN, como antes.
+
+Fora do espelho ficou a arte grande do reveal: guardá-las em tamanho cheio
+custaria centenas de MB. Quando ela não carrega, o reveal cai na miniatura
+local — perde resolução, não a imagem.
+
+O que ainda depende das fontes é **reconstruir** os datasets (`npm run
+build:data`). As respostas ficam em `.cache/`, que não vai para o git.
 
 ## Deploy grátis
 

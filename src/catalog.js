@@ -6,6 +6,9 @@
  * as colunas da tabela de dicas chegam prontas pelo socket. Mandar o dataset
  * cru seria 1 MB so no Yu-Gi-Oh!, entao o indice do cliente ja sai daqui
  * recortado, serializado e comprimido: uma vez, nao a cada request.
+ *
+ * E tambem aqui que a miniatura remota da lugar a espelhada em data/sprites/,
+ * quando ela existe.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -40,15 +43,44 @@ function buildIndex(list, scopeKey) {
   };
 }
 
+/**
+ * Troca a URL da CDN pela miniatura espelhada em
+ * data/sprites/<universo>/<id>.webp (npm run mirror:sprites). Com o espelho no
+ * lugar o jogo mostra as imagens mesmo se o Fandom ou o ygoprodeck cair; quem
+ * ficou de fora — falha no espelho, universo sem imagem — continua apontando
+ * para a origem.
+ *
+ * A troca mora na leitura, e nao nos JSONs, para os build-*.mjs seguirem
+ * gravando a URL de origem: assim reconstruir um dataset nao apaga o espelho
+ * nem enche o diff de caminhos locais.
+ */
+function useMirror(list, universeId) {
+  let files;
+  try {
+    files = new Set(fs.readdirSync(path.join(ROOT, 'data', 'sprites', universeId)));
+  } catch {
+    return 0;   // universo ainda nao espelhado
+  }
+  let mirrored = 0;
+  for (const item of list) {
+    if (!files.has(`${item.id}.webp`)) continue;
+    item.sprite = `/sprites/${universeId}/${item.id}.webp`;
+    mirrored++;
+  }
+  return mirrored;
+}
+
 const catalog = new Map();
 
 for (const universe of Object.values(UNIVERSES)) {
   const list = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', universe.dataFile), 'utf8'));
+  const mirrored = useMirror(list, universe.id);
   const index = buildIndex(list, universe.scope?.key ?? null);
   catalog.set(universe.id, { list, byId: new Map(list.map(item => [item.id, item])), index });
   console.log(
     `${universe.label}: ${list.length} itens`
     + ` (${list.filter(i => i.eligible).length} sorteáveis,`
+    + ` ${mirrored} miniaturas locais,`
     + ` índice ${(index.gzip.length / 1024).toFixed(0)} KB comprimido)`
   );
 }

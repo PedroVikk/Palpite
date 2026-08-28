@@ -13,6 +13,7 @@
     "build:pokedex": "node scripts/build-pokedex.mjs",
     "build:bleach": "node scripts/build-bleach.mjs",
     "build:data": "npm run build:pokedex && npm run build:bleach && npm run build:naruto && npm run build:clash && npm run build:yugioh && npm run build:lol && npm run build:valorant && npm run build:rickmorty && npm run build:heroes && npm run build:potter && npm run build:lotr && npm run build:f1 && npm run build:cars && npm run build:mlp && npm run build:onepiece && npm run build:dragonball && npm run build:hxh",
+    "mirror:sprites": "node scripts/mirror-sprites.mjs",
     "build:naruto": "node scripts/build-naruto.mjs",
     "build:clash": "node --max-old-space-size=2048 scripts/build-clash.mjs",
     "build:rickmorty": "node scripts/build-rickmorty.mjs",
@@ -37,6 +38,7 @@
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
+    "sharp": "^0.35.4",
     "socket.io-client": "^4.8.3"
   }
 }

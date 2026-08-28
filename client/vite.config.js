@@ -17,6 +17,7 @@ export default defineConfig({
     // com o proxy o navegador ve tudo na mesma origem, entao nao ha CORS em dev
     proxy: {
       '/api': API,
+      '/sprites': API,
       '/socket.io': { target: API, ws: true },
     },
   },
