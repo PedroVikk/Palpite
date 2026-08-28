@@ -9,7 +9,7 @@ const LIMIT = 40;
 /**
  * @param items    catalogo do universo (indice enxuto vindo de /api/dataset)
  * @param choosing no duelo, escolher o segredo so aceita sorteaveis dos grupos
- * @param groups   grupos ligados na sala
+ * @param groups   grupos ligados na sala; vazio (ex.: desafio diario) = catalogo inteiro
  * @param guessed  ids ja chutados na rodada, que somem da lista
  * @param inScope  recorte do universo (o anime/manga do Hunter x Hunter)
  */
@@ -20,9 +20,13 @@ export function search(query, { items, choosing = false, groups = [], guessed = 
   const groupSet = new Set(groups);
   const guessedSet = new Set(choosing ? [] : guessed);
   const scoped = inScope ?? (() => true);
+  // o chute segue os mesmos grupos/recorte que o segredo: se a sala so ligou a
+  // Gen 1, nao adianta oferecer um Pokemon de fora. Sem grupos (desafio diario)
+  // a busca varre o catalogo todo. So o "choosing" exige tambem `eligible`.
+  const inPool = (i) => groupSet.has(i.group) && scoped(i);
   const source = choosing
-    ? items.filter(i => i.eligible && groupSet.has(i.group) && scoped(i))
-    : items;
+    ? items.filter(i => i.eligible && inPool(i))
+    : (groups.length ? items.filter(inPool) : items);
 
   const starts = [], contains = [];
   for (const item of source) {

@@ -74,12 +74,15 @@ try {
   check('segredo escondido durante a partida', ash.state.secret === null);
   check('chutes distribuidos', ash.state.players.every(p => p.guessesLeft === 2));
 
+  // chutes de Gen 2 (152+): aceitos como chute mas nunca sao o segredo (a sala
+  // so ligou a Gen 1), entao a rodada fecha por esgotamento sem vencedor
+
   // fora da vez: deve ser rejeitado
-  misty.socket.emit('game:guess', { pokemonId: 25 });
+  misty.socket.emit('game:guess', { pokemonId: 152 });
   await sleep(150);
   check('chute fora da vez recusado', misty.errors.some(e => e.includes('sua vez')));
 
-  ash.socket.emit('game:guess', { pokemonId: 25 }); // Pikachu
+  ash.socket.emit('game:guess', { pokemonId: 152 }); // Chikorita
   await until(ash, s => s.rows.length === 1, 'primeira dica publicada');
   const row = ash.state.rows[0];
   check('dica tem as 7 colunas', Object.keys(row.cells).length === 7);
@@ -87,12 +90,12 @@ try {
   check('turno passou para Misty', ash.state.turnPlayerId === ash.state.players[1].id);
 
   // repetir o mesmo Pokemon deve ser bloqueado
-  misty.socket.emit('game:guess', { pokemonId: 25 });
+  misty.socket.emit('game:guess', { pokemonId: 152 });
   await sleep(150);
   check('chute repetido recusado', misty.errors.some(e => e.includes('já foi chutado')));
 
   // Pokemon fora dos grupos da sala ainda e aceito como chute (so o segredo e limitado)
-  misty.socket.emit('game:guess', { pokemonId: 1 });
+  misty.socket.emit('game:guess', { pokemonId: 153 });
   await until(ash, s => s.rows.length === 2, 'segunda dica');
   check('turno passou para Brock', ash.state.turnPlayerId === ash.state.players[2].id);
 
@@ -104,9 +107,9 @@ try {
   check('a vez voltou para Ash', ash.state.turnPlayerId === ash.state.players[0].id);
 
   // gasta os chutes restantes de Ash e Misty; Brock deixa estourar de novo
-  ash.socket.emit('game:guess', { pokemonId: 4 });
+  ash.socket.emit('game:guess', { pokemonId: 154 });
   await until(ash, s => s.rows.length === 3, 'terceira dica');
-  misty.socket.emit('game:guess', { pokemonId: 7 });
+  misty.socket.emit('game:guess', { pokemonId: 155 });
   await until(ash, s => s.rows.length === 4, 'quarta dica');
 
   const ended = await until(ash, s => s.phase === 'roundEnd', 'fim da rodada 1', 12000);
@@ -185,6 +188,7 @@ try {
   check('segredo era o escolhido', seeker.state.secret?.id === 143);
   check('adversario pontuou', seeker.state.players.find(p => p.id !== seeker.state.chooserId).score > 0);
   check('escolhedor nao pontuou', seeker.state.players.find(p => p.id === seeker.state.chooserId).score === 0);
+  const seekerId = seeker.state.players.find(p => p.id !== seeker.state.chooserId).id;
 
   // ----------------------------------------------------------- todos os universos
   // Um bloco generico: cada universo novo em shared/universes.js entra aqui
@@ -361,17 +365,16 @@ try {
   await until(inf1, s => s.phase === 'playing', 'partida "ate acertar" comecou');
   check('chutes aparecem como ilimitados', inf1.state.players.every(p => p.guessesLeft === null));
 
-  // 30 chutes: com teto de 6 a rodada ja teria fechado
+  // 30 chutes de Gen 2 (152-181): sao aceitos como chute mas nunca sao o
+  // segredo (a sala so ligou a Gen 1), entao a rodada fica aberta de proposito
+  // — com teto de 6 ela ja teria fechado
   for (let i = 1; i <= 30; i++) {
     const who = inf1.state.turnPlayerId === roomInf.playerId ? inf1 : inf2;
-    who.socket.emit('game:guess', { pokemonId: i });
-    await until(inf1, s => s.rows.length === i || s.phase !== 'playing', `chute "ate acertar" ${i}`);
-    if (inf1.state.phase !== 'playing') break;
+    who.socket.emit('game:guess', { pokemonId: 151 + i });
+    await until(inf1, s => s.rows.length === i, `chute "ate acertar" ${i}`);
   }
-  const acertouCedo = inf1.state.phase !== 'playing';
-  check('rodada segue depois de 30 chutes (ou fechou por acerto)',
-    acertouCedo ? inf1.state.rows.some(r => r.correct) : inf1.state.rows.length === 30);
-  check('ninguem ficou sem chute', acertouCedo || inf1.state.players.every(p => p.guessesLeft === null));
+  check('rodada segue depois de 30 chutes', inf1.state.phase === 'playing' && inf1.state.rows.length === 30);
+  check('ninguem ficou sem chute', inf1.state.players.every(p => p.guessesLeft === null));
 
   // so o host encerra, e o placar final sai
   inf2.socket.emit('game:end');
@@ -412,11 +415,13 @@ try {
 
   // ----------------------------------------------------------- reconexao
   console.log('\n== Reconexao ==');
-  const back = await connect('May');
+  // volta como quem pontuou no duelo (o escolhedor e sorteado, entao pode ser
+  // gary ou may): o teste confere que o placar sobrevive a reconexao
+  const back = await connect(seeker.name);
   const rejoined = await new Promise(res => back.socket.emit('room:join', {
-    code: room3.code, name: 'May', playerId: may.state.players[1].id,
+    code: room3.code, name: seeker.name, playerId: seekerId,
   }, res));
-  check('reconectou como o mesmo jogador', rejoined.playerId === may.state.players[1].id);
+  check('reconectou como o mesmo jogador', rejoined.playerId === seekerId);
   check('placar preservado', rejoined.state.players.find(p => p.id === rejoined.playerId).score > 0);
   check('sala nao duplicou jogador', rejoined.state.players.length === 2);
 
