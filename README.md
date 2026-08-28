@@ -270,15 +270,26 @@ npm run mirror:sprites
 
 Baixa cada `sprite`, reduz para 128px (o tamanho em que ela aparece na busca de
 chute e na tabela de dicas) e grava em `data/sprites/<universo>/<id>.webp`: são
-9.008 arquivos, 27,8 MB no total — os originais crus dariam ~1,5 GB. Rodar de
+9.080 arquivos, 27,9 MB no total — os originais crus dariam ~1,5 GB. Rodar de
 novo pega só o que falta, `--only=<universo>` limita a um universo e `--force`
-refaz tudo.
+refaz tudo. Hoje o espelho cobre 100% dos itens que têm imagem.
 
 O script não mexe nos JSONs: quem troca a URL remota pelo caminho local é o
 catálogo, na leitura. Assim os `build-*.mjs` continuam gravando a URL de origem,
 e regerar um dataset não apaga o espelho nem enche o diff de caminhos locais.
-Quem não foi espelhado — 74 sprites cuja URL já dá 404 na origem — segue
-apontando para a CDN, como antes.
+
+### Links podres na origem
+
+As APIs de Naruto e My Little Pony raspam a Fandom e guardam o link da imagem;
+quando a wiki renomeia o arquivo, elas seguem servindo o antigo. Eram 74
+retratos com 404 — 73 no Naruto (o Jiraiya entre eles) e 1 no My Little Pony.
+
+Por isso `build:naruto` e `build:mlp` conferem cada imagem por HEAD antes de
+escrever o dataset e, para as mortas, pedem o retrato atual à própria wiki
+(`prop=pageimages`, o mesmo caminho que o `build:hxh` já usava). Sobraram dois
+personagens do Naruto sem retrato em lugar nenhum: ficam com `sprite: null`, e
+o cliente simplesmente não pede imagem. O veredito de cada URL fica em
+`.cache/`, então a conferência só custa na primeira vez.
 
 Fora do espelho ficou a arte grande do reveal: guardá-las em tamanho cheio
 custaria centenas de MB. Quando ela não carrega, o reveal cai na miniatura

@@ -4,11 +4,19 @@
  *
  * A base publica e https://dattebayo-api.onrender.com (o dominio .vercel.app
  * serve so a documentacao). Sao 1431 personagens em paginas de 100.
+ *
+ * Os retratos que ela indica envelhecem: a Narutopedia renomeia e apaga
+ * arquivos e a API segue servindo o link antigo. Por isso, antes de escrever o
+ * dataset, cada imagem e conferida e as mortas dao lugar ao retrato atual da
+ * propria wiki.
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const API = 'https://dattebayo-api.onrender.com';
+const WIKI = 'https://naruto.fandom.com/api.php';
+const UA = { 'User-Agent': 'palpite-build/1.0 (+https://github.com/PedroVikk)' };
 const ROOT = path.resolve(process.cwd());
 const OUT = path.join(ROOT, 'data', 'naruto.json');
 const CACHE_DIR = path.join(ROOT, '.cache', 'naruto');
@@ -33,6 +41,89 @@ async function getPage(page) {
       await new Promise(r => setTimeout(r, 600 * attempt * attempt));
     }
   }
+}
+
+// ------------------------------------------------------------ retratos
+
+/**
+ * Confere por HEAD se cada retrato ainda existe. Nao da para adivinhar quais
+ * apodreceram sem perguntar, entao vao todos — mas o veredito fica no cache,
+ * junto das paginas, e so as URLs novas sao checadas na proxima vez.
+ */
+async function checarImagens(urls) {
+  const file = path.join(CACHE_DIR, 'imagens_vivas.json');
+  let veredito = {};
+  try {
+    veredito = JSON.parse(await fs.readFile(file, 'utf8'));
+  } catch {}
+
+  const faltando = urls.filter(url => veredito[url] === undefined);
+  if (!faltando.length) return veredito;
+
+  let cursor = 0;
+  let feitas = 0;
+  const worker = async () => {
+    while (cursor < faltando.length) {
+      const url = faltando[cursor++];
+      try {
+        const res = await fetch(url, { method: 'HEAD', headers: UA, signal: AbortSignal.timeout(15_000) });
+        veredito[url] = res.ok;
+      } catch {
+        veredito[url] = false;
+      }
+      if (++feitas % 50 === 0) process.stdout.write(`\r  ${feitas}/${faltando.length}`);
+    }
+  };
+  await Promise.all(Array.from({ length: 8 }, worker));
+  process.stdout.write(`\r  ${feitas}/${faltando.length}\n`);
+
+  await fs.writeFile(file, JSON.stringify(veredito));
+  return veredito;
+}
+
+/**
+ * Retrato atual de cada pagina da Narutopedia (prop=pageimages, o mesmo caminho
+ * do build do Hunter x Hunter). O MediaWiki normaliza o titulo e segue
+ * redirecionamento, entao o mapa desfaz os dois saltos: ele volta com o nome
+ * que entrou, nao com o titulo final da pagina.
+ */
+async function retratosDaWiki(nomes) {
+  const retratos = new Map();
+  const lotes = Array.from(
+    { length: Math.ceil(nomes.length / 50) },
+    (_, i) => nomes.slice(i * 50, i * 50 + 50),
+  );
+
+  for (const [i, lote] of lotes.entries()) {
+    process.stdout.write(`\r  lote ${i + 1}/${lotes.length}`);
+    const joined = lote.join('|');
+    const slug = createHash('sha1').update(joined).digest('hex').slice(0, 12);
+    const file = path.join(CACHE_DIR, `retratos_${slug}.json`);
+
+    let json;
+    try {
+      json = JSON.parse(await fs.readFile(file, 'utf8'));
+    } catch {
+      const params = new URLSearchParams({
+        action: 'query', prop: 'pageimages', pithumbsize: '400',
+        titles: joined, redirects: '1', format: 'json',
+      });
+      const res = await fetch(`${WIKI}?${params}`, { headers: UA });
+      if (!res.ok) throw new Error(`Narutopedia: HTTP ${res.status}`);
+      json = await res.json();
+      await fs.writeFile(file, JSON.stringify(json));
+    }
+
+    const daNormalizacao = new Map((json.query?.normalized ?? []).map(n => [n.to, n.from]));
+    const doRedirect = new Map((json.query?.redirects ?? []).map(r => [r.to, r.from]));
+    for (const page of Object.values(json.query?.pages ?? {})) {
+      if (!page.thumbnail?.source) continue;
+      const antes = doRedirect.get(page.title) ?? page.title;
+      retratos.set(daNormalizacao.get(antes) ?? antes, page.thumbnail.source);
+    }
+  }
+  process.stdout.write('\n');
+  return retratos;
 }
 
 // ------------------------------------------------------------ parsing
@@ -124,15 +215,40 @@ const roster = raw.map((c, index) => {
     sprite: c.images?.[0] ?? null,
     artwork: c.images?.[0] ?? null,
   };
+  return item;
+});
 
-  // so quem tem dados completos pode ser sorteado como segredo;
-  // qualquer um continua valendo como chute
+// ------------------------------------------------------- conserto de imagens
+
+console.log('\nConferindo os retratos indicados pela API...');
+const veredito = await checarImagens([...new Set(roster.map(c => c.sprite).filter(Boolean))]);
+
+const quebrados = roster.filter(c => c.sprite && !veredito[c.sprite]);
+console.log(`  ${quebrados.length} fora do ar`);
+
+if (quebrados.length) {
+  console.log('Procurando o retrato atual na Narutopedia...');
+  const retratos = await retratosDaWiki([...new Set(quebrados.map(c => c.name))]);
+  let repostos = 0;
+  for (const item of quebrados) {
+    // sem retrato na wiki o campo fica null: melhor sem imagem do que com uma
+    // que o navegador nao consegue carregar
+    const atual = retratos.get(item.name) ?? null;
+    item.sprite = atual;
+    item.artwork = atual;
+    if (atual) repostos++;
+  }
+  console.log(`  ${repostos} repostos, ${quebrados.length - repostos} ficaram sem imagem`);
+}
+
+// so quem tem dados completos pode ser sorteado como segredo; qualquer um
+// continua valendo como chute. Vem depois do conserto porque a imagem conta.
+for (const item of roster) {
   item.eligible = Boolean(
     item.gender && item.affiliation.length && item.debutChapter != null &&
     item.height != null && item.sprite,
   );
-  return item;
-});
+}
 
 // ------------------------------------------------------------ cobertura
 

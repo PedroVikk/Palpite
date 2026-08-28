@@ -18,11 +18,15 @@
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const URL = 'https://ponyapi.net/v1/character/all?limit=1000';
+const WIKI = 'https://mlp.fandom.com/api.php';
+const UA = { 'User-Agent': 'palpite-build/1.0 (+https://github.com/PedroVikk)' };
 const ROOT = path.resolve(process.cwd());
 const OUT = path.join(ROOT, 'data', 'mlp.json');
-const CACHE = path.join(ROOT, '.cache', 'mlp', 'characters.json');
+const CACHE_DIR = path.join(ROOT, '.cache', 'mlp');
+const CACHE = path.join(CACHE_DIR, 'characters.json');
 
 async function source() {
   try {
@@ -156,6 +160,86 @@ function primaryKind(kinds) {
 /** As chaves da coluna `list` precisam ser estaveis: viram rotulo no schema. */
 const slug = (kind) => String(kind).toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
+// ------------------------------------------------------------------ retratos
+
+/**
+ * A PonyAPI raspou o fandom uma vez e guardou o link; quando a wiki renomeia o
+ * arquivo, ela continua servindo o antigo. Conferimos todos por HEAD (o
+ * veredito fica no cache, entao so as URLs novas custam) e trocamos as mortas
+ * pelo retrato atual da propria wiki.
+ */
+async function checarImagens(urls) {
+  const file = path.join(CACHE_DIR, 'imagens_vivas.json');
+  let veredito = {};
+  try {
+    veredito = JSON.parse(await fs.readFile(file, 'utf8'));
+  } catch {}
+
+  const faltando = urls.filter(url => veredito[url] === undefined);
+  if (!faltando.length) return veredito;
+
+  let cursor = 0;
+  let feitas = 0;
+  const worker = async () => {
+    while (cursor < faltando.length) {
+      const url = faltando[cursor++];
+      try {
+        const res = await fetch(url, { method: 'HEAD', headers: UA, signal: AbortSignal.timeout(15_000) });
+        veredito[url] = res.ok;
+      } catch {
+        veredito[url] = false;
+      }
+      if (++feitas % 50 === 0) process.stdout.write(`\r  ${feitas}/${faltando.length}`);
+    }
+  };
+  await Promise.all(Array.from({ length: 8 }, worker));
+  process.stdout.write(`\r  ${feitas}/${faltando.length}\n`);
+
+  await fs.mkdir(CACHE_DIR, { recursive: true });
+  await fs.writeFile(file, JSON.stringify(veredito));
+  return veredito;
+}
+
+/** Retrato atual da pagina na wiki (prop=pageimages), pelo nome do personagem. */
+async function retratosDaWiki(nomes) {
+  const retratos = new Map();
+  const lotes = Array.from(
+    { length: Math.ceil(nomes.length / 50) },
+    (_, i) => nomes.slice(i * 50, i * 50 + 50),
+  );
+
+  for (const lote of lotes) {
+    const joined = lote.join('|');
+    const slug = createHash('sha1').update(joined).digest('hex').slice(0, 12);
+    const file = path.join(CACHE_DIR, `retratos_${slug}.json`);
+
+    let json;
+    try {
+      json = JSON.parse(await fs.readFile(file, 'utf8'));
+    } catch {
+      const params = new URLSearchParams({
+        action: 'query', prop: 'pageimages', pithumbsize: '400',
+        titles: joined, redirects: '1', format: 'json',
+      });
+      const res = await fetch(`${WIKI}?${params}`, { headers: UA });
+      if (!res.ok) throw new Error(`Fandom: HTTP ${res.status}`);
+      json = await res.json();
+      await fs.writeFile(file, JSON.stringify(json));
+    }
+
+    // o titulo volta normalizado (e as vezes redirecionado): desfaz os dois
+    // saltos para casar com o nome que veio da PonyAPI
+    const daNormalizacao = new Map((json.query?.normalized ?? []).map(n => [n.to, n.from]));
+    const doRedirect = new Map((json.query?.redirects ?? []).map(r => [r.to, r.from]));
+    for (const page of Object.values(json.query?.pages ?? {})) {
+      if (!page.thumbnail?.source) continue;
+      const antes = doRedirect.get(page.title) ?? page.title;
+      retratos.set(daNormalizacao.get(antes) ?? antes, page.thumbnail.source);
+    }
+  }
+  return retratos;
+}
+
 // ------------------------------------------------------------------ montagem
 
 const { data } = await source();
@@ -189,6 +273,28 @@ const roster = data.map((character) => {
   );
   return item;
 });
+
+// ------------------------------------------------------------------ conserto
+
+console.log('\nConferindo os retratos indicados pela API...');
+const veredito = await checarImagens([...new Set(roster.map(c => c.artwork).filter(Boolean))]);
+
+const quebrados = roster.filter(c => c.artwork && !veredito[c.artwork]);
+console.log(`  ${quebrados.length} fora do ar`);
+
+if (quebrados.length) {
+  const retratos = await retratosDaWiki([...new Set(quebrados.map(c => c.name))]);
+  let repostos = 0;
+  for (const item of quebrados) {
+    // sem retrato na wiki o campo fica null: melhor sem imagem do que com uma
+    // que o navegador nao consegue carregar
+    const atual = retratos.get(item.name) ?? null;
+    item.sprite = atual;
+    item.artwork = atual;
+    if (atual) repostos++;
+  }
+  console.log(`  ${repostos} repostos pela wiki, ${quebrados.length - repostos} ficaram sem imagem`);
+}
 
 // ------------------------------------------------------------------ relatorio
 
