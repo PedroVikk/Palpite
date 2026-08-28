@@ -1,4 +1,4 @@
-import { getUniverse } from '@shared/universes.js';
+import { getUniverse, scopeFilter } from '@shared/universes.js';
 import { socket } from '../socket.js';
 import { useDataset } from '../hooks/useDataset.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -70,6 +70,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
               items={items}
               guessedIds={state.rows.map(row => row.id)}
               groups={state.settings.groups}
+              inScope={scopeFilter(universe, state.settings.scope)}
               active={isMyTurn || isMyChoice}
               choosing={isMyChoice}
               focusKey={state.phase}

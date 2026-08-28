@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { UNIVERSES, getUniverse } from '@shared/universes.js';
+import { UNIVERSES, getUniverse, scopeFilter } from '@shared/universes.js';
 import { socket } from '../socket.js';
 import { useDataset } from '../hooks/useDataset.js';
 import { CopyIcon, ExitIcon } from '../components/Icon.jsx';
@@ -13,6 +13,7 @@ const fromSettings = (s) => ({
   mode: s.mode,
   universe: s.universe,
   groups: s.groups,
+  scope: s.scope ?? null,
   rounds: s.rounds || 5,
   turnSeconds: s.turnSeconds,
   guessesPerPlayer: s.guessesPerPlayer || 6,
@@ -23,6 +24,7 @@ const toSettings = (f) => ({
   mode: f.mode,
   universe: f.universe,
   groups: f.groups,
+  scope: f.scope,
   rounds: f.endless ? 0 : f.rounds,
   turnSeconds: f.turnSeconds,
   guessesPerPlayer: f.guessesPerPlayer,
@@ -46,8 +48,9 @@ export default function LobbyScreen({ state, myId, toast, onLeave }) {
   const poolSize = useMemo(() => {
     if (!items) return null;
     const groups = new Set(form.groups);
-    return items.filter(item => item.eligible && groups.has(item.group)).length;
-  }, [items, form.groups]);
+    const inScope = scopeFilter(universe, form.scope);
+    return items.filter(item => item.eligible && groups.has(item.group) && inScope(item)).length;
+  }, [items, form.groups, form.scope, universe]);
 
   function change(patch) {
     const next = { ...form, ...patch };
@@ -126,12 +129,40 @@ export default function LobbyScreen({ state, myId, toast, onLeave }) {
                 onChange={e => change({
                   universe: e.target.value,
                   groups: [...getUniverse(e.target.value).defaultGroups],
+                  scope: getUniverse(e.target.value).scope?.default ?? null,
                 })}
               >
                 {Object.values(UNIVERSES).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
               </select>
             </label>
           </div>
+
+          {universe.scope && (
+            <div className="field">
+              <span>{universe.scope.label}</span>
+              <div className="chips">
+                {universe.scope.options.map(option => {
+                  const on = (form.scope ?? universe.scope.default) === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`chip ${on ? 'on' : ''}`}
+                      disabled={!isHost}
+                      aria-pressed={on}
+                      title={option.hint}
+                      onClick={() => change({ scope: option.id })}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="muted">
+                {universe.scope.options.find(o => o.id === (form.scope ?? universe.scope.default))?.hint}
+              </p>
+            </div>
+          )}
 
           <div className="field">
             <span>{universe.groupLabel}</span>

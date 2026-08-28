@@ -10,20 +10,26 @@ import { SearchIcon, SendIcon } from '../components/Icon.jsx';
  * para servir tanto a partida quanto o desafio diario.
  */
 export default function GuessBar({
-  items, guessedIds, groups = [], active, choosing = false, focusKey, onSubmit,
+  items, guessedIds, groups = [], inScope, active, choosing = false, focusKey, onSubmit,
 }) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
   const [open, setOpen] = useState(false);
   const boxRef = useRef(null);
   const inputRef = useRef(null);
+  const listRef = useRef(null);
 
   const suggestions = useMemo(() => {
     if (!query.trim()) return [];
-    return search(query, { items, choosing, groups, guessed: guessedIds });
-  }, [query, items, choosing, groups, guessedIds]);
+    return search(query, { items, choosing, groups, guessed: guessedIds, inScope });
+  }, [query, items, choosing, groups, guessedIds, inScope]);
 
   useEffect(() => { setIndex(0); }, [query]);
+
+  // a lista rola: sem isto a seta do teclado sairia da area visivel
+  useEffect(() => {
+    listRef.current?.children[index]?.scrollIntoView({ block: 'nearest' });
+  }, [index]);
 
   // chegou a vez: o foco vai para o campo sem o jogador precisar clicar
   useEffect(() => {
@@ -80,7 +86,7 @@ export default function GuessBar({
           onKeyDown={onKeyDown}
         />
         {open && suggestions.length > 0 && (
-          <ul className="suggestions">
+          <ul className="suggestions" ref={listRef}>
             {suggestions.map((item, i) => (
               <li
                 key={item.id}

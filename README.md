@@ -1,6 +1,6 @@
 # Palpite
 
-Um jogo de adivinhação multiplayer no estilo Pokédle, com **quinze universos**.
+Um jogo de adivinhação multiplayer no estilo Pokédle, com **dezoito universos**.
 Um secreto por rodada, todo mundo na mesma sala, **um chute por vez**. Cada
 chute vira uma linha de dicas visível para todos — verde acerta, amarelo chega
 perto, seta indica se o secreto é maior ou menor.
@@ -44,6 +44,9 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Fórmula 1** | 853 | 265 | 8 décadas de estreia | País, Equipe, Temporadas, Vitórias, Títulos, Estreia, Nascimento |
 | **Carros** | 1570 | 1020 | 9 origens de marca | Marca, Categoria, Tração, Combustível, Cilindros, Cilindrada, Estreia, Último ano |
 | **My Little Pony** | 555 | 211 | 6 espécies | Espécie, Gênero, Residência, Ocupação |
+| **One Piece** | 786 | 375 | 7 facções | Tripulação, Papel, Fruta, Status, Recompensa, Altura, Idade |
+| **Dragon Ball** | 58 | 43 | 6 raças | Raça, Gênero, Afiliação, Planeta, Transformações, Ki base, Ki máximo |
+| **Hunter × Hunter 2011** | 607 | 447 | 7 facções | Gênero, Nen, Estado, Afiliação, Ocupação, Cabelo, Estreia |
 
 **Sorteáveis** são os que têm dados completos o bastante para uma rodada justa.
 Qualquer um pode ser **chutado** — a restrição vale só para o secreto. Por isso
@@ -52,6 +55,29 @@ secundários sem altura, afiliação ou episódio de estreia. No Yu-Gi-Oh, das 1
 cartas ficam as 3000 mais vistas no site, e só as 600 mais vistas viram segredo.
 Na Fórmula 1, sorteáveis são os vencedores de corrida, quem tem 5+ temporadas ou
 quem correu de 2020 para cá — os outros 588 são nomes de uma prova só.
+
+Em **One Piece**, a api-onepiece não traz imagem e ficou meio traduzida do
+francês ("Baggy", "Chapeau de Paille"), então a ficha vem dela e o nome
+canônico e o retrato vêm da One Piece Wiki — 88% casam, e o nome francês fica
+de apelido na busca. Sorteável precisa de retrato, tripulação, papel, status e
+altura ou idade. *Recompensa* é o campo mais vazio da API (26% dos sorteáveis):
+a maioria dos personagens nunca teve uma anunciada. Em **Dragon Ball** o ki
+varia de 450 ao "969 Googolplex" do Zeno, então a célula mostra a ordem de
+grandeza ("Milhões", "Setilhões") em vez do número — as setas ▲▼ continuam
+valendo. Quem não tem ki na base (Bulma, Chi-Chi) pode ser chutado, mas não
+sorteado. **Hunter × Hunter 2011** leva esse nome porque a Hunterpedia entrega
+o retrato e a cor de cabelo da adaptação de 2011 sempre que ela existe. Lá,
+*Nen* distingue o campo escrito "Unknown" na ficha — que é informação, e fecha
+verde contra outro nunca revelado — de quem não tem o campo; e *Ocupação*
+agrupa o texto livre da wiki em treze papéis, senão cada personagem teria um
+valor único e a coluna nunca ficaria verde.
+
+Hunter × Hunter é também o único universo com **recorte**: o mangá passou muito
+do que foi animado, então a sala pergunta se entra o elenco todo (447
+sorteáveis) ou só quem apareceu em algum episódio, OVA ou filme (271). Quem não
+tem `anime debut` na ficha só existe no papel — é quase todo o arco de Kakin.
+O recorte é um segundo filtro, independente dos grupos; qualquer universo pode
+ganhar o seu declarando `scope` no schema.
 
 Em **Carros**, cada item é um modelo (as versões de motor viram um só "Toyota
 Corolla"), e o secreto precisa de 3+ anos de linha e ficha completa — elétricos
@@ -79,8 +105,11 @@ não aparecem as setas ▲/▼.
 | [F1 API](https://f1api.dev/) | não |
 | [EPA fueleconomy.gov](https://www.fueleconomy.gov/feg/ws/) | não |
 | [PonyAPI](https://ponyapi.net/) | não |
+| [api-onepiece](https://api-onepiece.com/) | não |
+| [Dragon Ball API](https://dragonball-api.com/) | não |
+| [Hunterpedia (MediaWiki)](https://hunterxhunter.fandom.com/) | não |
 
-Quatro fontes pedidas **não** deram para usar direto e foram substituídas:
+Cinco fontes pedidas **não** deram para usar direto e foram substituídas:
 
 - **developer.riotgames.com** exige chave que expira a cada 24h e serve dados de
   partidas, não a ficha dos campeões. O **Data Dragon** da própria Riot é aberto,
@@ -92,6 +121,10 @@ Quatro fontes pedidas **não** deram para usar direto e foram substituídas:
 - **the-one-api.dev** devolve 401 em `/character` sem token Bearer (só `/book` é
   público). A **LOTR API da vlayer** é aberta: são apenas 25 personagens, mas
   todos os principais e com todos os campos preenchidos.
+- **hxh-api.vercel.app**, a única API de Hunter × Hunter que aparece nas buscas,
+  responde `402 DEPLOYMENT_DISABLED` — está fora do ar. Hunter × Hunter vem da
+  API do MediaWiki da **Hunterpedia**: `list=embeddedin` acha as 610 páginas que
+  transcluem a ficha de personagem, e o resto é limpar wikitexto.
 
 ## Modos
 
@@ -106,6 +139,8 @@ mundo, com placar acumulado ao longo das rodadas.
 ## Configurações da sala (o host define)
 
 - **Universo** e **grupos** — quais fatias entram no sorteio.
+- **Recorte** — onde o universo tem um (só Hunter × Hunter hoje): elenco
+  completo ou só o que foi animado.
 - **Indefinido** (ligado por padrão no clássico) — a rodada só fecha quando
   alguém acerta, sem limite de chutes, e as rodadas se sucedem até o host
   clicar em **Encerrar partida**. Mexer em *Rodadas* ou *Chutes por jogador*
@@ -182,8 +217,8 @@ npm test
 ```
 
 Sobe o servidor de verdade, conecta jogadores falsos e joga partidas completas
-nos dois modos e **nos quinze universos**, verificando turnos, dicas, timeout,
-pontuação, filtros de grupo, sigilo do segredo e reconexão. São 157 verificações.
+nos dois modos e **nos dezoito universos**, verificando turnos, dicas, timeout,
+pontuação, filtros de grupo, sigilo do segredo e reconexão. São 204 verificações.
 
 ## Atualizar os dados
 
@@ -195,8 +230,9 @@ npm run build:data
 
 Ou um de cada vez: `build:pokedex`, `build:bleach`, `build:clash`,
 `build:naruto`, `build:yugioh`, `build:lol`, `build:valorant`,
-`build:rickmorty`, `build:heroes`, `build:potter`, `build:lotr`, `build:f1`. As respostas ficam em `.cache/`, então rodar
-de novo é instantâneo.
+`build:rickmorty`, `build:heroes`, `build:potter`, `build:lotr`, `build:f1`,
+`build:cars`, `build:mlp`, `build:onepiece`, `build:dragonball`, `build:hxh`.
+As respostas ficam em `.cache/`, então rodar de novo é instantâneo.
 
 ## Deploy grátis
 

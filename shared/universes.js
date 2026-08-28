@@ -33,6 +33,8 @@ const HAIR_PT = {
   Blond: 'Loiro', Golden: 'Dourado', Grey: 'Grisalho', Silver: 'Prateado',
   White: 'Branco', Bald: 'Careca', Sandy: 'Acastanhado', Dark: 'Escuro',
   Green: 'Verde', Tawny: 'Fulvo', Purple: 'Roxo', Dull: 'Sem brilho',
+  // so aparecem em Hunter x Hunter, mas o mapa de cabelo e um so
+  Blue: 'Azul', Pink: 'Rosa', Orange: 'Laranja',
 };
 
 const COUNTRY_PT = {
@@ -97,6 +99,138 @@ const MLP_JOB_PT = {
   ensino: 'Ensino', moda: 'Moda', saude: 'Saúde', imprensa: 'Imprensa',
   esporte: 'Esporte', guarda: 'Guarda', campo: 'Campo', artes: 'Artes',
   comercio: 'Comércio',
+};
+
+const DB_RACE_PT = {
+  Saiyan: 'Saiyajin', Human: 'Humano', Namekian: 'Namekuseijin', Android: 'Andróide',
+  'Frieza Race': 'Raça do Freeza', Majin: 'Majin', God: 'Deus', Angel: 'Anjo',
+  'Jiren Race': 'Raça do Jiren', Evil: 'Maligno', Unknown: 'Desconhecida',
+  Nucleico: 'Nucleico', 'Nucleico benigno': 'Nucleico benigno',
+};
+
+const DB_SIDE_PT = {
+  'Z Fighter': 'Guerreiros Z', 'Army of Frieza': 'Exército do Freeza',
+  Villain: 'Vilão', 'Pride Troopers': 'Tropas do Orgulho', Freelancer: 'Autônomo',
+  'Assistant of Beerus': 'Assistente de Bills', 'Assistant of Vermoud': 'Assistente de Vermoud',
+  Other: 'Outros',
+};
+
+/**
+ * O ki dos personagens vai de 450 ao "969 Googolplex" do Zeno, entao o dataset
+ * guarda a ordem de grandeza (log10 / 3) e a celula mostra o nome dela.
+ */
+const DB_KI_PT = {
+  0: 'Centenas', 1: 'Milhares', 2: 'Milhões', 3: 'Bilhões', 4: 'Trilhões',
+  5: 'Quatrilhões', 6: 'Quintilhões', 7: 'Sextilhões', 8: 'Setilhões',
+  9: 'Incalculável',
+};
+
+const NEN_PT = {
+  Enhancement: 'Reforço', Transmutation: 'Transmutação', Emission: 'Emissão',
+  Manipulation: 'Manipulação', Conjuration: 'Materialização',
+  Specialization: 'Especialização', Unknown: 'Nunca revelado',
+};
+
+const HXH_STATUS_PT = { Alive: 'Vivo', Deceased: 'Morto', Unknown: 'Desconhecido' };
+
+/**
+ * Afiliacoes da Hunterpedia. O dataset guarda o nome do wiki (em ingles) e a
+ * celula mostra a traducao; quem nao esta aqui e nome proprio — os principes
+ * "Hui Guo Rou", o Beyond Netero, a Nanika — e sai como veio.
+ */
+const HXH_AFFILIATION_PT = {
+  'Hunter Association': 'Associação Hunter',
+  'Hunter Association Exorcist': 'Exorcista da Associação Hunter',
+  'Amateur Hunters': 'Hunters amadores',
+  Zodiacs: 'Zodíacos',
+  'Kakin Empire': 'Império Kakin',
+  'Kakin Royal Army': 'Exército Real de Kakin',
+  'Kakin Justice Bureau': 'Departamento de Justiça de Kakin',
+  'Kakin Empire Wildlife Exploration Team': 'Expedição de Fauna de Kakin',
+  'Dark Continent Expedition Team': 'Expedição ao Continente Negro',
+  'NGL Expedition Team': 'Expedição à NGL',
+  'NGL Government': 'Governo da NGL',
+  "NGL's Drug Cartel": 'Cartel de drogas da NGL',
+  'Chimera Ants': 'Formigas Quimera',
+  "Chimera Ants' Colony": 'Colônia das Formigas Quimera',
+  'Chimera Ant Queen': 'Rainha das Formigas Quimera',
+  'Chimera Ant King': 'Rei das Formigas Quimera',
+  'Chimera Ant Extermination Team': 'Time de Extermínio',
+  'Royal Guards': 'Guardas Reais',
+  'Phantom Troupe': 'Trupe Fantasma',
+  'Moritonio Troupe': 'Trupe do Moritonio',
+  '"Something Troupe"': 'Trupe "Alguma Coisa"',
+  'Zoldyck Family': 'Família Zoldyck',
+  'Nostrade Family': 'Família Nostrade',
+  'Nostrade Butler': 'Mordomo dos Nostrade',
+  'Heil-Ly Family': 'Família Heil-Ly',
+  'Cha-R Family': 'Família Cha-R',
+  'Xi-Yu Family': 'Família Xi-Yu',
+  'Ritz Family': 'Família Ritz',
+  'Gappai Family': 'Família Gappai',
+  'Kurta Clan': 'Clã Kurta',
+  'Glam Clan': 'Clã Glam',
+  'Gyudondond Tribe': 'Tribo Gyudondond',
+  'Amori Brothers': 'Irmãos Amori',
+  'Ortho Siblings': 'Irmãos Ortho',
+  'Ten Dons': 'Dez Chefões',
+  'Mafia Community': 'Comunidade da Máfia',
+  'Ten Dons/Mafia Community': 'Dez Chefões / Comunidade da Máfia',
+  'Shadow Beasts': 'Feras das Sombras',
+  Shadow: 'Sombra',
+  'Heavens Arena': 'Arena Celestial',
+  'Trick Tower': 'Torre das Armadilhas',
+  'Meteor City': 'Cidade Meteoro',
+  'Yorknew City': 'Cidade de Yorknew',
+  'Republic of East Gorteau': 'República de Gorteau Oriental',
+  'Pure Paladin Squad': 'Esquadrão Paladino Puro',
+  'Bomber Group': 'Grupo Bomber',
+  'Death Row Convicts': 'Condenados à morte',
+  'G.I. Convicts': 'Condenados do Greed Island',
+  'Bianu Mercenaries': 'Mercenários de Bianu',
+  'Southernpiece Auction House': 'Leilão Southernpiece',
+  'Underground Clinic': 'Clínica clandestina',
+  'Sengi Guild': 'Guilda Sengi',
+  'Norwell Fund': 'Fundo Norwell',
+  'Varvard University': 'Universidade Varvard',
+  'Miwal University': 'Universidade Miwal',
+  'Preview Market': 'Mercado Preview',
+  'Stone Wall': 'Muro de Pedra',
+  'Cloud-Hidden Style': 'Estilo Oculto nas Nuvens',
+  'Shingen-ryu School/Dojo': 'Escola Shingen-ryu',
+  "Kazsule's Alliance": 'Aliança de Kazsule',
+  "Nickes' Alliance": 'Aliança de Nickes',
+  "Leol's Squad": 'Esquadrão do Leol',
+  "Zazan's Squad": 'Esquadrão da Zazan',
+  "Meleoron's Squad": 'Esquadrão do Meleoron',
+  "Meleoron's Squadron": 'Esquadrão do Meleoron',
+  "Welfin's Squadron": 'Esquadrão do Welfin',
+  "Yunju's Squadron": 'Esquadrão do Yunju',
+  "Colt's Squadron": 'Esquadrão do Colt',
+  'Team Tsezguerra': 'Time do Tsezguerra',
+  'Team Tsezguerra‎': 'Time do Tsezguerra',
+  'Team Asta': 'Time do Asta',
+  'Team Kazsule': 'Time do Kazsule',
+  'Team Hanse': 'Time do Hanse',
+  'Team Yabibi': 'Time do Yabibi',
+  'Team Tokharone': 'Time do Tokharone',
+  'Team Hagakushi': 'Time do Hagakushi',
+  'IPA Special Task Force': 'Força-tarefa da IPA',
+  "IPA's Special Task Force": 'Força-tarefa da IPA',
+  'Have-Nots': 'Despossuídos',
+  "Mom's Help": 'Ajuda da mamãe',
+  'Unnamed Lover': 'Amante sem nome',
+  'Unnamed Man': 'Homem sem nome',
+  'Queen Duazul Hui Guo Rou': 'Rainha Duazul Hui Guo Rou',
+  Captain: 'Capitão',
+  Unknown: 'Desconhecida',
+};
+
+const HXH_JOB_PT = {
+  hunter: 'Hunter', assassino: 'Assassino', guarda: 'Guarda-costas',
+  soldado: 'Soldado', mafioso: 'Mafioso', lutador: 'Lutador', servo: 'Servo',
+  realeza: 'Realeza', ladrao: 'Ladrão', jogador: 'Jogador de Greed Island',
+  ciencia: 'Ciência e saúde', artista: 'Artista', outros: 'Outra',
 };
 
 export const UNIVERSES = {
@@ -533,8 +667,122 @@ export const UNIVERSES = {
       { key: 'occupation', label: 'Ocupação', kind: 'text', labels: MLP_JOB_PT },
     ],
   },
+
+  onepiece: {
+    id: 'onepiece',
+    label: 'One Piece',
+    secretLabel: 'o personagem secreto',
+    dataFile: 'onepiece.json',
+    groupLabel: 'Facções',
+    groups: [
+      { id: 'chapeu', label: 'Chapéu de Palha' },
+      { id: 'yonko', label: 'Yonkou e Roger' },
+      { id: 'piratas', label: 'Outros piratas' },
+      { id: 'marinha', label: 'Marinha' },
+      { id: 'governo', label: 'Governo Mundial' },
+      { id: 'revolucao', label: 'Revolucionários' },
+      { id: 'civis', label: 'Civis' },
+    ],
+    defaultGroups: ['chapeu', 'yonko', 'piratas', 'marinha', 'governo', 'revolucao', 'civis'],
+    columns: [
+      { key: 'crew', label: 'Tripulação', kind: 'text' },
+      { key: 'job', label: 'Papel', kind: 'text' },
+      { key: 'fruit', label: 'Fruta', kind: 'text' },
+      { key: 'status', label: 'Status', kind: 'text' },
+      // as recompensas variam de mil a 5 bilhoes: 10% de tolerancia so
+      // pintaria de amarelo quem ja esta na mesma casa de grandeza
+      { key: 'bounty', label: 'Recompensa', kind: 'number', compact: true, prefix: '฿ ', tolerance: 0.1 },
+      { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1 },
+      { key: 'age', label: 'Idade', kind: 'number', tolerance: 0.1 },
+    ],
+  },
+
+  dragonball: {
+    id: 'dragonball',
+    label: 'Dragon Ball',
+    secretLabel: 'o personagem secreto',
+    dataFile: 'dragonball.json',
+    groupLabel: 'Raças',
+    groups: [
+      { id: 'saiyajin', label: 'Saiyajin' },
+      { id: 'humano', label: 'Humano' },
+      { id: 'namekuseijin', label: 'Namekuseijin' },
+      { id: 'androide', label: 'Andróide' },
+      { id: 'divino', label: 'Divindades' },
+      { id: 'outros', label: 'Outras raças' },
+    ],
+    defaultGroups: ['saiyajin', 'humano', 'namekuseijin', 'androide', 'divino', 'outros'],
+    columns: [
+      { key: 'race', label: 'Raça', kind: 'text', labels: DB_RACE_PT },
+      { key: 'gender', label: 'Gênero', kind: 'text', labels: { Male: 'Masculino', Female: 'Feminino' } },
+      { key: 'affiliation', label: 'Afiliação', kind: 'text', labels: DB_SIDE_PT },
+      { key: 'planet', label: 'Planeta', kind: 'text' },
+      { key: 'transformations', label: 'Transf.', kind: 'number' },
+      // o ki vai de 450 ao ki do Zeno: em vez do numero cru, a ordem de
+      // grandeza (o expoente dividido por 3) — ainda rende as setas ▲▼
+      { key: 'ki', label: 'Ki base', kind: 'number', labels: DB_KI_PT },
+      { key: 'maxKi', label: 'Ki máximo', kind: 'number', labels: DB_KI_PT },
+    ],
+  },
+
+  hxh: {
+    id: 'hxh',
+    // "2011" porque a Hunterpedia entrega o retrato e a cor de cabelo dessa
+    // adaptacao quando ela existe — e ela existe para quase todo mundo
+    label: 'Hunter × Hunter 2011',
+    secretLabel: 'o personagem secreto',
+    dataFile: 'hxh.json',
+    groupLabel: 'Facções',
+    groups: [
+      { id: 'hunter', label: 'Associação Hunter' },
+      { id: 'zoldyck', label: 'Família Zoldyck' },
+      { id: 'trupe', label: 'Trupe Fantasma' },
+      { id: 'formigas', label: 'Formigas Quimera' },
+      { id: 'kakin', label: 'Kakin e Continente Negro' },
+      { id: 'mafia', label: 'Máfia' },
+      { id: 'outros', label: 'Outros' },
+    ],
+    defaultGroups: ['hunter', 'zoldyck', 'trupe', 'formigas', 'kakin', 'mafia', 'outros'],
+    // o manga passou muito do que o anime adaptou: metade do elenco do arco de
+    // Kakin nunca apareceu na tela, entao a sala escolhe o recorte
+    scope: {
+      key: 'inAnime',
+      label: 'De onde vêm os personagens',
+      default: 'all',
+      options: [
+        { id: 'all', label: 'Anime e mangá', hint: 'Elenco completo da Hunterpedia.' },
+        { id: 'anime', label: 'Só o anime', hint: 'Quem apareceu em algum episódio, OVA ou filme.', requires: true },
+      ],
+    },
+    columns: [
+      { key: 'gender', label: 'Gênero', kind: 'text', labels: { Male: 'Masculino', Female: 'Feminino' } },
+      { key: 'nen', label: 'Nen', kind: 'text', labels: NEN_PT },
+      { key: 'status', label: 'Estado', kind: 'text', labels: HXH_STATUS_PT },
+      { key: 'affiliation', label: 'Afiliação', kind: 'list', labels: HXH_AFFILIATION_PT },
+      { key: 'job', label: 'Ocupação', kind: 'text', labels: HXH_JOB_PT },
+      { key: 'hair', label: 'Cabelo', kind: 'text', labels: HAIR_PT },
+      { key: 'debutChapter', label: 'Estreia', kind: 'number', prefix: 'Cap. ', tolerance: 0.1 },
+    ],
+  },
 };
 
 export const DEFAULT_UNIVERSE = 'pokemon';
 
 export const getUniverse = (id) => UNIVERSES[id] ?? UNIVERSES[DEFAULT_UNIVERSE];
+
+/**
+ * Recorte opcional do universo (hoje so Hunter x Hunter: anime ou tudo). E um
+ * segundo filtro, independente dos grupos: a opcao com `requires` exige que o
+ * item tenha `true` na chave declarada. Universo sem `scope` aceita todo mundo.
+ */
+export function scopeOption(universe, id) {
+  const scope = universe?.scope;
+  if (!scope) return null;
+  return scope.options.find(o => o.id === id) ?? scope.options.find(o => o.id === scope.default) ?? null;
+}
+
+export function scopeFilter(universe, id) {
+  const option = scopeOption(universe, id);
+  if (!option?.requires) return () => true;
+  return (item) => item[universe.scope.key] === true;
+}

@@ -7,7 +7,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import {
-  MODES, getUniverse, sanitizeSettings, isEndless,
+  MODES, getUniverse, sanitizeSettings, isEndless, scopeFilter, scopeOption,
   compareGuess, scoreForWin, SCORE_CHOOSER_SURVIVED, pickSecret,
 } from './game.js';
 import { datasetOf as datasetFor } from './catalog.js';
@@ -63,12 +63,21 @@ const universeOf = (room) => getUniverse(room.settings.universe);
 const datasetOf = (room) => datasetFor(room.settings.universe);
 const itemById = (room, id) => datasetOf(room).byId.get(Number(id));
 
-/** Candidatos a segredo: so os grupos ligados na sala, e so os com dados completos. */
+/**
+ * Candidatos a segredo: so os com dados completos, dentro do recorte da sala
+ * (quando o universo tem um) e dos grupos ligados. Cada filtro so vale se
+ * sobrar alguem — combinacao vazia cai para a fatia anterior em vez de travar
+ * a rodada.
+ */
 function pool(room) {
   const groups = new Set(room.settings.groups);
+  const inScope = scopeFilter(universeOf(room), room.settings.scope);
+
   const eligible = datasetOf(room).list.filter(item => item.eligible);
-  const filtered = eligible.filter(item => groups.has(item.group));
-  return filtered.length ? filtered : eligible;
+  const scoped = eligible.filter(inScope);
+  const base = scoped.length ? scoped : eligible;
+  const filtered = base.filter(item => groups.has(item.group));
+  return filtered.length ? filtered : base;
 }
 
 const activePlayers = (room) => room.order.map(id => room.players.get(id)).filter(p => p && p.connected);
@@ -372,6 +381,10 @@ function onConnection(socket) {
     }
     if (!mon.eligible) {
       return socket.emit('room:error', `${mon.name} não tem dados completos o bastante para ser o segredo.`);
+    }
+    if (!scopeFilter(universeOf(room), room.settings.scope)(mon)) {
+      const option = scopeOption(universeOf(room), room.settings.scope);
+      return socket.emit('room:error', `Esta sala está em "${option.label}", e ${mon.name} fica de fora.`);
     }
     clearTimer(room);
     room.secret = mon;

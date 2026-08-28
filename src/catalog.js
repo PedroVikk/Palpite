@@ -16,15 +16,22 @@ import { UNIVERSES, getUniverse } from '../shared/universes.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** So o que alimenta a busca do chute e o contador de sorteaveis do lobby. */
-const forClient = ({ id, name, sprite, group, eligible, aliases }) => (
-  aliases?.length
-    ? { id, name, sprite, group, eligible, aliases }
-    : { id, name, sprite, group, eligible }
-);
+/**
+ * So o que alimenta a busca do chute e o contador de sorteaveis do lobby.
+ * `scopeKey` e o recorte opcional do universo (o `inAnime` do Hunter x Hunter):
+ * entra so onde existe, para o lobby contar e o duelo filtrar sem baixar o
+ * dataset inteiro.
+ */
+const forClient = (item, scopeKey) => {
+  const { id, name, sprite, group, eligible, aliases } = item;
+  const lean = { id, name, sprite, group, eligible };
+  if (aliases?.length) lean.aliases = aliases;
+  if (scopeKey) lean[scopeKey] = item[scopeKey] === true;
+  return lean;
+};
 
-function buildIndex(list) {
-  const body = Buffer.from(JSON.stringify(list.map(forClient)));
+function buildIndex(list, scopeKey) {
+  const body = Buffer.from(JSON.stringify(list.map(item => forClient(item, scopeKey))));
   return {
     body,
     gzip: zlib.gzipSync(body, { level: zlib.constants.Z_BEST_COMPRESSION }),
@@ -37,7 +44,7 @@ const catalog = new Map();
 
 for (const universe of Object.values(UNIVERSES)) {
   const list = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', universe.dataFile), 'utf8'));
-  const index = buildIndex(list);
+  const index = buildIndex(list, universe.scope?.key ?? null);
   catalog.set(universe.id, { list, byId: new Map(list.map(item => [item.id, item])), index });
   console.log(
     `${universe.label}: ${list.length} itens`

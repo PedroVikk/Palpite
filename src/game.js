@@ -3,9 +3,9 @@
  * A comparacao e guiada pelo schema do universo (shared/universes.js),
  * entao adicionar uma franquia nova nao mexe aqui.
  */
-import { UNIVERSES, DEFAULT_UNIVERSE, getUniverse } from '../shared/universes.js';
+import { UNIVERSES, DEFAULT_UNIVERSE, getUniverse, scopeFilter, scopeOption } from '../shared/universes.js';
 
-export { UNIVERSES, getUniverse };
+export { UNIVERSES, getUniverse, scopeFilter, scopeOption };
 
 export const MODES = {
   CLASSIC: 'classic', // servidor sorteia o segredo, todos adivinham em turnos
@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS = {
   mode: MODES.CLASSIC,
   universe: DEFAULT_UNIVERSE,
   groups: UNIVERSES[DEFAULT_UNIVERSE].defaultGroups,
+  scope: null,        // so os universos com `scope` no schema usam este campo
   rounds: 0,          // 0 = sem fim: o padrao do modo classico
   turnSeconds: 45,
   guessesPerPlayer: 0,
@@ -33,6 +34,11 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
   const requested = Array.isArray(raw.groups) ? raw.groups : (universeId === base.universe ? base.groups : null);
   const groups = (requested ?? []).map(String).filter(id => valid.has(id));
 
+  // o recorte tambem nao atravessa troca de universo: cada um tem o seu (ou
+  // nenhum, e ai o campo fica null)
+  const requestedScope = raw.scope ?? (universeId === base.universe ? base.scope : null);
+  const scope = universe.scope ? (scopeOption(universe, requestedScope)?.id ?? null) : null;
+
   // rounds 0 = partida sem fim: as rodadas se sucedem ate o host encerrar e
   // cada rodada so fecha quando alguem acerta, entao os chutes viram ilimitados
   // (guessesPerPlayer 0). O host encerra pelo botao "Encerrar partida".
@@ -47,6 +53,7 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
     mode,
     universe: universeId,
     groups: groups.length ? [...new Set(groups)] : [...universe.defaultGroups],
+    scope,
     rounds: endless ? 0 : clamp(Math.round(Number(rawRounds)) || 5, 1, 20),
     turnSeconds: clamp(Math.round(Number(raw.turnSeconds ?? base.turnSeconds)) || 45, 5, 180),
     guessesPerPlayer: endless

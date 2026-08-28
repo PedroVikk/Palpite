@@ -17,7 +17,7 @@ export default function HomeScreen({ name, onName, onCreate, onJoin, onDaily, to
       <header className="brand">
         <div className="mark">?</div>
         <h1>Palpite</h1>
-        <p>Quinze universos, de Pokémon a carros: adivinhe o secreto em turnos, com seus amigos.</p>
+        <p>Dezoito universos, de Pokémon a carros: adivinhe o secreto em turnos, com seus amigos.</p>
       </header>
 
       <div className="card narrow stack">

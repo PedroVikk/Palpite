@@ -276,6 +276,72 @@ try {
   check('herois: Marvel presente', heroes.filter(h => h.group === 'marvel' && h.eligible).length > 100);
   check('herois: Homem-Aranha sorteavel', heroes.find(h => h.name === 'Spider-Man')?.eligible === true);
 
+  // ------------------------------------------------------- recorte do universo
+  console.log('\n== Recorte (Hunter x Hunter) ==');
+  const hxh = JSON.parse(await fs.readFile('data/hxh.json', 'utf8'));
+  const soAnime = hxh.filter(c => c.eligible && c.inAnime);
+  check('hxh: recorte do anime e menor que o elenco todo',
+    soAnime.length > 100 && soAnime.length < hxh.filter(c => c.eligible).length);
+
+  const rec = await connect('Rec');
+  const roomRec = await new Promise(res => rec.socket.emit('room:create', {
+    name: 'Rec',
+    settings: {
+      mode: 'classic', universe: 'hxh', groups: [...UNIVERSES.hxh.defaultGroups],
+      scope: 'anime', rounds: 3, turnSeconds: 120, guessesPerPlayer: 1,
+    },
+  }, res));
+  await until(rec, s => s.phase === 'lobby', 'sala com recorte montada');
+  check('recorte gravado nas configuracoes', rec.state.settings.scope === 'anime');
+
+  // um chute so por rodada: a rodada fecha sozinha e revela o segredo. O host
+  // pula os 12s de intervalo com game:next
+  const sorteados = [];
+  rec.socket.emit('game:start');
+  for (let round = 1; round <= 3; round++) {
+    await until(rec, s => s.phase === 'playing' && s.round === round, `rodada ${round} do recorte`);
+    rec.socket.emit('game:guess', { pokemonId: hxh[0].id });
+    await until(rec, s => s.secret !== null && s.round === round, `segredo da rodada ${round}`);
+    sorteados.push(rec.state.secret);
+    if (round < 3) {
+      rec.socket.emit('game:next');
+      await until(rec, s => s.phase === 'playing' && s.round === round + 1, `rodada ${round + 1}`);
+    }
+  }
+  check('sortearam-se tres segredos', sorteados.length === 3);
+  check('todo segredo sorteado saiu do anime', sorteados.every(s => s.inAnime === true));
+
+  rec.socket.disconnect();
+
+  // no duelo, quem esconde o segredo tambem esta preso ao recorte
+  const foraDoAnime = hxh.find(c => c.eligible && !c.inAnime);
+  const [duo1, duo2] = await Promise.all([connect('Duo1'), connect('Duo2')]);
+  const roomDuo = await new Promise(res => duo1.socket.emit('room:create', {
+    name: 'Duo1',
+    settings: {
+      mode: 'duel', universe: 'hxh', groups: [...UNIVERSES.hxh.defaultGroups],
+      scope: 'anime', rounds: 2, turnSeconds: 120, guessesPerPlayer: 4,
+    },
+  }, res));
+  await new Promise(res => duo2.socket.emit('room:join', { code: roomDuo.code, name: 'Duo2' }, res));
+  await until(duo1, s => s.players.length === 2, 'duelo com recorte montado');
+  duo1.socket.emit('game:start');
+  await until(duo1, s => s.phase === 'choosing', 'fase de escolha');
+
+  const chooser = duo1.state.chooserId === roomDuo.playerId ? duo1 : duo2;
+  chooser.errors.length = 0;
+  chooser.socket.emit('game:choose', { pokemonId: foraDoAnime.id });
+  await sleep(250);
+  check('duelo recusa quem esta fora do recorte', chooser.errors.length === 1);
+  check('a recusa explica o recorte', /S(ó|o) o anime/.test(chooser.errors[0] ?? ''));
+  check('a escolha recusada nao virou segredo', chooser.state.phase === 'choosing');
+
+  const dentroDoAnime = hxh.find(c => c.eligible && c.inAnime);
+  chooser.socket.emit('game:choose', { pokemonId: dentroDoAnime.id });
+  await until(duo1, s => s.phase === 'playing', 'duelo comecou com segredo do anime');
+  duo1.socket.disconnect();
+  duo2.socket.disconnect();
+
   // ----------------------------------------------------------- partida sem fim
   console.log('\n== Partida sem fim ==');
   const [inf1, inf2] = await Promise.all([connect('Inf1'), connect('Inf2')]);

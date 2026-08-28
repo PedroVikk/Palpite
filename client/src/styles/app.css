@@ -414,10 +414,22 @@ select { appearance: none; cursor: pointer; }
   background: var(--surface-2);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-card);
-  max-height: 340px;
+  /* ~5 sugestoes e meia: a metade cortada mostra que da para rolar */
+  max-height: 316px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
   box-shadow: var(--shadow-pop);
 }
+.suggestions::-webkit-scrollbar { width: 10px; }
+.suggestions::-webkit-scrollbar-track { background: transparent; }
+.suggestions::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border: 3px solid var(--surface-2);
+  border-radius: 999px;
+}
+.suggestions::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 .suggestions li {
   display: flex;
   align-items: center;

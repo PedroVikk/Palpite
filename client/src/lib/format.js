@@ -3,6 +3,8 @@
  * universo diz como exibir (rotulo traduzido, unidade, lista encurtada).
  */
 
+const COMPACT = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });
+
 /** Texto completo, sem encurtar — vai para o tooltip da celula. */
 export function fullValue(column, value) {
   if (!Array.isArray(value)) return formatValue(column, value);
@@ -19,7 +21,9 @@ export function formatValue(column, value) {
   if (value === null || value === undefined || value === '') return '—';
   if (column.labels?.[value]) return column.labels[value];
   if (column.kind === 'number') {
-    const text = String(value).replace('.', ',');
+    // `compact` e para numero grande demais para ler digito a digito: a
+    // recompensa do One Piece vira "4,6 bi" em vez de "4611100000"
+    const text = column.compact ? COMPACT.format(value) : String(value).replace('.', ',');
     return `${column.prefix ?? ''}${text}${column.unit ? ` ${column.unit}` : ''}`;
   }
   return String(value);
