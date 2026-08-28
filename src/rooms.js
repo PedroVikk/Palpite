@@ -133,18 +133,37 @@ function armTimer(room, seconds, onExpire) {
 
 // ---------------------------------------------------------------- rodadas
 
+/**
+ * Pode chutar agora: conectado, fora da cadeira de quem escondeu o segredo e
+ * com chute sobrando. Quem entra no meio da rodada fica com 0 e so joga na
+ * proxima; no "ate acertar" o saldo e null (ilimitado).
+ */
+function canGuess(room, id) {
+  const p = room.players.get(id);
+  return Boolean(p && p.connected && id !== room.chooserId && hasGuessLeft(guessesOf(room, id)));
+}
+
 /** Proximo jogador na ordem circular que ainda pode chutar. */
 function nextTurn(room, afterId) {
-  const canPlay = (id) => {
-    const p = room.players.get(id);
-    return p && p.connected && id !== room.chooserId && hasGuessLeft(guessesOf(room, id));
-  };
   const start = afterId ? room.order.indexOf(afterId) : -1;
   for (let step = 1; step <= room.order.length; step++) {
     const candidate = room.order[(start + step + room.order.length) % room.order.length];
-    if (canPlay(candidate)) return candidate;
+    if (canGuess(room, candidate)) return candidate;
   }
   return null;
+}
+
+/**
+ * Quem abre a rodada. Com dois ou mais na fila o primeiro turno e sorteado:
+ * sem isso quem entrou primeiro na sala abriria todas as rodadas, e abrir vale
+ * mais — o acerto perde 5 pontos por chute ja feito, entao a primeira vez e a
+ * mais barata. Sorteia so a largada: o rodizio dali em diante segue a ordem
+ * da sala, como antes.
+ */
+function firstTurn(room) {
+  const queue = room.order.filter(id => canGuess(room, id));
+  if (queue.length < 2) return queue[0] ?? null;
+  return queue[Math.floor(Math.random() * queue.length)];
 }
 
 function startRound(room) {
@@ -198,7 +217,7 @@ function armTurnTimer(room) {
 
 function beginGuessing(room) {
   room.phase = 'playing';
-  room.turnPlayerId = nextTurn(room, null);
+  room.turnPlayerId = firstTurn(room);
   if (!room.turnPlayerId) return endRound(room, null);
   armTurnTimer(room);
   broadcast(room);

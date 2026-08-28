@@ -61,8 +61,10 @@ try {
   const code = created.code;
   check(`sala criada (${code})`, /^[A-Z2-9]{4}$/.test(code));
 
+  const naCadeira = new Map([[created.playerId, ash]]);
   for (const p of [misty, brock]) {
-    await new Promise(res => p.socket.emit('room:join', { code, name: p.name }, res));
+    const joined = await new Promise(res => p.socket.emit('room:join', { code, name: p.name }, res));
+    naCadeira.set(joined.playerId, p);
   }
   await until(ash, s => s.players.length === 3, '3 jogadores no lobby');
   check('todos no lobby', ash.state.players.map(p => p.name).join() === 'Ash,Misty,Brock');
@@ -70,7 +72,12 @@ try {
 
   ash.socket.emit('game:start');
   await until(ash, s => s.phase === 'playing', 'partida comecou');
-  check('rodada 1 comecou com Ash', ash.state.turnPlayerId === created.playerId);
+
+  // quem abre e sorteado; so o rodizio depois da largada segue a ordem da sala
+  const ordem = ash.state.players.map(p => p.id);
+  const seguinte = (id) => ordem[(ordem.indexOf(id) + 1) % ordem.length];
+  const daVez = () => naCadeira.get(ash.state.turnPlayerId);
+  check('a rodada abriu com alguem da sala', naCadeira.has(ash.state.turnPlayerId));
   check('segredo escondido durante a partida', ash.state.secret === null);
   check('chutes distribuidos', ash.state.players.every(p => p.guessesLeft === 2));
 
@@ -78,38 +85,45 @@ try {
   // so ligou a Gen 1), entao a rodada fecha por esgotamento sem vencedor
 
   // fora da vez: deve ser rejeitado
-  misty.socket.emit('game:guess', { pokemonId: 152 });
+  const foraDaVez = [ash, misty, brock].find(p => p !== daVez());
+  foraDaVez.socket.emit('game:guess', { pokemonId: 152 });
   await sleep(150);
-  check('chute fora da vez recusado', misty.errors.some(e => e.includes('sua vez')));
+  check('chute fora da vez recusado', foraDaVez.errors.some(e => e.includes('sua vez')));
 
-  ash.socket.emit('game:guess', { pokemonId: 152 }); // Chikorita
+  const abriu = daVez();
+  const depoisDoPrimeiro = seguinte(ash.state.turnPlayerId);
+  abriu.socket.emit('game:guess', { pokemonId: 152 }); // Chikorita
   await until(ash, s => s.rows.length === 1, 'primeira dica publicada');
   const row = ash.state.rows[0];
   check('dica tem as 7 colunas', Object.keys(row.cells).length === 7);
-  check('dica mostra quem chutou', row.playerName === 'Ash');
-  check('turno passou para Misty', ash.state.turnPlayerId === ash.state.players[1].id);
+  check('dica mostra quem chutou', row.playerName === abriu.name);
+  check('turno passou para o proximo da ordem', ash.state.turnPlayerId === depoisDoPrimeiro);
 
   // repetir o mesmo Pokemon deve ser bloqueado
-  misty.socket.emit('game:guess', { pokemonId: 152 });
+  const segundo = daVez();
+  segundo.errors.length = 0;
+  segundo.socket.emit('game:guess', { pokemonId: 152 });
   await sleep(150);
-  check('chute repetido recusado', misty.errors.some(e => e.includes('já foi chutado')));
+  check('chute repetido recusado', segundo.errors.some(e => e.includes('já foi chutado')));
 
   // Pokemon fora dos grupos da sala ainda e aceito como chute (so o segredo e limitado)
-  misty.socket.emit('game:guess', { pokemonId: 153 });
+  const depoisDoSegundo = seguinte(ash.state.turnPlayerId);
+  segundo.socket.emit('game:guess', { pokemonId: 153 });
   await until(ash, s => s.rows.length === 2, 'segunda dica');
-  check('turno passou para Brock', ash.state.turnPlayerId === ash.state.players[2].id);
+  check('turno passou para o terceiro da ordem', ash.state.turnPlayerId === depoisDoSegundo);
 
-  // Brock nao chuta: o timer (5s) deve consumir um chute dele e passar a vez
-  const brockId = ash.state.players[2].id;
-  await until(ash, s => s.turnPlayerId !== brockId, 'timeout de turno', 9000);
+  // o terceiro nao chuta: o timer (5s) deve consumir um chute dele e passar a vez
+  const atrasado = ash.state.turnPlayerId;
+  await until(ash, s => s.turnPlayerId !== atrasado, 'timeout de turno', 9000);
   check('timeout nao gerou dica', ash.state.rows.length === 2);
-  check('timeout consumiu um chute de Brock', ash.state.players[2].guessesLeft === 1);
-  check('a vez voltou para Ash', ash.state.turnPlayerId === ash.state.players[0].id);
+  check('timeout consumiu um chute do atrasado',
+    ash.state.players.find(p => p.id === atrasado).guessesLeft === 1);
+  check('a vez deu a volta e voltou para quem abriu', ash.state.turnPlayerId === seguinte(atrasado));
 
-  // gasta os chutes restantes de Ash e Misty; Brock deixa estourar de novo
-  ash.socket.emit('game:guess', { pokemonId: 154 });
+  // gasta os chutes restantes dos dois que ja chutaram; o terceiro deixa estourar de novo
+  daVez().socket.emit('game:guess', { pokemonId: 154 });
   await until(ash, s => s.rows.length === 3, 'terceira dica');
-  misty.socket.emit('game:guess', { pokemonId: 155 });
+  daVez().socket.emit('game:guess', { pokemonId: 155 });
   await until(ash, s => s.rows.length === 4, 'quarta dica');
 
   const ended = await until(ash, s => s.phase === 'roundEnd', 'fim da rodada 1', 12000);
@@ -230,7 +244,9 @@ try {
     p1.socket.emit('game:start');
     await until(p1, s => s.phase === 'playing', `partida de ${universe.label}`);
 
-    p1.socket.emit('game:guess', { pokemonId: data[0].id });
+    // a largada e sorteada: quem chuta e quem esta na vez, nao necessariamente J1
+    const naVez = () => (p1.state.turnPlayerId === room.playerId ? p1 : p2);
+    naVez().socket.emit('game:guess', { pokemonId: data[0].id });
     await until(p1, s => s.rows.length === 1, `dica de ${universe.label}`);
     check(`${universe.label}: colunas do schema aplicadas`,
       JSON.stringify(Object.keys(p1.state.rows[0].cells)) === JSON.stringify(universe.columns.map(c => c.key)));
@@ -413,6 +429,36 @@ try {
   check('duelo fixa as rodadas', roomDuelo.state.settings.rounds === 2);
   check('duelo recusa o "ate acertar" e mantem teto de chutes', roomDuelo.state.settings.guessesPerPlayer > 0);
 
+  // ------------------------------------------- sorteio de quem abre a rodada
+  console.log('\n== Sorteio da largada ==');
+  const [ini1, ini2] = await Promise.all([connect('Ini1'), connect('Ini2')]);
+  const roomIni = await new Promise(res => ini1.socket.emit('room:create', {
+    name: 'Ini1',
+    // sorteio na Gen 1 + chutes de Gen 2: ninguem acerta, entao toda rodada
+    // fecha por esgotamento e o teste controla quantas rodam
+    settings: { mode: 'hunt', universe: 'pokemon', groups: ['1'], rounds: 20, turnSeconds: 120, guessesPerPlayer: 1 },
+  }, res));
+  await new Promise(res => ini2.socket.emit('room:join', { code: roomIni.code, name: 'Ini2' }, res));
+  await until(ini1, s => s.players.length === 2, 'sala do sorteio montada');
+
+  const largadas = new Set();
+  ini1.socket.emit('game:start');
+  for (let round = 1; round <= 20; round++) {
+    await until(ini1, s => s.phase === 'playing' && s.round === round, `rodada ${round} do sorteio`);
+    largadas.add(ini1.state.turnPlayerId);
+    const abre = ini1.state.turnPlayerId === roomIni.playerId ? ini1 : ini2;
+    const outro = abre === ini1 ? ini2 : ini1;
+    abre.socket.emit('game:guess', { pokemonId: 152 });
+    await until(ini1, s => s.rows.length === 1, `largada da rodada ${round}`);
+    outro.socket.emit('game:guess', { pokemonId: 153 });
+    await until(ini1, s => s.phase !== 'playing', `fim da rodada ${round}`);
+    if (round < 20) ini1.socket.emit('game:next');
+  }
+  // 20 rodadas com 2 jogadores: sair sempre o mesmo da 1 chance em 500 mil
+  check('a largada varia entre os jogadores', largadas.size === 2);
+  check('so quem esta na sala abre a rodada',
+    [...largadas].every(id => ini1.state.players.some(p => p.id === id)));
+
   // ------------------------------------------------------ versao do deploy
   console.log('\n== Cache buster ==');
   const versao = await fetch(`${URL}/api/version`);
@@ -432,7 +478,7 @@ try {
   check('placar preservado', rejoined.state.players.find(p => p.id === rejoined.playerId).score > 0);
   check('sala nao duplicou jogador', rejoined.state.players.length === 2);
 
-  for (const p of [ash, misty, brock, ...squad, gary, may, ...arena, inf1, inf2, solo, duelista, back]) p.socket.close();
+  for (const p of [ash, misty, brock, ...squad, gary, may, ...arena, inf1, inf2, ini1, ini2, solo, duelista, back]) p.socket.close();
 } catch (err) {
   console.error('\nERRO NO TESTE:', err.message);
   failures++;

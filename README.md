@@ -136,6 +136,11 @@ Cinco fontes pedidas **não** deram para usar direto e foram substituídas:
 Quantos jogadores quiser (até 12 por sala) — não é 1v1, é todo mundo contra todo
 mundo, com placar acumulado ao longo das rodadas.
 
+Com dois ou mais na fila, **quem abre cada rodada é sorteado**: abrir vale mais
+(o acerto perde 5 pontos por chute já feito), então deixar a largada sempre com
+quem entrou primeiro na sala seria vantagem fixa. Só a largada é sorteada — o
+rodízio dali em diante segue a ordem da sala.
+
 ## Configurações da sala (o host define)
 
 - **Universo** e **grupos** — quais fatias entram no sorteio.
