@@ -151,7 +151,7 @@ duas e 210 com três.
 | Modo | Como funciona |
 | --- | --- |
 | **Caça ao segredo** | O servidor sorteia o secreto e **ninguém** sabe qual é. Todos adivinham, um por turno, até alguém acertar (ou os chutes acabarem). |
-| **Duelo** | A cada rodada um jogador **sorteado** escolhe o secreto e assiste; os outros se revezam nos chutes. Se ninguém acertar, quem escolheu leva 50 pontos. |
+| **Duelo** | A cada rodada um jogador escolhe o secreto e assiste, **na vez dele numa fila**; os outros se revezam nos chutes. Se ninguém acertar, quem escolheu leva 50 pontos. |
 
 Quantos jogadores quiser (até 12 por sala) — não é 1v1, é todo mundo contra todo
 mundo, com placar acumulado ao longo das rodadas.
@@ -160,6 +160,14 @@ Com dois ou mais na fila, **quem abre cada rodada é sorteado**: abrir vale mais
 (o acerto perde 5 pontos por chute já feito), então deixar a largada sempre com
 quem entrou primeiro na sala seria vantagem fixa. Só a largada é sorteada — o
 rodízio dali em diante segue a ordem da sala.
+
+No duelo, **quem esconde o segredo circula numa fila**, não é sorteado. Esconder
+é a cadeira ruim (não chuta, e só pontua se ninguém acertar), e no sorteio dava
+para cair nela várias rodadas seguidas. Na fila, quem acabou de esconder vai
+para o fim: a vez só volta depois que todo mundo passou. A ordem inicial é
+embaralhada — em ordem de chegada o host esconderia sempre primeiro. Quem entra
+no meio da partida entra no fim da fila; quem cai é pulado sem perder o lugar e
+volta a ser o próximo quando reconecta.
 
 ## Configurações da sala (o host define)
 
@@ -256,7 +264,7 @@ npm test
 
 Sobe o servidor de verdade, conecta jogadores falsos e joga partidas completas
 nos dois modos e **nos dezoito universos**, verificando turnos, dicas, timeout,
-pontuação, filtros de grupo, sigilo do segredo e reconexão. São 204 verificações.
+pontuação, filtros de grupo, sigilo do segredo e reconexão. São 211 verificações.
 
 ## Atualizar os dados
 

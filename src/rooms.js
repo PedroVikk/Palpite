@@ -39,6 +39,7 @@ function createRoom(settings) {
     round: 0,
     secret: null,
     chooserId: null,
+    chooserQueue: [],   // rodizio de quem esconde no duelo (ver nextChooser)
     rows: [],
     turnPlayerId: null,
     guessesLeft: {},
@@ -166,6 +167,44 @@ function firstTurn(room) {
   return queue[Math.floor(Math.random() * queue.length)];
 }
 
+/** Fisher-Yates. So para a fila do duelo nao comecar sempre pelo host. */
+function shuffle(list) {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/**
+ * Quem esconde o segredo na rodada, tirado de uma fila circular em vez de
+ * sorteado. Esconder e a cadeira ruim — quem esconde nao chuta e so pontua se
+ * ninguem acertar —, e no sorteio puro dava para cair nela varias rodadas
+ * seguidas. Na fila, quem acabou de esconder vai para o fim: a vez so volta
+ * depois que todo mundo passou.
+ *
+ * A fila se conserta sozinha, entao entrar e sair no meio da partida nao a
+ * desalinha: quem chegou depois entra no fim, quem saiu de vez perde o lugar e
+ * quem esta desconectado e pulado sem perder o dele — volta a ser o proximo
+ * quando reconectar.
+ */
+function nextChooser(room) {
+  const active = activePlayers(room);
+
+  const queued = new Set(room.chooserQueue);
+  for (const p of active) if (!queued.has(p.id)) room.chooserQueue.push(p.id);
+  room.chooserQueue = room.chooserQueue.filter(id => room.players.has(id));
+
+  const connected = new Set(active.map(p => p.id));
+  const at = room.chooserQueue.findIndex(id => connected.has(id));
+  if (at < 0) return null;
+
+  const [chosen] = room.chooserQueue.splice(at, 1);
+  room.chooserQueue.push(chosen);
+  return chosen;
+}
+
 function startRound(room) {
   // sala vazia (todos caíram): nao adianta sortear, e no duelo quebraria
   if (!activePlayers(room).length) {
@@ -185,9 +224,8 @@ function startRound(room) {
   for (const p of room.players.values()) room.guessesLeft[p.id] = guessBudget(room);
 
   if (room.settings.mode === MODES.DUEL) {
-    // quem esconde o segredo e sorteado a cada rodada (pode repetir)
-    const players = activePlayers(room);
-    room.chooserId = players[Math.floor(Math.random() * players.length)].id;
+    // a cadeira de quem esconde circula pela fila, em vez de ser sorteada
+    room.chooserId = nextChooser(room);
     room.guessesLeft[room.chooserId] = 0;
     room.phase = 'choosing';
     room.turnPlayerId = null;
@@ -387,6 +425,8 @@ function onConnection(socket) {
     }
     for (const p of room.players.values()) p.score = 0;
     room.round = 0;
+    // embaralhada na largada: em ordem de chegada o host esconderia sempre primeiro
+    room.chooserQueue = shuffle(activePlayers(room).map(p => p.id));
     startRound(room);
   });
 

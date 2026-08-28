@@ -204,6 +204,39 @@ try {
   check('escolhedor nao pontuou', seeker.state.players.find(p => p.id === seeker.state.chooserId).score === 0);
   const seekerId = seeker.state.players.find(p => p.id !== seeker.state.chooserId).id;
 
+  // ------------------------------------------------ fila de quem esconde
+  // Tres jogadores, seis rodadas: cada um esconde exatamente duas vezes e
+  // ninguem repete seguido — inclusive na virada do ciclo, que e onde um
+  // rodizio ingenuo repetiria. No sorteio puro isto falhava sozinho.
+  console.log('\n== Fila do duelo ==');
+  const fila = await Promise.all([connect('Oak'), connect('Bill'), connect('Lance')]);
+  const salaFila = await new Promise(res => fila[0].socket.emit('room:create', {
+    name: 'Oak',
+    settings: { mode: 'duel', universe: 'pokemon', groups: ['1'], rounds: 6, turnSeconds: 30, guessesPerPlayer: 3 },
+  }, res));
+  const idsFila = [salaFila.playerId];
+  for (const p of fila.slice(1)) {
+    const entrada = await new Promise(res => p.socket.emit('room:join', { code: salaFila.code, name: p.name }, res));
+    idsFila.push(entrada.playerId);
+  }
+  const filaPorId = new Map(idsFila.map((id, i) => [id, fila[i]]));
+
+  fila[0].socket.emit('game:start');
+  const escondedores = [];
+  for (let rodada = 1; rodada <= 6; rodada++) {
+    await until(fila[0], s => s.phase === 'choosing' && s.round === rodada, `escolha da rodada ${rodada}`);
+    escondedores.push(fila[0].state.chooserId);
+    filaPorId.get(fila[0].state.chooserId).socket.emit('game:choose', { pokemonId: 143 });
+    await until(fila[0], s => s.phase === 'playing', `rodada ${rodada} comecou`);
+    filaPorId.get(fila[0].state.turnPlayerId).socket.emit('game:guess', { pokemonId: 143 });
+    await until(fila[0], s => s.phase !== 'playing', `rodada ${rodada} fechou`);
+    if (rodada < 6) fila[0].socket.emit('game:next');   // pula a espera de 12s
+  }
+  check('ninguem escondeu duas rodadas seguidas', escondedores.every((id, i) => i === 0 || id !== escondedores[i - 1]));
+  check('em seis rodadas cada um escondeu duas vezes',
+    new Set(escondedores).size === 3
+    && idsFila.every(id => escondedores.filter(x => x === id).length === 2));
+
   // ----------------------------------------------------------- todos os universos
   // Um bloco generico: cada universo novo em shared/universes.js entra aqui
   // sozinho, sem precisar de teste escrito a mao.
@@ -478,7 +511,7 @@ try {
   check('placar preservado', rejoined.state.players.find(p => p.id === rejoined.playerId).score > 0);
   check('sala nao duplicou jogador', rejoined.state.players.length === 2);
 
-  for (const p of [ash, misty, brock, ...squad, gary, may, ...arena, inf1, inf2, ini1, ini2, solo, duelista, back]) p.socket.close();
+  for (const p of [ash, misty, brock, ...squad, gary, may, ...fila, ...arena, inf1, inf2, ini1, ini2, solo, duelista, back]) p.socket.close();
 } catch (err) {
   console.error('\nERRO NO TESTE:', err.message);
   failures++;
