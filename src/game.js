@@ -8,18 +8,18 @@ import { UNIVERSES, DEFAULT_UNIVERSE, getUniverse, scopeFilter, scopeOption } fr
 export { UNIVERSES, getUniverse, scopeFilter, scopeOption };
 
 export const MODES = {
-  CLASSIC: 'classic', // servidor sorteia o segredo, todos adivinham em turnos
-  DUEL: 'duel',       // o jogador da vez ESCOLHE o segredo e os outros adivinham
+  HUNT: 'hunt', // servidor sorteia o segredo, NINGUEM sabe, todos adivinham em turnos
+  DUEL: 'duel', // um jogador sorteado ESCONDE o segredo e assiste; o resto adivinha em turnos
 };
 
 export const DEFAULT_SETTINGS = {
-  mode: MODES.CLASSIC,
+  mode: MODES.HUNT,
   universe: DEFAULT_UNIVERSE,
   groups: UNIVERSES[DEFAULT_UNIVERSE].defaultGroups,
   scope: null,        // so os universos com `scope` no schema usam este campo
-  rounds: 0,          // 0 = sem fim: o padrao do modo classico
+  rounds: 5,
   turnSeconds: 45,
-  guessesPerPlayer: 0,
+  guessesPerPlayer: 0, // 0 = "ate acertar": sem teto de chutes (so no modo caca ao segredo)
 };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -39,31 +39,28 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
   const requestedScope = raw.scope ?? (universeId === base.universe ? base.scope : null);
   const scope = universe.scope ? (scopeOption(universe, requestedScope)?.id ?? null) : null;
 
-  // rounds 0 = partida sem fim: as rodadas se sucedem ate o host encerrar e
-  // cada rodada so fecha quando alguem acerta, entao os chutes viram ilimitados
-  // (guessesPerPlayer 0). O host encerra pelo botao "Encerrar partida".
-  const mode = raw.mode === MODES.DUEL ? MODES.DUEL : MODES.CLASSIC;
-  const rawRounds = raw.rounds ?? base.rounds;
+  const mode = raw.mode === MODES.DUEL ? MODES.DUEL : MODES.HUNT;
 
-  // no duelo quem esconde o segredo so pontua se os chutes acabarem, entao
-  // ali a partida sem fim nao faz sentido: cai para o padrao com limites
-  const endless = Number(rawRounds) === 0 && mode !== MODES.DUEL;
+  // "ate acertar" (guessesPerPlayer 0): a rodada so fecha quando alguem acerta,
+  // sem teto de chutes. So vale no modo caca ao segredo — no duelo quem esconde
+  // o segredo so pontua se os chutes dos outros acabarem, entao ali o teto e
+  // obrigatorio e um valor <= 0 cai para o padrao.
+  const rawGuesses = Math.round(Number(raw.guessesPerPlayer ?? base.guessesPerPlayer));
+  const untilRight = mode === MODES.HUNT && (!Number.isFinite(rawGuesses) || rawGuesses <= 0);
 
   return {
     mode,
     universe: universeId,
     groups: groups.length ? [...new Set(groups)] : [...universe.defaultGroups],
     scope,
-    rounds: endless ? 0 : clamp(Math.round(Number(rawRounds)) || 5, 1, 20),
+    rounds: clamp(Math.round(Number(raw.rounds ?? base.rounds)) || 5, 1, 20),
     turnSeconds: clamp(Math.round(Number(raw.turnSeconds ?? base.turnSeconds)) || 45, 5, 180),
-    guessesPerPlayer: endless
-      ? 0
-      : clamp(Math.round(Number(raw.guessesPerPlayer ?? base.guessesPerPlayer)) || 6, 1, 20),
+    guessesPerPlayer: untilRight ? 0 : clamp(rawGuesses || 6, 1, 20),
   };
 }
 
-/** Partida sem fim: rodadas ilimitadas e sem teto de chutes. */
-export const isEndless = (settings) => settings.rounds === 0;
+/** Rodada sem teto de chutes: so fecha quando alguem acerta. */
+export const isUntilRight = (settings) => settings.guessesPerPlayer === 0;
 
 // ---------------------------------------------------------------- comparacao
 

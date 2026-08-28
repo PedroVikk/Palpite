@@ -9,12 +9,12 @@ import DailyScreen from './screens/DailyScreen.jsx';
 
 /** Com o que uma sala nasce. O host ajusta tudo depois, no lobby. */
 const NEW_ROOM = {
-  mode: 'classic',
+  mode: 'hunt',
   universe: DEFAULT_UNIVERSE,
   groups: [...UNIVERSES[DEFAULT_UNIVERSE].defaultGroups],
-  rounds: 0,          // 0 = sem fim, o padrao do classico
+  rounds: 5,
   turnSeconds: 45,
-  guessesPerPlayer: 6,
+  guessesPerPlayer: 0, // 0 = "ate acertar", o padrao da caca ao segredo
 };
 
 export default function App() {

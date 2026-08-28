@@ -130,8 +130,8 @@ Cinco fontes pedidas **não** deram para usar direto e foram substituídas:
 
 | Modo | Como funciona |
 | --- | --- |
-| **Clássico** | O servidor sorteia o secreto. Todos adivinham, um por turno. |
-| **Duelo de escolhas** | A cada rodada um jogador escolhe o secreto e assiste; os outros se revezam. Se ninguém acertar, quem escolheu leva 50 pontos. |
+| **Caça ao segredo** | O servidor sorteia o secreto e **ninguém** sabe qual é. Todos adivinham, um por turno, até alguém acertar (ou os chutes acabarem). |
+| **Duelo** | A cada rodada um jogador **sorteado** escolhe o secreto e assiste; os outros se revezam nos chutes. Se ninguém acertar, quem escolheu leva 50 pontos. |
 
 Quantos jogadores quiser (até 12 por sala) — não é 1v1, é todo mundo contra todo
 mundo, com placar acumulado ao longo das rodadas.
@@ -141,12 +141,12 @@ mundo, com placar acumulado ao longo das rodadas.
 - **Universo** e **grupos** — quais fatias entram no sorteio.
 - **Recorte** — onde o universo tem um (só Hunter × Hunter hoje): elenco
   completo ou só o que foi animado.
-- **Indefinido** (ligado por padrão no clássico) — a rodada só fecha quando
-  alguém acerta, sem limite de chutes, e as rodadas se sucedem até o host
-  clicar em **Encerrar partida**. Mexer em *Rodadas* ou *Chutes por jogador*
-  desliga o indefinido automaticamente. No **duelo** ele não existe: quem
-  esconde o segredo só pontua se os chutes acabarem.
-- **Rodadas** — quantas até o placar final.
+- **Até acertar** (ligado por padrão na caça ao segredo) — a rodada só fecha
+  quando alguém acerta, sem teto de chutes; o host pode cortar pelo botão
+  **Encerrar partida**. Mexer em *Chutes por jogador* desliga essa opção. No
+  **duelo** ela não existe: quem esconde o segredo só pontua se os chutes dos
+  outros acabarem, então ali o teto é obrigatório.
+- **Rodadas** — quantas até o placar final (1 a 20).
 - **Segundos por turno (por jogador)** — vale a vez de cada um. **Jogando
   sozinho não há cronômetro**: ele existe para a vez não travar no versus.
   Quem não chuta a tempo perde a vez (e um chute, se houver limite).

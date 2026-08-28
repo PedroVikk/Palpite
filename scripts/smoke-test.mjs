@@ -50,13 +50,13 @@ await new Promise((resolve, reject) => {
 });
 
 try {
-  // ----------------------------------------------------------- modo classico
-  console.log('\n== Modo classico, 3 jogadores ==');
+  // ------------------------------------------------------- modo caca ao segredo
+  console.log('\n== Modo caca ao segredo, 3 jogadores ==');
   const [ash, misty, brock] = await Promise.all([connect('Ash'), connect('Misty'), connect('Brock')]);
 
   const created = await new Promise(res => ash.socket.emit('room:create', {
     name: 'Ash',
-    settings: { mode: 'classic', universe: 'pokemon', groups: ['1'], rounds: 2, turnSeconds: 5, guessesPerPlayer: 2 },
+    settings: { mode: 'hunt', universe: 'pokemon', groups: ['1'], rounds: 2, turnSeconds: 5, guessesPerPlayer: 2 },
   }, res));
   const code = created.code;
   check(`sala criada (${code})`, /^[A-Z2-9]{4}$/.test(code));
@@ -127,7 +127,7 @@ try {
   const red = squad[0];
   const room2 = await new Promise(res => red.socket.emit('room:create', {
     name: 'P1',
-    settings: { mode: 'classic', universe: 'pokemon', groups: ['1'], rounds: 1, turnSeconds: 120, guessesPerPlayer: 20 },
+    settings: { mode: 'hunt', universe: 'pokemon', groups: ['1'], rounds: 1, turnSeconds: 120, guessesPerPlayer: 20 },
   }, res));
   const bySocketPlayer = new Map();
   for (const [i, p] of squad.entries()) {
@@ -156,7 +156,7 @@ try {
   check('linha correta e 100% verde', Object.values(correctRow.cells).every(c => c.status === 'hit'));
 
   // ----------------------------------------------------------- modo duelo
-  console.log('\n== Modo duelo de escolhas ==');
+  console.log('\n== Modo duelo ==');
   const [gary, may] = await Promise.all([connect('Gary'), connect('May')]);
   const room3 = await new Promise(res => gary.socket.emit('room:create', {
     name: 'Gary',
@@ -165,23 +165,26 @@ try {
   await new Promise(res => may.socket.emit('room:join', { code: room3.code, name: 'May' }, res));
   gary.socket.emit('game:start');
   await until(gary, s => s.phase === 'choosing', 'fase de escolha');
-  check('quem escolhe e o primeiro jogador', gary.state.chooserId === room3.playerId);
-  check('escolhedor nao chuta', gary.state.players[0].guessesLeft === 0);
+  const duelBySocket = new Map([[room3.playerId, gary], [may.state.players[1].id, may]]);
+  const hider = duelBySocket.get(gary.state.chooserId);
+  const seeker = hider === gary ? may : gary;
+  check('quem esconde foi sorteado entre os jogadores', duelBySocket.has(gary.state.chooserId));
+  check('escolhedor nao chuta', gary.state.players.find(p => p.id === gary.state.chooserId).guessesLeft === 0);
 
-  gary.socket.emit('game:choose', { pokemonId: 400 }); // fora da Gen 1-2
+  hider.socket.emit('game:choose', { pokemonId: 400 }); // fora da Gen 1-2
   await sleep(150);
-  check('escolha fora dos grupos recusada', gary.errors.some(e => e.includes('fora das opções')));
+  check('escolha fora dos grupos recusada', hider.errors.some(e => e.includes('fora das opções')));
 
-  gary.socket.emit('game:choose', { pokemonId: 143 }); // Snorlax
-  await until(may, s => s.phase === 'playing', 'duelo comecou');
-  check('turno vai para o adversario', may.state.turnPlayerId === may.state.players[1].id);
-  check('escolhedor nao entra no rodizio', may.state.chooserId !== may.state.turnPlayerId);
+  hider.socket.emit('game:choose', { pokemonId: 143 }); // Snorlax
+  await until(seeker, s => s.phase === 'playing', 'duelo comecou');
+  check('escolhedor nao entra no rodizio', seeker.state.chooserId !== seeker.state.turnPlayerId);
+  check('turno vai para o adversario', seeker.state.turnPlayerId === seeker.state.players.find(p => p.id !== seeker.state.chooserId).id);
 
-  may.socket.emit('game:guess', { pokemonId: 143 });
-  await until(may, s => s.phase !== 'playing', 'adversario acertou');
-  check('segredo era o escolhido', may.state.secret?.id === 143);
-  check('adversario pontuou', may.state.players[1].score > 0);
-  check('escolhedor nao pontuou', may.state.players[0].score === 0);
+  seeker.socket.emit('game:guess', { pokemonId: 143 });
+  await until(seeker, s => s.phase !== 'playing', 'adversario acertou');
+  check('segredo era o escolhido', seeker.state.secret?.id === 143);
+  check('adversario pontuou', seeker.state.players.find(p => p.id !== seeker.state.chooserId).score > 0);
+  check('escolhedor nao pontuou', seeker.state.players.find(p => p.id === seeker.state.chooserId).score === 0);
 
   // ----------------------------------------------------------- todos os universos
   // Um bloco generico: cada universo novo em shared/universes.js entra aqui
@@ -213,7 +216,7 @@ try {
     arena.push(p1, p2);
     const room = await new Promise(res => p1.socket.emit('room:create', {
       name: 'J1',
-      settings: { mode: 'classic', universe: universe.id, groups: [groupId], rounds: 1, turnSeconds: 120, guessesPerPlayer: 20 },
+      settings: { mode: 'hunt', universe: universe.id, groups: [groupId], rounds: 1, turnSeconds: 120, guessesPerPlayer: 20 },
     }, res));
     await new Promise(res => p2.socket.emit('room:join', { code: room.code, name: 'J2' }, res));
     await until(p1, s => s.players.length === 2, `sala de ${universe.label}`);
@@ -287,7 +290,7 @@ try {
   const roomRec = await new Promise(res => rec.socket.emit('room:create', {
     name: 'Rec',
     settings: {
-      mode: 'classic', universe: 'hxh', groups: [...UNIVERSES.hxh.defaultGroups],
+      mode: 'hunt', universe: 'hxh', groups: [...UNIVERSES.hxh.defaultGroups],
       scope: 'anime', rounds: 3, turnSeconds: 120, guessesPerPlayer: 1,
     },
   }, res));
@@ -342,27 +345,27 @@ try {
   duo1.socket.disconnect();
   duo2.socket.disconnect();
 
-  // ----------------------------------------------------------- partida sem fim
-  console.log('\n== Partida sem fim ==');
+  // --------------------------------------------------------- rodada "ate acertar"
+  console.log('\n== Rodada "ate acertar" ==');
   const [inf1, inf2] = await Promise.all([connect('Inf1'), connect('Inf2')]);
   const roomInf = await new Promise(res => inf1.socket.emit('room:create', {
     name: 'Inf1',
-    settings: { mode: 'classic', universe: 'pokemon', groups: ['1'], rounds: 0, turnSeconds: 120, guessesPerPlayer: 6 },
+    settings: { mode: 'hunt', universe: 'pokemon', groups: ['1'], rounds: 3, turnSeconds: 120, guessesPerPlayer: 0 },
   }, res));
   await new Promise(res => inf2.socket.emit('room:join', { code: roomInf.code, name: 'Inf2' }, res));
-  await until(inf1, s => s.players.length === 2, 'sala sem fim montada');
-  check('rodadas ficam indefinidas', inf1.state.settings.rounds === 0);
+  await until(inf1, s => s.players.length === 2, 'sala "ate acertar" montada');
+  check('rodadas continuam fixas', inf1.state.settings.rounds === 3);
   check('teto de chutes desligado', inf1.state.settings.guessesPerPlayer === 0);
 
   inf1.socket.emit('game:start');
-  await until(inf1, s => s.phase === 'playing', 'partida sem fim comecou');
+  await until(inf1, s => s.phase === 'playing', 'partida "ate acertar" comecou');
   check('chutes aparecem como ilimitados', inf1.state.players.every(p => p.guessesLeft === null));
 
   // 30 chutes: com teto de 6 a rodada ja teria fechado
   for (let i = 1; i <= 30; i++) {
     const who = inf1.state.turnPlayerId === roomInf.playerId ? inf1 : inf2;
     who.socket.emit('game:guess', { pokemonId: i });
-    await until(inf1, s => s.rows.length === i || s.phase !== 'playing', `chute sem fim ${i}`);
+    await until(inf1, s => s.rows.length === i || s.phase !== 'playing', `chute "ate acertar" ${i}`);
     if (inf1.state.phase !== 'playing') break;
   }
   const acertouCedo = inf1.state.phase !== 'playing';
@@ -382,11 +385,11 @@ try {
   check('motivo do encerramento separado do placar', /encerrada pelo host/.test(inf1.state.message ?? ''));
 
   // ----------------------------------------------------------- padroes e duelo
-  console.log('\n== Padrao sem fim e cronometro ==');
+  console.log('\n== Padrao e cronometro ==');
   const solo = await connect('Solo');
   const roomPadrao = await new Promise(res => solo.socket.emit('room:create', { name: 'Solo' }, res));
-  check('classico ja nasce indefinido', roomPadrao.state.settings.rounds === 0);
-  check('sem teto de chutes por padrao', roomPadrao.state.settings.guessesPerPlayer === 0);
+  check('caca ao segredo nasce com rodadas fixas', roomPadrao.state.settings.rounds >= 1);
+  check('nasce em "ate acertar" (sem teto de chutes)', roomPadrao.state.settings.guessesPerPlayer === 0);
 
   solo.socket.emit('game:start');
   await until(solo, s => s.phase === 'playing', 'partida solo comecou');
@@ -402,10 +405,10 @@ try {
 
   const duelista = await connect('Duelista');
   const roomDuelo = await new Promise(res => duelista.socket.emit('room:create', {
-    name: 'Duelista', settings: { mode: 'duel', rounds: 0 },
+    name: 'Duelista', settings: { mode: 'duel', rounds: 2, guessesPerPlayer: 0 },
   }, res));
-  check('duelo recusa o indefinido', roomDuelo.state.settings.rounds > 0);
-  check('duelo mantem teto de chutes', roomDuelo.state.settings.guessesPerPlayer > 0);
+  check('duelo fixa as rodadas', roomDuelo.state.settings.rounds === 2);
+  check('duelo recusa o "ate acertar" e mantem teto de chutes', roomDuelo.state.settings.guessesPerPlayer > 0);
 
   // ----------------------------------------------------------- reconexao
   console.log('\n== Reconexao ==');

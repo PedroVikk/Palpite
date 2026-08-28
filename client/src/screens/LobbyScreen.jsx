@@ -5,9 +5,9 @@ import { useDataset } from '../hooks/useDataset.js';
 import { CopyIcon, ExitIcon } from '../components/Icon.jsx';
 
 /**
- * O formulario guarda `endless` a parte porque no servidor ele nao existe:
- * partida sem fim e `rounds === 0`, e nesse caso rodadas e chutes voltam
- * zerados. Guardar um valor editavel aqui evita que os campos pisquem.
+ * O formulario guarda `untilRight` a parte porque no servidor ele e so o
+ * `guessesPerPlayer === 0`. Guardar o numero editavel aqui evita que o campo
+ * "chutes por jogador" pisque enquanto o "ate acertar" esta ligado.
  */
 const fromSettings = (s) => ({
   mode: s.mode,
@@ -17,7 +17,7 @@ const fromSettings = (s) => ({
   rounds: s.rounds || 5,
   turnSeconds: s.turnSeconds,
   guessesPerPlayer: s.guessesPerPlayer || 6,
-  endless: s.rounds === 0,
+  untilRight: s.guessesPerPlayer === 0,
 });
 
 const toSettings = (f) => ({
@@ -25,9 +25,9 @@ const toSettings = (f) => ({
   universe: f.universe,
   groups: f.groups,
   scope: f.scope,
-  rounds: f.endless ? 0 : f.rounds,
+  rounds: f.rounds,
   turnSeconds: f.turnSeconds,
-  guessesPerPlayer: f.guessesPerPlayer,
+  guessesPerPlayer: f.untilRight ? 0 : f.guessesPerPlayer,
 });
 
 export default function LobbyScreen({ state, myId, toast, onLeave }) {
@@ -54,9 +54,9 @@ export default function LobbyScreen({ state, myId, toast, onLeave }) {
 
   function change(patch) {
     const next = { ...form, ...patch };
-    // no duelo o indefinido nao existe: quem esconde o segredo so pontua
+    // no duelo o "ate acertar" nao existe: quem esconde o segredo so pontua
     // quando os chutes dos outros acabam
-    if (next.mode === 'duel') next.endless = false;
+    if (next.mode === 'duel') next.untilRight = false;
     setForm(next);
     if (isHost) socket.emit('room:settings', toSettings(next));
   }
@@ -117,8 +117,8 @@ export default function LobbyScreen({ state, myId, toast, onLeave }) {
             <label className="field">
               <span>Modo</span>
               <select value={form.mode} disabled={!isHost} onChange={e => change({ mode: e.target.value })}>
-                <option value="classic">Clássico — o servidor sorteia o segredo</option>
-                <option value="duel">Duelo de escolhas — o jogador da vez escolhe</option>
+                <option value="hunt">Caça ao segredo — ninguém sabe, todos adivinham</option>
+                <option value="duel">Duelo — um jogador sorteado esconde, o resto adivinha</option>
               </select>
             </label>
             <label className="field">
@@ -191,26 +191,25 @@ export default function LobbyScreen({ state, myId, toast, onLeave }) {
             type="button"
             className={`switch-row ${!isHost || duel ? 'off' : ''}`}
             disabled={!isHost || duel}
-            onClick={() => change({ endless: !form.endless })}
+            onClick={() => change({ untilRight: !form.untilRight })}
           >
             <span className="text">
-              Modo indefinido
+              Até acertar
               <small>
                 {duel
                   ? 'O duelo precisa de teto de chutes para quem esconde pontuar.'
-                  : 'Joga até alguém acertar, sem limite de chutes.'}
+                  : 'A rodada só fecha quando alguém acerta, sem teto de chutes.'}
               </small>
             </span>
-            <span className={`switch ${form.endless ? 'on' : ''}`}><span className="knob" /></span>
+            <span className={`switch ${form.untilRight ? 'on' : ''}`}><span className="knob" /></span>
           </button>
 
           <div className="field-row">
-            <label className={`field ${form.endless ? 'ignored' : ''}`}>
+            <label className="field">
               <span>Rodadas</span>
               <input
                 type="number" min={1} max={20} value={form.rounds} disabled={!isHost}
-                /* mexer aqui e o que desliga o indefinido */
-                onChange={e => change({ rounds: Number(e.target.value), endless: false })}
+                onChange={e => change({ rounds: Number(e.target.value) })}
               />
             </label>
             <label className="field">
@@ -220,11 +219,13 @@ export default function LobbyScreen({ state, myId, toast, onLeave }) {
                 onChange={e => change({ turnSeconds: Number(e.target.value) })}
               />
             </label>
-            <label className={`field ${form.endless ? 'ignored' : ''}`}>
+            <label className={`field ${form.untilRight ? 'ignored' : ''}`}>
               <span>Chutes por jogador</span>
               <input
-                type="number" min={1} max={20} value={form.guessesPerPlayer} disabled={!isHost}
-                onChange={e => change({ guessesPerPlayer: Number(e.target.value), endless: false })}
+                type="number" min={1} max={20} value={form.guessesPerPlayer}
+                disabled={!isHost || form.untilRight}
+                /* mexer aqui desliga o "ate acertar" */
+                onChange={e => change({ guessesPerPlayer: Number(e.target.value), untilRight: false })}
               />
             </label>
           </div>

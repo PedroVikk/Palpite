@@ -15,7 +15,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   const left = useCountdown(state.deadline);
 
   const isHost = state.hostId === myId;
-  const endless = state.settings.rounds === 0;
+  const untilRight = state.settings.guessesPerPlayer === 0;
   const isMyTurn = state.phase === 'playing' && state.turnPlayerId === myId;
   const isMyChoice = state.phase === 'choosing' && state.chooserId === myId;
   const nameOf = (id) => state.players.find(p => p.id === id)?.name ?? 'alguém';
@@ -36,10 +36,10 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
       <header className="topbar">
         <span className="wordmark">Palpite</span>
         <span className="pill">
-          {endless ? `Rodada ${state.round}` : `Rodada ${state.round}/${state.settings.rounds}`}
+          {`Rodada ${state.round}/${state.settings.rounds}`}
         </span>
         <span className="pill">
-          {universe.label} · {state.settings.mode === 'duel' ? 'Duelo' : 'Clássico'}
+          {universe.label} · {state.settings.mode === 'duel' ? 'Duelo' : 'Caça ao segredo'}
         </span>
         <span className="pill code">{state.code}</span>
         <span className="spacer" />
@@ -85,8 +85,8 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
               {isHost && state.phase === 'roundEnd' && (
                 <button className="btn primary" onClick={() => socket.emit('game:next')}>Próxima rodada</button>
               )}
-              {/* sem fim a partida nao acaba sozinha: alguem precisa encerrar */}
-              {isHost && endless && (
+              {/* rodada "ate acertar" nao fecha sozinha: o host pode encerrar */}
+              {isHost && untilRight && (
                 <button className="btn" onClick={() => socket.emit('game:end')}>Encerrar partida</button>
               )}
               <button className="btn link" onClick={onLeave}>

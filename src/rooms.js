@@ -7,7 +7,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import {
-  MODES, getUniverse, sanitizeSettings, isEndless, scopeFilter, scopeOption,
+  MODES, getUniverse, sanitizeSettings, isUntilRight, scopeFilter, scopeOption,
   compareGuess, scoreForWin, SCORE_CHOOSER_SURVIVED, pickSecret,
 } from './game.js';
 import { datasetOf as datasetFor } from './catalog.js';
@@ -53,8 +53,8 @@ function createRoom(settings) {
   return room;
 }
 
-/** null = sem teto de chutes (partida sem fim). */
-const guessBudget = (room) => (isEndless(room.settings) ? null : room.settings.guessesPerPlayer);
+/** null = sem teto de chutes (rodada "ate acertar"). */
+const guessBudget = (room) => (isUntilRight(room.settings) ? null : room.settings.guessesPerPlayer);
 const hasGuessLeft = (left) => left === null || left > 0;
 /** Cuidado: `?? 0` transformaria null (ilimitado) em zero. */
 const guessesOf = (room, id) => (id in room.guessesLeft ? room.guessesLeft[id] : 0);
@@ -166,8 +166,9 @@ function startRound(room) {
   for (const p of room.players.values()) room.guessesLeft[p.id] = guessBudget(room);
 
   if (room.settings.mode === MODES.DUEL) {
+    // quem esconde o segredo e sorteado a cada rodada (pode repetir)
     const players = activePlayers(room);
-    room.chooserId = players[(room.round - 1) % players.length].id;
+    room.chooserId = players[Math.floor(Math.random() * players.length)].id;
     room.guessesLeft[room.chooserId] = 0;
     room.phase = 'choosing';
     room.turnPlayerId = null;
@@ -266,8 +267,7 @@ function endRound(room, winnerId) {
     }
   }
 
-  // na partida sem fim as rodadas seguem ate o host mandar encerrar
-  if (!isEndless(room.settings) && room.round >= room.settings.rounds) {
+  if (room.round >= room.settings.rounds) {
     return finishMatch(room);
   }
 
@@ -415,7 +415,7 @@ function onConnection(socket) {
     advance(room);
   });
 
-  // so faz sentido na partida sem fim, que nao acaba sozinha
+  // valvula de escape do host: uma rodada "ate acertar" nao fecha sozinha
   socket.on('game:end', () => {
     const { room, player } = findPlayerRoom(socket);
     if (!room || !player || room.hostId !== player.id) return;
