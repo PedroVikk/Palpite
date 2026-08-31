@@ -2,17 +2,28 @@
  * Baixa a valorant-api e gera data/valorant.json.
  *   npm run build:valorant
  *
- * Fonte: https://valorant-api.com (aberta, sem chave, com traducao pt-BR).
- * A API oficial da Riot (developer.riotgames.com) exige chave que expira em
- * 24h e nao expoe dados de agentes — por isso usamos esta.
+ * Fontes:
+ *  - https://valorant-api.com (aberta, sem chave, com traducao pt-BR): funcao,
+ *    nome e as imagens.
+ *  - Wiki do Valorant, `Template:Agent Infobox Shortcut` — uma pagina so com a
+ *    ficha de todos os agentes: raca, pronome, origem e data de estreia.
  *
- * Gera dois arquivos: agentes (poucos atributos comparaveis, rodadas curtas)
- * e armas (custo, dano, cadencia, pente, penetracao — deducao de verdade).
+ * A ficha do wiki entrou porque a valorant-api so tem numeros de jogo. As
+ * colunas antigas "Habilidades" (4 ou 5) e "Passiva" (sim ou nao) diziam a
+ * mesma coisa duas vezes — quem tem 5 habilidades e exatamente quem tem
+ * passiva — e nenhuma das duas era conhecimento de jogador.
+ *
+ * A API oficial da Riot (developer.riotgames.com) exige chave que expira em
+ * 24h e nao expoe dados de agentes — por isso usamos estas.
+ *
+ * Gera dois arquivos: agentes e armas (custo, dano, cadencia, pente,
+ * penetracao — deducao de verdade).
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
 const API = 'https://valorant-api.com/v1';
+const WIKI = 'https://valorant.fandom.com/api.php';
 const ROOT = path.resolve(process.cwd());
 const OUT_AGENTS = path.join(ROOT, 'data', 'valorant.json');
 const OUT_WEAPONS = path.join(ROOT, 'data', 'valorant-armas.json');
@@ -44,14 +55,62 @@ const ROLE_GROUP = {
   Controlador: 'controlador', Sentinela: 'sentinela',
 };
 
+/**
+ * Continente de cada pais de origem. Vai junto do pais na mesma celula: acertar
+ * o pais fecha verde, acertar so o continente fecha amarelo.
+ */
+const CONTINENT = {
+  Ghana: 'Africa', Morocco: 'Africa', Senegal: 'Africa',
+  Sweden: 'Europe', France: 'Europe', 'United Kingdom': 'Europe',
+  Norway: 'Europe', Germany: 'Europe', Croatia: 'Europe', Russia: 'Europe',
+  'Türkiye': 'Europe',
+  Japan: 'Asia', India: 'Asia', China: 'Asia', 'South Korea': 'Asia',
+  Philippines: 'Asia', Thailand: 'Asia',
+  'United States': 'North America', Mexico: 'North America',
+  Brazil: 'South America', Colombia: 'South America',
+  Australia: 'Oceania',
+};
+
 console.log('Baixando agentes da valorant-api...\n');
 
 const agents = await getJSON('agents', `${API}/agents?language=pt-BR&isPlayableCharacter=true`);
 console.log(`  ${agents.data.length} agentes jogaveis`);
 
+console.log('\nLendo a ficha dos agentes no wiki...');
+const infoboxes = await getJSON('fichas', `${WIKI}?${new URLSearchParams({
+  format: 'json', formatversion: '2', action: 'query', prop: 'revisions',
+  rvprop: 'content', rvslots: 'main', titles: 'Template:Agent Infobox Shortcut',
+})}`);
+const wikitext = infoboxes.query.pages[0].revisions[0].slots.main.content;
+
+/** Tira link, template de bandeira, aspas e o asterisco de nota de rodape. */
+const clean = (value) => String(value)
+  .replace(/\{\{[^{}]*\}\}/g, '')
+  .replace(/\[\[[^\]|]*\|([^\]]*)\]\]/g, '$1')
+  .replace(/\[\[([^\]]*)\]\]/g, '$1')
+  .replace(/["*]/g, '')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const fichas = new Map();
+for (const [, name, body] of wikitext.matchAll(/\n\|([^=\n]+)=\{\{Infobox agent\n([\s\S]*?)\n\}\}/g)) {
+  const field = (key) => clean(body.match(new RegExp(`^\\|\\s*${key}\\s*=(.*)$`, 'm'))?.[1] ?? '');
+  // "{{fi|KR}} Seoul, South Korea" -> "South Korea"; o KAY/O e o Omen nao vem
+  // de pais nenhum ("Alpha Earth") e ficam so com o proprio lugar
+  const origin = field('origin').split(',').pop().trim();
+  fichas.set(name.trim(), {
+    race: field('race') || 'Unknown',
+    gender: field('pronouns').split('/')[0] || null,
+    origin: origin || 'Unknown',
+    // os agentes do beta fechado nao tem data: sairam com o jogo, em 2020
+    releaseYear: Number(field('added').match(/\b(20\d\d)\b/)?.[1]) || 2020,
+  });
+}
+console.log(`  ${fichas.size} fichas lidas`);
+
 const roster = agents.data.map((a, index) => {
   const role = a.role?.displayName ?? null;
-  const abilities = (a.abilities ?? []).filter(h => h.displayName);
+  const ficha = fichas.get(a.displayName) ?? {};
 
   const item = {
     id: index + 1,
@@ -59,35 +118,47 @@ const roster = agents.data.map((a, index) => {
     name: a.displayName,
     group: ROLE_GROUP[role] ?? 'outros',
     role,
-    tags: Array.isArray(a.characterTags) ? a.characterTags : [],
-    abilities: abilities.length,
-    // passiva e um diferencial raro entre os agentes
-    passive: abilities.some(h => h.slot === 'Passive') ? 'Sim' : 'Não',
+    gender: ficha.gender ?? null,
+    race: ficha.race ?? null,
+    origin: [ficha.origin, CONTINENT[ficha.origin]].filter(Boolean),
+    releaseYear: ficha.releaseYear ?? null,
     sprite: a.displayIcon ?? a.displayIconSmall ?? null,
     artwork: a.fullPortrait ?? a.displayIcon ?? null,
   };
 
-  item.eligible = Boolean(item.name && item.role && item.sprite);
+  item.eligible = Boolean(
+    item.name && item.role && item.sprite
+    && item.gender && item.race && item.origin.length && item.releaseYear,
+  );
   return item;
 });
 
 const total = roster.length;
 const coverage = (label, predicate) => {
-  const n = roster.filter(predicate).length;
-  console.log(`  ${label.padEnd(14)} ${String(n).padStart(3)}/${total}`);
+  const faltam = roster.filter(c => !predicate(c));
+  console.log(`  ${label.padEnd(14)} ${String(total - faltam.length).padStart(3)}/${total}`
+    + (faltam.length ? `  (sem: ${faltam.map(c => c.name).join(', ')})` : ''));
 };
 
 console.log(`\nCobertura dos campos (${total} agentes):`);
 coverage('funcao', c => c.role);
-coverage('tags', c => c.tags.length);
-coverage('passiva', c => c.passive === 'Sim');
+coverage('genero', c => c.gender);
+coverage('raca', c => c.race);
+coverage('origem', c => c.origin.length);
+coverage('lancamento', c => c.releaseYear);
 coverage('imagem', c => c.sprite);
 coverage('sorteavel', c => c.eligible);
 
 const porFuncao = {};
 for (const c of roster) porFuncao[c.group] = (porFuncao[c.group] ?? 0) + 1;
 console.log('\nPor funcao:', JSON.stringify(porFuncao));
-console.log('Habilidades por agente:', JSON.stringify([...new Set(roster.map(c => c.abilities))].sort()));
+const conta = (key) => {
+  const m = new Map();
+  for (const c of roster) for (const v of [].concat(c[key] ?? [])) m.set(v, (m.get(v) ?? 0) + 1);
+  return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([v, n]) => `${v}(${n})`).join(', ');
+};
+console.log('Racas:', conta('race'));
+console.log('Origens:', conta('origin'));
 
 await fs.mkdir(path.dirname(OUT_AGENTS), { recursive: true });
 await fs.writeFile(OUT_AGENTS, JSON.stringify(roster));

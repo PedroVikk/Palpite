@@ -61,11 +61,6 @@ const CAR_DRIVE_PT = {
   dianteira: 'Dianteira', traseira: 'Traseira', integral: 'Integral', '4x4': '4x4',
 };
 
-const CAR_FUEL_PT = {
-  gasolina: 'Gasolina', diesel: 'Diesel', eletrico: 'Elétrico', hibrido: 'Híbrido',
-  'gas-natural': 'Gás natural', hidrogenio: 'Hidrogênio',
-};
-
 const MLP_KIND_PT = {
   earth: 'Pônei terrestre', unicorn: 'Unicórnio', pegasus: 'Pégaso',
   alicorn: 'Alicórnio', crystal: 'Pônei de cristal', human: 'Humano',
@@ -231,6 +226,53 @@ const HXH_JOB_PT = {
   soldado: 'Soldado', mafioso: 'Mafioso', lutador: 'Lutador', servo: 'Servo',
   realeza: 'Realeza', ladrao: 'Ladrão', jogador: 'Jogador de Greed Island',
   ciencia: 'Ciência e saúde', artista: 'Artista', outros: 'Outra',
+};
+
+/** Os wikis respondem o genero em pronome; a celula mostra o rotulo. */
+const PRONOUN_PT = { He: 'Masculino', She: 'Feminino', They: 'Outro', It: 'Sem gênero' };
+
+const LOL_RESOURCE_PT = {
+  Mana: 'Mana', Energy: 'Energia', Health: 'Vida', Rage: 'Raiva', Fury: 'Fúria',
+  Ferocity: 'Ferocidade', Flow: 'Fluxo', Grit: 'Ousadia', Heat: 'Aquecimento',
+  Courage: 'Coragem', Shield: 'Escudo', Frenzy: 'Frenesi',
+  'Blood Well': 'Poço de Sangue', 'Crimson Rush': 'Ímpeto Vermelho',
+  None: 'Sem recurso',
+};
+
+const LOL_REGION_PT = {
+  Targon: 'Monte Targon', 'Shadow Isles': 'Ilhas das Sombras',
+  'Bandle City': 'Bandópolis', Void: 'Vazio',
+};
+
+/**
+ * Especie na ficha de lore. So as que tem nome em portugues estao aqui — o
+ * resto (Yordle, Darkin, Vastaya, Brackern...) e nome proprio e sai como veio.
+ */
+const LOL_SPECIES_PT = {
+  Human: 'Humano', Voidborn: 'Ser do Vazio', Wraith: 'Espectro',
+  Revenant: 'Revenante', Demon: 'Demônio', Spirit: 'Espírito',
+  'Spirit God': 'Deus espírito', 'Aspect Host': 'Hospedeiro de Aspecto',
+  'God-Warrior': 'Guerreiro Divino', Dragon: 'Dragão',
+  'Celestial Dragon': 'Dragão Celestial', 'Terrestrial Dragon': 'Dragão Terrestre',
+  Minotaur: 'Minotauro', Treant: 'Ent', Cat: 'Gato', Dog: 'Cão',
+  'Plague Rat': 'Rato da Praga', 'Fae Fawn': 'Cervo Feérico',
+  'Techmaturgy Golem': 'Golem de Techmaturgia', 'Petricite Golem': 'Golem de Petricita',
+  'Plant / Human Hybrid': 'Híbrido de planta e humano', Unknown: 'Desconhecida',
+};
+
+/**
+ * Origem dos agentes de Valorant: pais e continente na mesma celula, entao o
+ * mapa tem os dois. O KAY/O e o Omen nao vem de pais nenhum.
+ */
+const VAL_ORIGIN_PT = {
+  ...COUNTRY_PT,
+  'United Kingdom': 'Reino Unido', Ghana: 'Gana', Morocco: 'Marrocos',
+  Senegal: 'Senegal', Norway: 'Noruega', Croatia: 'Croácia',
+  'Türkiye': 'Turquia', 'South Korea': 'Coreia do Sul', Philippines: 'Filipinas',
+  Africa: 'África', Europe: 'Europa', Asia: 'Ásia', Oceania: 'Oceania',
+  'North America': 'América do Norte', 'South America': 'América do Sul',
+  'Alpha Earth': 'Terra Alfa', 'Alternate Timeline Earth': 'Terra de outra linha',
+  Unknown: 'Desconhecida',
 };
 
 export const UNIVERSES = {
@@ -402,14 +444,20 @@ export const UNIVERSES = {
       { id: 'support', label: 'Suporte' },
     ],
     defaultGroups: ['fighter', 'mage', 'assassin', 'marksman', 'tank', 'support'],
+    // as notas de Ataque/Magia/Defesa/Dificuldade do Data Dragon sairam: sao
+    // rotulos de 1 a 10 que ninguem sabe de cabeca. No lugar, a ficha de lore
+    // do wiki — o mesmo conjunto de colunas do LoLdle
     columns: [
-      { key: 'roles', label: 'Funções', kind: 'list' },
-      { key: 'resource', label: 'Recurso', kind: 'text' },
-      { key: 'attack', label: 'Ataque', kind: 'number' },
-      { key: 'magic', label: 'Magia', kind: 'number' },
-      { key: 'defense', label: 'Defesa', kind: 'number' },
-      { key: 'difficulty', label: 'Dificuldade', kind: 'number' },
-      { key: 'attackRange', label: 'Alcance', kind: 'number', tolerance: 0.1 },
+      { key: 'gender', label: 'Gênero', kind: 'text', labels: PRONOUN_PT },
+      { key: 'positions', label: 'Posições', kind: 'list' },
+      { key: 'species', label: 'Espécie', kind: 'list', labels: LOL_SPECIES_PT },
+      { key: 'resource', label: 'Recurso', kind: 'text', labels: LOL_RESOURCE_PT },
+      {
+        key: 'rangeType', label: 'Alcance', kind: 'text',
+        labels: { Melee: 'Corpo a corpo', Ranged: 'À distância' },
+      },
+      { key: 'regions', label: 'Região', kind: 'list', labels: LOL_REGION_PT },
+      { key: 'releaseYear', label: 'Lançamento', kind: 'number' },
     ],
   },
 
@@ -426,11 +474,20 @@ export const UNIVERSES = {
       { id: 'sentinela', label: 'Sentinela' },
     ],
     defaultGroups: ['duelista', 'iniciador', 'controlador', 'sentinela'],
+    // "Habilidades" (4 ou 5) e "Passiva" (sim ou nao) sairam: diziam a mesma
+    // coisa duas vezes e nao eram conhecimento de jogador. No lugar entrou a
+    // ficha do wiki, que e o que os jogos do genero perguntam
     columns: [
       { key: 'role', label: 'Função', kind: 'text' },
-      { key: 'tags', label: 'Tags', kind: 'list' },
-      { key: 'abilities', label: 'Habilidades', kind: 'number' },
-      { key: 'passive', label: 'Passiva', kind: 'text' },
+      { key: 'gender', label: 'Gênero', kind: 'text', labels: PRONOUN_PT },
+      {
+        key: 'race', label: 'Raça', kind: 'text',
+        labels: { Human: 'Humano', Radiant: 'Radiante', Cybernetic: 'Cibernético', Unknown: 'Desconhecida' },
+      },
+      // pais e continente juntos: acertar o pais fecha verde, acertar so o
+      // continente fecha amarelo
+      { key: 'origin', label: 'Origem', kind: 'list', labels: VAL_ORIGIN_PT },
+      { key: 'releaseYear', label: 'Lançamento', kind: 'number' },
     ],
   },
 
@@ -635,7 +692,9 @@ export const UNIVERSES = {
       { key: 'make', label: 'Marca', kind: 'text' },
       { key: 'category', label: 'Categoria', kind: 'text', labels: CAR_CATEGORY_PT },
       { key: 'drive', label: 'Tração', kind: 'text', labels: CAR_DRIVE_PT },
-      { key: 'fuel', label: 'Combustível', kind: 'text', labels: CAR_FUEL_PT },
+      // "Combustível" saiu: 97% dos sorteaveis sao a gasolina, entao a celula
+      // fechava verde para quase todo chute e nao dizia nada
+      { key: 'economy', label: 'Consumo', kind: 'number', unit: 'km/l', tolerance: 0.1 },
       { key: 'cylinders', label: 'Cilindros', kind: 'number' },
       { key: 'displacement', label: 'Cilindrada', kind: 'number', unit: 'L', tolerance: 0.15 },
       // anos sem tolerancia: 3% de 2000 seriam 60 anos de "quase"

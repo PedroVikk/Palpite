@@ -34,15 +34,15 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Clash Royale** | 120 | 120 | 5 raridades | Raridade, Tipo, Elixir, Arena, Alvo, Velocidade, Vida |
 | **Naruto** | 1431 | 230 | 8 vilas + Akatsuki | Gênero, Clã, Afiliação, Classificação, Natureza, Patente, Estreia, Altura |
 | **Yu-Gi-Oh!** | 3000 | 600 | 10 tipos de carta | Tipo, Atributo, Raça, Nível, ATK, DEF, Arquétipo |
-| **League of Legends** | 173 | 173 | 6 funções | Funções, Recurso, Ataque, Magia, Defesa, Dificuldade, Alcance |
-| **Valorant · Agentes** | 29 | 29 | 4 funções | Função, Tags, Habilidades, Passiva |
+| **League of Legends** | 173 | 170 | 6 classes | Gênero, Posições, Espécie, Recurso, Alcance, Região, Lançamento |
+| **Valorant · Agentes** | 29 | 29 | 4 funções | Função, Gênero, Raça, Origem, Lançamento |
 | **Valorant · Armas** | 19 | 19 | 6 categorias | Categoria, Custo, Dano, Cadência, Pente, Penetração |
 | **Rick and Morty** | 826 | 81 | Humanos, Aliens, Outros | Status, Espécie, Gênero, Origem, Localização, Episódios, Estreia |
 | **Super-heróis** | 563 | 433 | Marvel, DC, Outras | Editora, Alinhamento, Gênero, Raça, Inteligência, Força, Altura |
 | **Harry Potter** | 437 | 91 | 4 casas de Hogwarts | Casa, Espécie, Gênero, Ascendência, Papel, Vivo, Cabelo |
 | **Senhor dos Anéis** | 25 | 25 | 7 raças | Raça, Reino, Grupo, Gênero, Altura, Armas, Filmes |
 | **Fórmula 1** | 853 | 265 | 8 décadas de estreia | País, Equipe, Temporadas, Vitórias, Títulos, Estreia, Nascimento |
-| **Carros** | 1570 | 1020 | 9 origens de marca | Marca, Categoria, Tração, Combustível, Cilindros, Cilindrada, Estreia, Último ano |
+| **Carros** | 1570 | 1020 | 9 origens de marca | Marca, Categoria, Tração, Consumo, Cilindros, Cilindrada, Estreia, Último ano |
 | **My Little Pony** | 555 | 211 | 6 espécies | Espécie, Gênero, Residência, Ocupação |
 | **One Piece** | 786 | 375 | 7 facções | Tripulação, Papel, Fruta, Status, Recompensa, Altura, Idade |
 | **Dragon Ball** | 58 | 43 | 6 raças | Raça, Gênero, Afiliação, Planeta, Transformações, Ki base, Ki máximo |
@@ -55,6 +55,20 @@ secundários sem altura, afiliação ou episódio de estreia. No Yu-Gi-Oh, das 1
 cartas ficam as 3000 mais vistas no site, e só as 600 mais vistas viram segredo.
 Na Fórmula 1, sorteáveis são os vencedores de corrida, quem tem 5+ temporadas ou
 quem correu de 2020 para cá — os outros 588 são nomes de uma prova só.
+
+**Uma coluna só vale se o jogador puder saber a resposta de cabeça.** É o que
+guia a escolha aqui, e é por isso que a ficha de *League of Legends* e a de
+*Valorant · Agentes* não são a que a API entrega. No LoL, o Data Dragon dá notas
+de 1 a 10 para Ataque, Magia, Defesa e Dificuldade: ninguém sabe que a Ahri tem
+"Magia 8", então quatro das sete colunas viravam chute no escuro. No lugar
+entrou a ficha de lore do wiki — gênero, posição, espécie, recurso, alcance,
+região e ano de lançamento, o mesmo conjunto do LoLdle. Em Valorant, as colunas
+*Habilidades* (4 ou 5) e *Passiva* (sim ou não) diziam a mesma coisa duas vezes
+— quem tem 5 habilidades é exatamente quem tem passiva — e *Tags* estava vazia
+em 18 dos 29 agentes; agora são função, gênero, raça, origem e lançamento. Em
+Carros, *Combustível* saiu pelo mesmo motivo: 97% dos sorteáveis são a gasolina,
+então a célula fechava verde para quase todo chute. O *Consumo* em km/l tomou o
+lugar, com as setas ▲/▼.
 
 Em **One Piece**, a api-onepiece não traz imagem e ficou meio traduzida do
 francês ("Baggy", "Chapeau de Paille"), então a ficha vem dela e o nome
@@ -97,7 +111,9 @@ não aparecem as setas ▲/▼.
 | [Dattebayo](https://dattebayo-api.onrender.com/) | não |
 | [YGOPRODeck](https://ygoprodeck.com/api-guide/) | não |
 | [Data Dragon (Riot)](https://ddragon.leagueoflegends.com/) | não |
+| [Wiki de LoL (MediaWiki)](https://leagueoflegends.fandom.com/) | não |
 | [valorant-api](https://valorant-api.com/) | não |
+| [Wiki do Valorant (MediaWiki)](https://valorant.fandom.com/) | não |
 | [Rick and Morty API](https://rickandmortyapi.com/) | não |
 | [SuperHero API (espelho akabab)](https://akabab.github.io/superhero-api/) | não |
 | [HP-API](https://hp-api.onrender.com/) | não |
@@ -113,7 +129,14 @@ Cinco fontes pedidas **não** deram para usar direto e foram substituídas:
 
 - **developer.riotgames.com** exige chave que expira a cada 24h e serve dados de
   partidas, não a ficha dos campeões. O **Data Dragon** da própria Riot é aberto,
-  tem os 173 campeões e vem em pt-BR.
+  tem os 173 campeões e vem em pt-BR — dele saem o nome, a classe e as imagens.
+  Espécie, gênero, região, posição, alcance e ano de lançamento não existem em
+  API nenhuma da Riot: vêm do wiki, do `Module:ChampionData/data` e da ficha
+  `{{Champion bio}}` de cada campeão. Os três campeões mais novos (Locke, Yunara
+  e Zaahen) ainda não estão no módulo, então podem ser chutados mas não
+  sorteados. O mesmo vale para Valorant: a valorant-api só tem números de jogo,
+  e raça, pronome, origem e estreia saem de uma página só do wiki, o
+  `Template:Agent Infobox Shortcut`.
 - **developer.marvel.com** exige chave pública + hash privado. A Marvel entra
   pelo espelho aberto da SuperHero API, como grupo (239 personagens sorteáveis).
 - **superheroapi.com** exige um token por usuário; o espelho estático do akabab
@@ -361,7 +384,6 @@ O servidor respeita a variável `PORT` e responde em `/healthz`.
 - **Harry Potter quase não tem fotos**: a API só traz imagem de 25 dos 437
   personagens, então a maioria das linhas aparece só com o nome. O Senhor dos
   Anéis não tem imagem nenhuma.
-- **Valorant · Agentes é o universo mais fraco**: a API só dá função, tags (e
-  apenas 11 dos 29 agentes têm alguma) e número de habilidades. Por isso existe
-  também o **Valorant · Armas**, com custo, dano, cadência, pente e penetração —
-  poucas opções, mas dedução de verdade.
+- **Valorant · Agentes é um universo curto**: são 29 agentes e cinco colunas.
+  Por isso existe também o **Valorant · Armas**, com custo, dano, cadência,
+  pente e penetração — poucas opções, mas outra cabeça de dedução.

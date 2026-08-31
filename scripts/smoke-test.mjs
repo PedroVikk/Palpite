@@ -327,7 +327,9 @@ try {
   check('clash: nome em ingles como apelido',
     clash.find(c => c.key === 'hog-rider')?.aliases?.includes('Hog Rider') === true);
   const lol = JSON.parse(await fs.readFile('data/lol.json', 'utf8'));
-  check('lol: nomes e titulos em portugues', lol.some(c => c.name === 'Ahri') && lol.every(c => c.roles.length));
+  check('lol: nomes em portugues', lol.some(c => c.name === 'Ahri'));
+  check('lol: ficha de lore do wiki no lugar das notas de 1 a 10',
+    lol.filter(c => c.eligible).every(c => c.gender && c.species.length && c.regions.length && c.releaseYear));
   const heroes = JSON.parse(await fs.readFile('data/heroes.json', 'utf8'));
   check('herois: Marvel presente', heroes.filter(h => h.group === 'marvel' && h.eligible).length > 100);
   check('herois: Homem-Aranha sorteavel', heroes.find(h => h.name === 'Spider-Man')?.eligible === true);

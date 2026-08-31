@@ -144,7 +144,7 @@ const text = await source();
 const lines = text.split(/\r?\n/).filter(Boolean);
 const header = parseLine(lines[0]);
 const at = Object.fromEntries(
-  ['make', 'model', 'baseModel', 'year', 'VClass', 'cylinders', 'displ', 'drive', 'fuelType1', 'atvType']
+  ['make', 'model', 'baseModel', 'year', 'VClass', 'cylinders', 'displ', 'drive', 'fuelType1', 'atvType', 'comb08']
     .map(key => [key, header.indexOf(key)]),
 );
 
@@ -179,6 +179,17 @@ function mode(values) {
   return [...tally].sort((a, b) => b[1] - a[1])[0][0];
 }
 
+/** Mediana — para o consumo, que e continuo e nao tem "valor mais comum". */
+function median(values) {
+  const list = values.filter(v => v !== null && v !== undefined).sort((a, b) => a - b);
+  if (!list.length) return null;
+  const middle = Math.floor(list.length / 2);
+  return list.length % 2 ? list[middle] : (list[middle - 1] + list[middle]) / 2;
+}
+
+// o EPA mede em milhas por galao americano
+const MPG_TO_KML = 0.4251437;
+
 const catalog = [...models.values()].map(({ make, base, rows }, index) => {
   const years = [...new Set(rows.map(r => Number(r[at.year])).filter(Number.isFinite))].sort();
 
@@ -202,9 +213,16 @@ const catalog = [...models.values()].map(({ make, base, rows }, index) => {
     make,
     category: mode(rows.map(r => match(CATEGORY, r[at.VClass]))),
     drive: mode(rows.map(r => match(DRIVE, r[at.drive]))),
+    // `fuel` nao e coluna de dica — quase todo sorteavel e a gasolina, entao
+    // a celula ficava verde para todo mundo. Fica no dataset porque e ele que
+    // separa o eletrico, que nao pode ser sorteado
     fuel: mode(fuels),
     cylinders,
     displacement: mode(sameEngine.map(r => numeric(r[at.displ]))),
+    economy: (() => {
+      const kml = median(sameEngine.map(r => numeric(r[at.comb08]))) * MPG_TO_KML;
+      return Number.isFinite(kml) ? Math.round(kml * 10) / 10 : null;
+    })(),
     debut: years[0] ?? null,
     lastYear: years[years.length - 1] ?? null,
     sprite: null,      // a base do EPA nao tem imagens
@@ -216,7 +234,7 @@ const catalog = [...models.values()].map(({ make, base, rows }, index) => {
   item.eligible = Boolean(
     years.length >= MIN_YEARS
     && item.category && item.drive && item.fuel
-    && item.cylinders != null && item.displacement != null,
+    && item.cylinders != null && item.displacement != null && item.economy != null,
   );
   return item;
 });
@@ -235,6 +253,7 @@ coverage('tracao', c => c.drive);
 coverage('combustivel', c => c.fuel);
 coverage('cilindros', c => c.cylinders != null);
 coverage('cilindrada', c => c.displacement != null);
+coverage('consumo', c => c.economy != null);
 coverage('sorteavel', c => c.eligible);
 
 const porPais = {};
