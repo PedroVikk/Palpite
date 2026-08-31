@@ -75,12 +75,17 @@ const roster = ranked.map((card, index) => {
     name: card.name,
     group: kind,
     kind,
-    attribute: isMonster ? clean(card.attribute) : null,
+    // magia e armadilha tem atributo sim — e o icone SPELL/TRAP no canto da
+    // carta. A API nao manda o campo, mas deixar em branco pintava a celula de
+    // "sem dado" em um terco da base, e duas magias nunca fechavam verde
+    attribute: isMonster ? clean(card.attribute) : kind.toUpperCase(),
     race: clean(card.race),                       // Dragon/Spellcaster, ou Quick-Play/Continuous
     level: isMonster ? (card.level ?? card.linkval ?? null) : null,
     atk: isMonster ? (card.atk ?? null) : null,
     def: isMonster ? (card.def ?? null) : null,
-    archetype: clean(card.archetype),
+    // carta fora de arquetipo e a maioria da base: "Sem arquétipo" e resposta,
+    // nao lacuna
+    archetype: clean(card.archetype) ?? 'Sem arquétipo',
     sprite: card.card_images?.[0]?.image_url_small ?? null,
     artwork: card.card_images?.[0]?.image_url ?? null,
     // as TOP_SECRET mais vistas sao famosas o bastante para virar segredo

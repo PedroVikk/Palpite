@@ -60,11 +60,13 @@ const roster = raw.map((c, index) => {
     sourceId: c.id,
     name: c.name,
     group: groupOf(c.species),
-    status: clean(c.status),
+    // "unknown" e a resposta da API para quem o desenho nunca disse — vale
+    // como dica (fecha verde contra outro desconhecido) e nao como lacuna
+    status: clean(c.status) ?? 'unknown',
     species: clean(c.species),
-    gender: clean(c.gender),
-    origin: clean(c.origin?.name),
-    location: clean(c.location?.name),
+    gender: clean(c.gender) ?? 'unknown',
+    origin: clean(c.origin?.name) ?? 'unknown',
+    location: clean(c.location?.name) ?? 'unknown',
     episodes: Array.isArray(c.episode) ? c.episode.length : 0,
     // numero do primeiro episodio em que aparece: bom para as setas ▲▼
     firstEpisode: Number(String(c.episode?.[0] ?? '').split('/').pop()) || null,
@@ -89,9 +91,9 @@ const coverage = (label, predicate) => {
 console.log(`\nCobertura dos campos (${total} personagens):`);
 coverage('status', c => c.status);
 coverage('especie', c => c.species);
-coverage('genero', c => c.gender);
-coverage('origem', c => c.origin);
-coverage('localizacao', c => c.location);
+coverage('genero', c => c.gender !== 'unknown');
+coverage('origem', c => c.origin !== 'unknown');
+coverage('localizacao', c => c.location !== 'unknown');
 coverage('2+ episodios', c => c.episodes >= 2);
 coverage('sorteavel', c => c.eligible);
 

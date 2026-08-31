@@ -18,7 +18,9 @@ export function formatValue(column, value) {
     const labels = value.map(v => column.labels?.[v] ?? v);
     return labels.length > 3 ? `${labels.slice(0, 3).join(', ')} +${labels.length - 3}` : labels.join(', ');
   }
-  if (value === null || value === undefined || value === '') return '—';
+  // `blank` e o rotulo de quando o vazio e resposta ("Não tem", para o ATK de
+  // uma magia); sem ele, vazio e falta de dado e a celula so mostra o travessao
+  if (value === null || value === undefined || value === '') return column.blank ?? '—';
   if (column.labels?.[value]) return column.labels[value];
   if (column.kind === 'number') {
     // `compact` e para numero grande demais para ler digito a digito: a

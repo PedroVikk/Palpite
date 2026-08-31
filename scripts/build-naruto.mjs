@@ -167,6 +167,21 @@ const chapterOf = (text) => {
 const clanList = (value) =>
   asList(String(value ?? '').split(',')).map(name => name.replace(/\s*Clan$/i, '')).filter(Boolean);
 
+/**
+ * Campo em branco na Narutopedia nao e falta de dado, e a resposta: a ficha so
+ * lista cla, natureza ou classificacao quando o personagem tem. Sem um valor
+ * explicito a celula ficaria cinza de "sem dado" para dois terços do elenco —
+ * e duas pessoas sem cla nenhum nunca fechariam verde entre si.
+ */
+const orElse = (list, fallback) => (list.length ? list : [fallback]);
+
+/**
+ * A ficha so escreve `status` para quem morreu; quem esta vivo nao tem o campo.
+ * "Presumed Deceased" e "Incapacitated" contam como morto — quem sumiu do
+ * mangao nao volta como resposta certa de "vivo".
+ */
+const statusOf = (value) => (/deceased|incapacitated/i.test(String(value ?? '')) ? 'Morto' : 'Vivo');
+
 const VILLAGES = [
   ['konoha', 'Konohagakure'], ['suna', 'Sunagakure'], ['kiri', 'Kirigakure'],
   ['iwa', 'Iwagakure'], ['kumo', 'Kumogakure'], ['oto', 'Otogakure'],
@@ -204,13 +219,18 @@ const roster = raw.map((c, index) => {
     sourceId: c.id,
     name: tidy(c.name),
     group: groupOf(affiliation),
-    gender: clean(personal.sex),
-    clan: clanList(personal.clan),
+    // a ficha de quem muda de forma vem com o icone junto:
+    // "File:Gender Various.svg Various"
+    gender: clean(String(personal.sex ?? '').replace(/^File:.*?\.(?:svg|png|jpg)\s*/i, '')),
+    clan: orElse(clanList(personal.clan), 'Sem clã'),
     affiliation,
-    classification: asList(personal.classification),
-    natureType: asList(c.natureType),
-    ninjaRank: byArc(c.rank?.ninjaRank),
+    classification: orElse(asList(personal.classification), 'Nenhuma'),
+    natureType: orElse(asList(c.natureType), 'Nenhuma'),
+    ninjaRank: byArc(c.rank?.ninjaRank) ?? 'Desconhecida',
+    status: statusOf(personal.status),
     debutChapter: chapterOf(c.debut?.manga),
+    // altura nao e coluna de dica (ninguem sabe que o Kakashi tem 181cm), mas
+    // e o melhor sinal de que a ficha do personagem esta completa
     height: heightCm(personal.height),
     sprite: c.images?.[0] ?? null,
     artwork: c.images?.[0] ?? null,
@@ -260,11 +280,12 @@ const coverage = (label, predicate) => {
 
 console.log(`\nCobertura dos campos (${total} personagens):`);
 coverage('genero', c => c.gender);
-coverage('cla', c => c.clan.length);
+coverage('cla', c => c.clan[0] !== 'Sem clã');
 coverage('afiliacao', c => c.affiliation.length);
-coverage('classificacao', c => c.classification.length);
-coverage('natureza', c => c.natureType.length);
-coverage('patente', c => c.ninjaRank);
+coverage('classificacao', c => c.classification[0] !== 'Nenhuma');
+coverage('natureza', c => c.natureType[0] !== 'Nenhuma');
+coverage('patente', c => c.ninjaRank !== 'Desconhecida');
+coverage('morto', c => c.status === 'Morto');
 coverage('cap. estreia', c => c.debutChapter != null);
 coverage('altura', c => c.height != null);
 coverage('imagem', c => c.sprite);

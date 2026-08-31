@@ -66,9 +66,22 @@ export const isUntilRight = (settings) => settings.guessesPerPlayer === 0;
 
 const isEmpty = (value) => value === null || value === undefined || value === '';
 
-/** Numero: acerto, "quase" (dentro da tolerancia) ou erro + seta. */
-function compareNumber(guessValue, secretValue, tolerance = 0) {
-  if (isEmpty(guessValue) || isEmpty(secretValue)) return { status: 'unknown', hint: null };
+/**
+ * Numero: acerto, "quase" (dentro da tolerancia) ou erro + seta.
+ *
+ * Vazio quer dizer duas coisas diferentes conforme a coluna. Sem `blank`, e
+ * falta de dado: nao da para comparar, a celula fica cinza de "sem dado". Com
+ * `blank` (o ATK de uma magia de Yu-Gi-Oh), vazio e a resposta — "essa carta
+ * nao tem ATK" —, entao duas cartas sem o campo fecham verde e uma com e outra
+ * sem fecham erro, so que sem seta: nao existe maior nem menor que "nao tem".
+ */
+function compareNumber(guessValue, secretValue, { tolerance = 0, blank = null } = {}) {
+  const semChute = isEmpty(guessValue);
+  const semSegredo = isEmpty(secretValue);
+  if (semChute || semSegredo) {
+    if (!blank) return { status: 'unknown', hint: null };
+    return { status: semChute && semSegredo ? 'hit' : 'miss', hint: null };
+  }
   if (guessValue === secretValue) return { status: 'hit', hint: null };
   const close = Math.abs(guessValue - secretValue) <= Math.abs(secretValue) * tolerance;
   return { status: close ? 'close' : 'miss', hint: guessValue < secretValue ? 'up' : 'down' };
@@ -106,7 +119,7 @@ function compareColumn(column, guess, secret) {
     case 'list':
       return compareList(guess[column.key], secret[column.key]);
     case 'number':
-      return compareNumber(guess[column.key], secret[column.key], column.tolerance ?? 0);
+      return compareNumber(guess[column.key], secret[column.key], column);
     default: {
       const value = guess[column.key] ?? null;
       const expected = secret[column.key] ?? null;

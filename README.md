@@ -32,19 +32,19 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Pokémon** | 1025 | 1025 | Gerações 1–9 | Tipo 1, Tipo 2, Geração, Cores, Evolução, Altura, Peso |
 | **Bleach** | 221 | 106 | Shinigami, Humanos, Quincy, Arrancar | Raça, Gênero, Afiliação, Bankai, Estreia, Altura, Peso |
 | **Clash Royale** | 120 | 120 | 5 raridades | Raridade, Tipo, Elixir, Arena, Alvo, Velocidade, Vida |
-| **Naruto** | 1431 | 230 | 8 vilas + Akatsuki | Gênero, Clã, Afiliação, Classificação, Natureza, Patente, Estreia, Altura |
+| **Naruto** | 1431 | 230 | 8 vilas + Akatsuki | Gênero, Clã, Afiliação, Classificação, Natureza, Patente, Estado, Estreia |
 | **Yu-Gi-Oh!** | 3000 | 600 | 10 tipos de carta | Tipo, Atributo, Raça, Nível, ATK, DEF, Arquétipo |
 | **League of Legends** | 173 | 170 | 6 classes | Gênero, Posições, Espécie, Recurso, Alcance, Região, Lançamento |
 | **Valorant · Agentes** | 29 | 29 | 4 funções | Função, Gênero, Raça, Origem, Lançamento |
 | **Valorant · Armas** | 19 | 19 | 6 categorias | Categoria, Custo, Dano, Cadência, Pente, Penetração |
-| **Rick and Morty** | 826 | 81 | Humanos, Aliens, Outros | Status, Espécie, Gênero, Origem, Localização, Episódios, Estreia |
+| **Rick and Morty** | 826 | 97 | Humanos, Aliens, Outros | Status, Espécie, Gênero, Origem, Localização, Episódios, Estreia |
 | **Super-heróis** | 563 | 433 | Marvel, DC, Outras | Editora, Alinhamento, Gênero, Raça, Inteligência, Força, Altura |
 | **Harry Potter** | 437 | 91 | 4 casas de Hogwarts | Casa, Espécie, Gênero, Ascendência, Papel, Vivo, Cabelo |
-| **Senhor dos Anéis** | 25 | 25 | 7 raças | Raça, Reino, Grupo, Gênero, Altura, Armas, Filmes |
-| **Fórmula 1** | 853 | 265 | 8 décadas de estreia | País, Equipe, Temporadas, Vitórias, Títulos, Estreia, Nascimento |
+| **Senhor dos Anéis** | 25 | 25 | 7 raças | Raça, Reino, Grupo, Gênero, Altura, Cabelo, Filmes |
+| **Fórmula 1** | 853 | 265 | 8 décadas de estreia | País, Equipe, Temporadas, Vitórias, Títulos, Melhor ano, Estreia |
 | **Carros** | 1570 | 1020 | 9 origens de marca | Marca, Categoria, Tração, Consumo, Cilindros, Cilindrada, Estreia, Último ano |
-| **My Little Pony** | 555 | 211 | 6 espécies | Espécie, Gênero, Residência, Ocupação |
-| **One Piece** | 786 | 375 | 7 facções | Tripulação, Papel, Fruta, Status, Recompensa, Altura, Idade |
+| **My Little Pony** | 555 | 117 | 6 espécies | Espécie, Gênero, Residência, Ocupação |
+| **One Piece** | 786 | 375 | 7 facções | Tripulação, Papel, Fruta, Origem, Status, Recompensa, Altura, Idade |
 | **Dragon Ball** | 58 | 43 | 6 raças | Raça, Gênero, Afiliação, Planeta, Transformações, Ki base, Ki máximo |
 | **Hunter × Hunter 2011** | 607 | 447 | 7 facções | Gênero, Nen, Estado, Afiliação, Ocupação, Cabelo, Estreia |
 
@@ -68,21 +68,39 @@ região e ano de lançamento, o mesmo conjunto do LoLdle. Em Valorant, as coluna
 em 18 dos 29 agentes; agora são função, gênero, raça, origem e lançamento. Em
 Carros, *Combustível* saiu pelo mesmo motivo: 97% dos sorteáveis são a gasolina,
 então a célula fechava verde para quase todo chute. O *Consumo* em km/l tomou o
-lugar, com as setas ▲/▼.
+lugar, com as setas ▲/▼. No Senhor dos Anéis, *Armas* saiu porque cada um dos 25
+personagens tinha um conjunto próprio: a célula só ficava verde na resposta
+certa. Entrou *Cabelo*. Na Fórmula 1, *Nascimento* deu lugar a *Melhor ano* — a
+melhor colocação no campeonato, onde 1 é campeão e o resto do grid se espalha —,
+porque o ano de nascimento quase ninguém sabe e ele andava colado no de estreia.
+
+**E célula cinza não é dica.** Quando um campo está em branco a comparação não
+acontece: a célula sai cinza de "sem dado" e não separa nada. Às vezes o branco
+é lacuna mesmo (o peso de 15% do elenco de Bleach), mas quase sempre ele *é*
+a resposta — o ninja não é de clã nenhum, a magia de Yu-Gi-Oh não tem ATK, o
+marinheiro não tem recompensa. Nesses casos o dataset agora grava o valor
+explícito ("Sem clã", "Nenhuma", "Sem arquétipo"), e nas colunas numéricas o
+schema marca `blank`, que faz duas cartas sem ATK fecharem verde entre si. Isso
+tirou o cinza de 65% das células de *Clã* e *Classificação* no Naruto, de um
+terço da tabela do Yu-Gi-Oh e de 69% da *Recompensa* do One Piece.
 
 Em **One Piece**, a api-onepiece não traz imagem e ficou meio traduzida do
 francês ("Baggy", "Chapeau de Paille"), então a ficha vem dela e o nome
 canônico e o retrato vêm da One Piece Wiki — 88% casam, e o nome francês fica
 de apelido na busca. Sorteável precisa de retrato, tripulação, papel, status e
-altura ou idade. *Recompensa* é o campo mais vazio da API (26% dos sorteáveis):
-a maioria dos personagens nunca teve uma anunciada. Em **Dragon Ball** o ki
+altura ou idade. Da mesma página do wiki sai a `{{Char Box}}`, que preenche o
+que a API não sabe: o *mar de origem* (que ela não tem), 31% das recompensas
+contra 26% dela, e a altura certa — a API põe o Fisher Tiger com 4520 cm, dez
+vezes os 520 cm da ficha. Quem continua sem recompensa é marinheiro ou civil:
+nunca teve uma anunciada. Em **Dragon Ball** o ki
 varia de 450 ao "969 Googolplex" do Zeno, então a célula mostra a ordem de
 grandeza ("Milhões", "Setilhões") em vez do número — as setas ▲▼ continuam
 valendo. Quem não tem ki na base (Bulma, Chi-Chi) pode ser chutado, mas não
 sorteado. **Hunter × Hunter 2011** leva esse nome porque a Hunterpedia entrega
 o retrato e a cor de cabelo da adaptação de 2011 sempre que ela existe. Lá,
-*Nen* distingue o campo escrito "Unknown" na ficha — que é informação, e fecha
-verde contra outro nunca revelado — de quem não tem o campo; e *Ocupação*
+*Nen* separa três respostas: o tipo revelado, o campo escrito "Unknown" (usa
+nen, nunca disseram qual) e a ficha sem o campo, que é quem nunca foi mostrado
+usando nen — as três valem como dica e fecham verde contra a igual. *Ocupação*
 agrupa o texto livre da wiki em treze papéis, senão cada personagem teria um
 valor único e a coluna nunca ficaria verde.
 
@@ -117,11 +135,15 @@ não aparecem as setas ▲/▼.
 | [Rick and Morty API](https://rickandmortyapi.com/) | não |
 | [SuperHero API (espelho akabab)](https://akabab.github.io/superhero-api/) | não |
 | [HP-API](https://hp-api.onrender.com/) | não |
+| [Harry Potter Wiki (MediaWiki)](https://harrypotter.fandom.com/) | não |
 | [LOTR API (vlayer)](https://lotr-api.vlayer.vercel.app/) | não |
+| [One Wiki to Rule Them All](https://lotr.fandom.com/) | não |
 | [F1 API](https://f1api.dev/) | não |
+| [Wikipedia (retratos da F1)](https://en.wikipedia.org/) | não |
 | [EPA fueleconomy.gov](https://www.fueleconomy.gov/feg/ws/) | não |
 | [PonyAPI](https://ponyapi.net/) | não |
 | [api-onepiece](https://api-onepiece.com/) | não |
+| [One Piece Wiki (MediaWiki)](https://onepiece.fandom.com/) | não |
 | [Dragon Ball API](https://dragonball-api.com/) | não |
 | [Hunterpedia (MediaWiki)](https://hunterxhunter.fandom.com/) | não |
 
@@ -378,12 +400,20 @@ O servidor respeita a variável `PORT` e responde em `/healthz`.
 - **Os dados são das APIs, com os defeitos delas.** No Bleach, Ichigo aparece
   como "Humano" e Yhwach não existe na base. No Naruto, o clã da Sakura vem como
   "Uchiha" (pós-casamento) e o do Gaara como "Kazekage", que é título.
-- **Fórmula 1 não tem fotos** e os dados de carreira são agregados por nós a
-  partir da classificação de cada temporada, não vêm prontos da API. Títulos e
-  vitórias batem com a história (Schumacher e Hamilton com 7, Senna com 3 e 41).
-- **Harry Potter quase não tem fotos**: a API só traz imagem de 25 dos 437
-  personagens, então a maioria das linhas aparece só com o nome. O Senhor dos
-  Anéis não tem imagem nenhuma.
+- **A coluna *Estado* do Naruto sai do silêncio da ficha**: a Narutopedia só
+  escreve `status` para quem morreu, então ausência do campo é "vivo". Dá um
+  53%/47% — a divisão mais equilibrada da tabela.
+- **Os dados de carreira da Fórmula 1 são agregados por nós** a partir da
+  classificação de cada temporada, não vêm prontos da API. Títulos e vitórias
+  batem com a história (Schumacher e Hamilton com 7, Senna com 3 e 41). A f1api
+  não serve fotos, mas manda o link do artigo de cada piloto na Wikipedia, e o
+  `pageimages` de lá cobre 85% dos sorteáveis.
+- **Retrato de Harry Potter, Senhor dos Anéis e Fórmula 1 vem de fora da API.**
+  A HP-API traz imagem de só 25 dos 437 personagens e a LOTR API não traz
+  nenhuma; com o `pageimages` do wiki de cada franquia são 95% e 100% dos
+  sorteáveis com foto. Um único personagem ficou de fora do espelho local
+  (Cassius Warrington, num formato que o `sharp` não abre) e continua apontando
+  para a CDN.
 - **Valorant · Agentes é um universo curto**: são 29 agentes e cinco colunas.
   Por isso existe também o **Valorant · Armas**, com custo, dano, cadência,
   pente e penetração — poucas opções, mas outra cabeça de dedução.

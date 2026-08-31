@@ -398,6 +398,140 @@ const roster = chars.map((c, index) => {
   return item;
 });
 
+// ------------------------------------------------- ficha do wiki (Char Box)
+
+/**
+ * A api-onepiece so conhece a recompensa de um quarto do elenco e nao tem mar
+ * de origem. O wiki tem os dois na `{{Char Box}}` — a mesma pagina de onde ja
+ * saem o nome e o retrato —, entao vale uma segunda passada.
+ */
+function sliceCharBox(wikitext) {
+  const start = wikitext.indexOf('{{Char Box');
+  if (start < 0) return null;
+  let depth = 0;
+  for (let i = start; i < wikitext.length; i++) {
+    if (wikitext.startsWith('{{', i)) { depth++; i++; continue; }
+    if (wikitext.startsWith('}}', i)) {
+      depth--; i++;
+      if (!depth) return wikitext.slice(start + 2, i - 1);
+    }
+  }
+  return null;
+}
+
+/**
+ * Quebra nos `|` de profundidade zero: ha `|` dentro de {{ref}} e [[link]]. A
+ * <gallery> sai antes — as legendas dela tambem sao separadas por `|`, e ela
+ * traz um `height=` proprio (a altura da miniatura) que roubava o campo do
+ * personagem: o Luffy saiu com 91 cm.
+ */
+function charBoxParams(body) {
+  const limpo = body
+    .replace(/<gallery[\s\S]*?<\/gallery>/gi, '')
+    .replace(/<ref[\s\S]*?(?:\/>|<\/ref>)/gi, '');
+
+  const parts = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < limpo.length; i++) {
+    if (limpo.startsWith('{{', i) || limpo.startsWith('[[', i)) { depth++; i++; continue; }
+    if (limpo.startsWith('}}', i) || limpo.startsWith(']]', i)) { depth--; i++; continue; }
+    if (limpo[i] === '|' && depth <= 0) { parts.push(limpo.slice(start, i)); start = i + 1; }
+  }
+  parts.push(limpo.slice(start));
+  const out = {};
+  for (const chunk of parts.slice(1)) {
+    const eq = chunk.indexOf('=');
+    const key = eq > 0 ? chunk.slice(0, eq).trim().toLowerCase() : null;
+    // vale a primeira ocorrencia: o campo de verdade vem antes do que sobrar
+    if (key && !(key in out)) out[key] = chunk.slice(eq + 1).trim();
+  }
+  return out;
+}
+
+/** Os mares e regioes que valem como origem; o resto do campo e a cidade. */
+const SEAS = {
+  'East Blue': 'East Blue', 'West Blue': 'West Blue', 'North Blue': 'North Blue',
+  'South Blue': 'South Blue', 'Grand Line': 'Grand Line', 'New World': 'Grand Line',
+  'Red Line': 'Red Line', 'Sky Island': 'Sky Island', 'Calm Belt': 'Calm Belt',
+};
+
+const originOf = (raw) => {
+  for (const link of String(raw ?? '').matchAll(/\[\[([^\]|]+)/g)) {
+    const sea = SEAS[link[1].trim()];
+    if (sea) return sea;
+  }
+  return null;
+};
+
+/**
+ * O campo lista a recompensa atual e depois as antigas, riscadas. A primeira
+ * linha sem `<s>` e a que vale hoje.
+ */
+const bountyOf = (raw) => {
+  for (const line of String(raw ?? '').split(/<br\s*\/?>/)) {
+    if (/<s>/.test(line)) continue;
+    const found = line.match(/(\d{1,3}(?:,\d{3})+)/);
+    if (found) return Number(found[1].replace(/,/g, ''));
+  }
+  return null;
+};
+
+/**
+ * A ficha lista a altura em cada fase ("91 cm (debut, child)", "172 cm
+ * (pre-timeskip)", "174 cm (post-timeskip)"). Vale a atual: a linha marcada
+ * como pos-time-skip, ou a ultima.
+ */
+const wikiCm = (raw) => {
+  const linhas = String(raw ?? '').split(/<br\s*\/?>|\n/)
+    .filter(linha => /[\d.]+\s*cm/.test(linha));
+  const escolhida = linhas.find(l => /post[- ]timeskip|current/i.test(l)) ?? linhas.at(-1);
+  const n = Number(String(escolhida ?? '').match(/([\d.]+)\s*cm/)?.[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+console.log('\nLendo a ficha de cada personagem no wiki...');
+const fichas = new Map();
+const comPagina = [...new Set(roster.map(c => c.name))];
+// a ficha mora na pagina; nos personagens com abas ela foi para o
+// "Template:<nome> Tabs Top"
+for (const molde of ['', 'Template:%s Tabs Top']) {
+  const faltam = comPagina.filter(t => !fichas.has(t));
+  if (!faltam.length) break;
+  for (const [i, grupo] of chunk(faltam, 50).entries()) {
+    const titulos = grupo.map(t => (molde ? molde.replace('%s', t) : t));
+    const page = await wikiQuery(`fichas_${molde ? 'tpl' : 'pag'}_${i}`, {
+      formatversion: '2', prop: 'revisions', rvprop: 'content', rvslots: 'main',
+      redirects: '1', titles: titulos.join('|'),
+    });
+    const daRedirecao = new Map((page.query.redirects ?? []).map(r => [r.to, r.from]));
+    for (const p of page.query.pages ?? []) {
+      if (p.missing) continue;
+      const body = sliceCharBox(p.revisions[0].slots.main.content);
+      if (!body) continue;
+      const titulo = (daRedirecao.get(p.title) ?? p.title)
+        .replace(/^Template:/, '').replace(/ Tabs Top$/, '');
+      fichas.set(titulo, charBoxParams(body));
+    }
+    process.stdout.write(`\r  ${fichas.size}/${comPagina.length}`);
+  }
+}
+process.stdout.write('\n');
+
+for (const item of roster) {
+  const ficha = fichas.get(item.name);
+  if (!ficha) continue;
+  // o wiki manda nos tres: conhece quase o dobro de recompensas que a API, e
+  // o unico com a origem, e ainda corrige altura errada (a API poe o Fisher
+  // Tiger com 4520cm, dez vezes os 520cm da ficha)
+  item.origin = originOf(ficha.origin) ?? item.origin ?? null;
+  item.bounty = bountyOf(ficha.bounty) ?? item.bounty;
+  item.height = wikiCm(ficha.height) ?? item.height;
+}
+
+// mar de origem em branco no wiki e mesmo desconhecido — muito personagem
+// nunca teve a terra natal dita —, e isso conta como dica
+for (const item of roster) item.origin = item.origin ?? 'Unknown';
+
 const total = roster.length;
 const coverage = (label, predicate) => {
   const n = roster.filter(predicate).length;
@@ -410,6 +544,7 @@ coverage('tripulacao', c => c.crew);
 coverage('cargo', c => c.job);
 coverage('fruta', c => c.fruit !== 'Nenhuma');
 coverage('status', c => c.status);
+coverage('origem', c => c.origin !== 'Unknown');
 coverage('recompensa', c => c.bounty != null);
 coverage('altura', c => c.height != null);
 coverage('idade', c => c.age != null);

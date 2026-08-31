@@ -33,6 +33,7 @@ const HAIR_PT = {
   Blond: 'Loiro', Golden: 'Dourado', Grey: 'Grisalho', Silver: 'Prateado',
   White: 'Branco', Bald: 'Careca', Sandy: 'Acastanhado', Dark: 'Escuro',
   Green: 'Verde', Tawny: 'Fulvo', Purple: 'Roxo', Dull: 'Sem brilho',
+  Unknown: 'Não dita',
   // so aparecem em Hunter x Hunter, mas o mapa de cabelo e um so
   Blue: 'Azul', Pink: 'Rosa', Orange: 'Laranja',
 };
@@ -124,6 +125,7 @@ const NEN_PT = {
   Enhancement: 'Reforço', Transmutation: 'Transmutação', Emission: 'Emissão',
   Manipulation: 'Manipulação', Conjuration: 'Materialização',
   Specialization: 'Especialização', Unknown: 'Nunca revelado',
+  None: 'Não usa nen',
 };
 
 const HXH_STATUS_PT = { Alive: 'Vivo', Deceased: 'Morto', Unknown: 'Desconhecido' };
@@ -134,6 +136,7 @@ const HXH_STATUS_PT = { Alive: 'Vivo', Deceased: 'Morto', Unknown: 'Desconhecido
  * "Hui Guo Rou", o Beyond Netero, a Nanika — e sai como veio.
  */
 const HXH_AFFILIATION_PT = {
+  None: 'Sem afiliação',
   'Hunter Association': 'Associação Hunter',
   'Hunter Association Exorcist': 'Exorcista da Associação Hunter',
   'Amateur Hunters': 'Hunters amadores',
@@ -226,6 +229,7 @@ const HXH_JOB_PT = {
   soldado: 'Soldado', mafioso: 'Mafioso', lutador: 'Lutador', servo: 'Servo',
   realeza: 'Realeza', ladrao: 'Ladrão', jogador: 'Jogador de Greed Island',
   ciencia: 'Ciência e saúde', artista: 'Artista', outros: 'Outra',
+  nenhuma: 'Sem ocupação',
 };
 
 /** Os wikis respondem o genero em pronome; a celula mostra o rotulo. */
@@ -273,6 +277,13 @@ const VAL_ORIGIN_PT = {
   'North America': 'América do Norte', 'South America': 'América do Sul',
   'Alpha Earth': 'Terra Alfa', 'Alternate Timeline Earth': 'Terra de outra linha',
   Unknown: 'Desconhecida',
+};
+
+/** Mar de origem no One Piece; "Desconhecida" e a ficha do wiki em branco. */
+const OP_ORIGIN_PT = {
+  'East Blue': 'East Blue', 'West Blue': 'West Blue', 'North Blue': 'North Blue',
+  'South Blue': 'South Blue', 'Grand Line': 'Grand Line', 'Red Line': 'Red Line',
+  'Sky Island': 'Ilha do Céu', 'Calm Belt': 'Calm Belt', Unknown: 'Desconhecida',
 };
 
 export const UNIVERSES = {
@@ -349,11 +360,13 @@ export const UNIVERSES = {
         key: 'target', label: 'Alvo', kind: 'text',
         labels: { ground: 'Terrestre', air: 'Aéreo', air_ground: 'Ar e terra', buildings: 'Construções', area: 'Área' },
       },
+      // construcao nao anda e feitico nao tem vida: o vazio e a resposta, e
+      // duas cartas paradas fecham verde entre si
       {
-        key: 'speed', label: 'Velocidade', kind: 'number',
+        key: 'speed', label: 'Velocidade', kind: 'number', blank: 'Não anda',
         labels: { 30: 'Muito lenta', 45: 'Lenta', 60: 'Média', 90: 'Rápida', 120: 'Muito rápida' },
       },
-      { key: 'hitpoints', label: 'Vida', kind: 'number', tolerance: 0.1 },
+      { key: 'hitpoints', label: 'Vida', kind: 'number', tolerance: 0.1, blank: 'Não tem' },
     ],
   },
 
@@ -374,15 +387,22 @@ export const UNIVERSES = {
       { id: 'outros', label: 'Outros' },
     ],
     defaultGroups: ['konoha', 'suna', 'kiri', 'iwa', 'kumo', 'oto', 'akatsuki', 'outros'],
+    // "Altura" saiu (ninguem sabe que o Kakashi tem 181cm) e entrou "Estado",
+    // que a Narutopedia responde para todo mundo. Cla, classificacao e natureza
+    // em branco viram "Sem cla"/"Nenhuma" no dataset: e a resposta da ficha,
+    // nao falta de dado, entao dois personagens sem cla fecham verde
     columns: [
-      { key: 'gender', label: 'Gênero', kind: 'text', labels: { Male: 'Masculino', Female: 'Feminino' } },
+      {
+        key: 'gender', label: 'Gênero', kind: 'text',
+        labels: { Male: 'Masculino', Female: 'Feminino', Various: 'Vários' },
+      },
       { key: 'clan', label: 'Clã', kind: 'list' },
       { key: 'affiliation', label: 'Afiliação', kind: 'list' },
       { key: 'classification', label: 'Classificação', kind: 'list' },
       { key: 'natureType', label: 'Natureza', kind: 'list' },
       { key: 'ninjaRank', label: 'Patente', kind: 'text' },
+      { key: 'status', label: 'Estado', kind: 'text' },
       { key: 'debutChapter', label: 'Estreia', kind: 'number', prefix: 'Cap. ', tolerance: 0.1 },
-      { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1 },
     ],
   },
 
@@ -419,12 +439,15 @@ export const UNIVERSES = {
         labels: {
           DARK: 'Trevas', LIGHT: 'Luz', EARTH: 'Terra', WATER: 'Água',
           FIRE: 'Fogo', WIND: 'Vento', DIVINE: 'Divino',
+          SPELL: 'Magia', TRAP: 'Armadilha',
         },
       },
       { key: 'race', label: 'Raça', kind: 'text' },
-      { key: 'level', label: 'Nível', kind: 'number' },
-      { key: 'atk', label: 'ATK', kind: 'number', tolerance: 0.1 },
-      { key: 'def', label: 'DEF', kind: 'number', tolerance: 0.1 },
+      // magia e armadilha nao tem nivel nem ATK/DEF: `blank` diz que o vazio e
+      // a resposta, entao duas magias fecham verde em vez de cinza
+      { key: 'level', label: 'Nível', kind: 'number', blank: 'Não tem' },
+      { key: 'atk', label: 'ATK', kind: 'number', tolerance: 0.1, blank: 'Não tem' },
+      { key: 'def', label: 'DEF', kind: 'number', tolerance: 0.1, blank: 'Não tem' },
       { key: 'archetype', label: 'Arquétipo', kind: 'text' },
     ],
   },
@@ -529,11 +552,19 @@ export const UNIVERSES = {
     ],
     defaultGroups: ['human', 'alien', 'outros'],
     columns: [
-      { key: 'status', label: 'Status', kind: 'text', labels: { Alive: 'Vivo', Dead: 'Morto' } },
+      // "unknown" e resposta da API, nao lacuna: o desenho nunca disse, e dois
+      // desconhecidos fecham verde entre si
+      {
+        key: 'status', label: 'Status', kind: 'text',
+        labels: { Alive: 'Vivo', Dead: 'Morto', unknown: 'Desconhecido' },
+      },
       { key: 'species', label: 'Espécie', kind: 'text' },
-      { key: 'gender', label: 'Gênero', kind: 'text', labels: { Male: 'Masculino', Female: 'Feminino', Genderless: 'Sem gênero' } },
-      { key: 'origin', label: 'Origem', kind: 'text' },
-      { key: 'location', label: 'Localização', kind: 'text' },
+      {
+        key: 'gender', label: 'Gênero', kind: 'text',
+        labels: { Male: 'Masculino', Female: 'Feminino', Genderless: 'Sem gênero', unknown: 'Desconhecido' },
+      },
+      { key: 'origin', label: 'Origem', kind: 'text', labels: { unknown: 'Desconhecida' } },
+      { key: 'location', label: 'Localização', kind: 'text', labels: { unknown: 'Desconhecida' } },
       { key: 'episodes', label: 'Episódios', kind: 'number', tolerance: 0.1 },
       { key: 'firstEpisode', label: 'Estreia', kind: 'number', prefix: 'Ep. ', tolerance: 0.1 },
     ],
@@ -558,7 +589,7 @@ export const UNIVERSES = {
         labels: { good: 'Herói', bad: 'Vilão', neutral: 'Neutro' },
       },
       { key: 'gender', label: 'Gênero', kind: 'text', labels: { Male: 'Masculino', Female: 'Feminino' } },
-      { key: 'race', label: 'Raça', kind: 'text' },
+      { key: 'race', label: 'Raça', kind: 'text', labels: { Unknown: 'Não dita' } },
       { key: 'intelligence', label: 'Inteligência', kind: 'number', tolerance: 0.1 },
       { key: 'strength', label: 'Força', kind: 'number', tolerance: 0.1 },
       { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1 },
@@ -597,6 +628,7 @@ export const UNIVERSES = {
         labels: {
           'pure-blood': 'Sangue puro', 'half-blood': 'Mestiço', muggleborn: 'Nascido trouxa',
           muggle: 'Trouxa', squib: 'Aborto', 'half-veela': 'Meio-veela', 'quarter-veela': 'Um quarto veela',
+          'half-breed': 'Meio-humano', unknown: 'Nunca dita',
         },
       },
       { key: 'role', label: 'Papel', kind: 'text' },
@@ -637,7 +669,9 @@ export const UNIVERSES = {
       },
       { key: 'gender', label: 'Gênero', kind: 'text', labels: { Male: 'Masculino', Female: 'Feminino' } },
       { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1 },
-      { key: 'weapons', label: 'Armas', kind: 'list' },
+      // "Armas" saiu: cada um dos 25 tinha um conjunto proprio, entao a celula
+      // nunca fechava verde a nao ser na resposta certa
+      { key: 'hairColor', label: 'Cabelo', kind: 'text', labels: HAIR_PT },
       { key: 'films', label: 'Filmes', kind: 'number' },
     ],
   },
@@ -665,8 +699,10 @@ export const UNIVERSES = {
       { key: 'seasons', label: 'Temporadas', kind: 'number', tolerance: 0.1 },
       { key: 'wins', label: 'Vitórias', kind: 'number', tolerance: 0.1 },
       { key: 'titles', label: 'Títulos', kind: 'number' },
+      // trocou o ano de nascimento, que quase ninguem sabe e andava colado no
+      // ano de estreia: aqui 1 e campeao e o resto do grid se espalha
+      { key: 'bestPosition', label: 'Melhor ano', kind: 'number', prefix: '#' },
       { key: 'debut', label: 'Estreia', kind: 'number' },
-      { key: 'birthYear', label: 'Nascimento', kind: 'number' },
     ],
   },
 
@@ -748,10 +784,16 @@ export const UNIVERSES = {
       { key: 'crew', label: 'Tripulação', kind: 'text' },
       { key: 'job', label: 'Papel', kind: 'text' },
       { key: 'fruit', label: 'Fruta', kind: 'text' },
+      { key: 'origin', label: 'Origem', kind: 'text', labels: OP_ORIGIN_PT },
       { key: 'status', label: 'Status', kind: 'text' },
       // as recompensas variam de mil a 5 bilhoes: 10% de tolerancia so
-      // pintaria de amarelo quem ja esta na mesma casa de grandeza
-      { key: 'bounty', label: 'Recompensa', kind: 'number', compact: true, prefix: '฿ ', tolerance: 0.1 },
+      // pintaria de amarelo quem ja esta na mesma casa de grandeza. Marinheiro
+      // e civil nao tem recompensa nenhuma — `blank` faz esse vazio valer como
+      // resposta, entao dois sem recompensa fecham verde
+      {
+        key: 'bounty', label: 'Recompensa', kind: 'number',
+        compact: true, prefix: '฿ ', tolerance: 0.1, blank: 'Não tem',
+      },
       { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1 },
       { key: 'age', label: 'Idade', kind: 'number', tolerance: 0.1 },
     ],

@@ -91,16 +91,49 @@ const roster = raw.map((c, index) => {
     fellowship: resolve(groups, c.group),
     gender: clean(c.gender),
     height: heightCm(c.height),
-    hairColor: clean(c.hair_color),
+    // cabelo em branco na API e cor que Tolkien nunca escreveu — vale como
+    // dica e fecha verde contra outro nunca descrito
+    hairColor: clean(c.hair_color) ?? 'Unknown',
     weapons: Array.isArray(c.weapons) ? c.weapons.filter(Boolean) : [],
     films: Array.isArray(c.films) ? c.films.length : null,
-    sprite: null,      // a API nao serve imagens
+    sprite: null,      // a API nao serve imagens; o retrato vem do wiki abaixo
     artwork: null,
   };
 
   item.eligible = Boolean(item.name && item.race && item.realm && item.gender && item.films != null);
   return item;
 });
+
+// ------------------------------------------------------------- os retratos
+
+/**
+ * A API nao tem imagem nenhuma, e sem retrato a tabela de dicas fica so com
+ * nomes. Sao 25 personagens: um pedido so ao wiki resolve.
+ */
+console.log('\nBuscando os retratos na One Wiki to Rule Them All...');
+const WIKI = 'https://lotr.fandom.com/api.php';
+// o wiki titula os dois pelo nome de rei
+const TITULO_NO_WIKI = { Aragorn: 'Aragorn II Elessar', Denethor: 'Denethor II' };
+const nomes = roster.map(c => TITULO_NO_WIKI[c.name] ?? c.name);
+const resposta = await getJSON('retratos', `${WIKI}?${new URLSearchParams({
+  format: 'json', formatversion: '2', action: 'query', prop: 'pageimages',
+  piprop: 'thumbnail', pithumbsize: '400', redirects: '1', titles: nomes.join('|'),
+})}`);
+
+const daOrigem = new Map([
+  ...(resposta.query.redirects ?? []).map(r => [r.to, r.from]),
+  ...(resposta.query.normalized ?? []).map(r => [r.to, r.from]),
+]);
+const retratos = new Map();
+for (const p of resposta.query.pages ?? []) {
+  if (p.missing || !p.thumbnail?.source) continue;
+  retratos.set(daOrigem.get(p.title) ?? p.title, p.thumbnail.source);
+}
+for (const item of roster) {
+  item.sprite = retratos.get(TITULO_NO_WIKI[item.name] ?? item.name) ?? null;
+  item.artwork = item.sprite;
+}
+console.log(`  ${retratos.size}/${roster.length} com retrato`);
 
 const total = roster.length;
 const coverage = (label, predicate) => {
@@ -113,7 +146,8 @@ coverage('raca', c => c.race);
 coverage('reino', c => c.realm);
 coverage('grupo', c => c.fellowship);
 coverage('altura', c => c.height != null);
-coverage('armas', c => c.weapons.length);
+coverage('cabelo', c => c.hairColor !== 'Unknown');
+coverage('retrato', c => c.sprite);
 coverage('sorteavel', c => c.eligible);
 
 const porRaca = {};

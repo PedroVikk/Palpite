@@ -25,16 +25,19 @@ async function getJSON(name, url) {
   try {
     return JSON.parse(await fs.readFile(file, 'utf8'));
   } catch {}
-  for (let attempt = 1; attempt <= 4; attempt++) {
+  for (let attempt = 1; attempt <= 6; attempt++) {
     try {
-      const res = await fetch(url);
+      // a Wikipedia bloqueia (429) quem nao se identifica com contato
+      const res = await fetch(url, {
+        headers: { 'user-agent': 'palpite-dataset/1.0 (+https://github.com/PedroVikk/Palpite)' },
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = await res.text();
       await fs.writeFile(file, text);
       return JSON.parse(text);
     } catch (err) {
-      if (attempt === 4) throw new Error(`${name}: ${err.message}`);
-      await new Promise(r => setTimeout(r, 600 * attempt * attempt));
+      if (attempt === 6) throw new Error(`${name}: ${err.message}`);
+      await new Promise(r => setTimeout(r, 800 * attempt * attempt));
     }
   }
 }
@@ -141,9 +144,14 @@ years.forEach((year, index) => {
 
 console.log(`\n  ${careers.size} pilotos com pelo menos uma temporada classificada`);
 
+/** id do piloto -> titulo do artigo na Wikipedia, de onde vem a foto. */
+const naWikipedia = new Map();
+
 const roster = [...careers.values()].map((career, index) => {
   const d = career.driver ?? {};
   const mainTeam = [...career.teams].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const artigo = String(d.url ?? '').split('/wiki/')[1];
+  if (artigo) naWikipedia.set(index + 1, decodeURIComponent(artigo).replace(/_/g, ' '));
 
   const item = {
     id: index + 1,
@@ -156,6 +164,10 @@ const roster = [...careers.values()].map((career, index) => {
     seasons: career.seasons,
     wins: career.wins,
     titles: career.titles,
+    // melhor colocacao no campeonato: 1 e campeao, e todo o resto do grid se
+    // espalha entre 2 e 25. O ano de nascimento saiu da tabela — quase ninguem
+    // sabe, e andava junto do ano de estreia
+    bestPosition: career.bestPosition,
     debut: career.debut,
     birthYear: yearOf(d.birthday),
     sprite: null,     // a API nao serve fotos
@@ -171,6 +183,43 @@ const roster = [...careers.values()].map((career, index) => {
   return item;
 });
 
+// ------------------------------------------------------------- os retratos
+
+/**
+ * A f1api nao serve fotos, mas manda o link do artigo de cada piloto na
+ * Wikipedia — e de la sai o retrato pelo `pageimages`. Sem isso a tabela de
+ * dicas da Formula 1 e a unica que aparece so com nomes.
+ */
+console.log('\n\nBuscando os retratos na Wikipedia...');
+const WIKIPEDIA = 'https://en.wikipedia.org/w/api.php';
+const artigos = [...new Set(naWikipedia.values())];
+const retratos = new Map();
+
+for (let i = 0; i < artigos.length; i += 50) {
+  const grupo = artigos.slice(i, i + 50);
+  const page = await getJSON(`retratos_${i}`, `${WIKIPEDIA}?${new URLSearchParams({
+    format: 'json', formatversion: '2', action: 'query', prop: 'pageimages',
+    piprop: 'thumbnail', pithumbsize: '400', redirects: '1', titles: grupo.join('|'),
+  })}`);
+  const daOrigem = new Map([
+    ...(page.query.redirects ?? []).map(r => [r.to, r.from]),
+    ...(page.query.normalized ?? []).map(r => [r.to, r.from]),
+  ]);
+  for (const p of page.query.pages ?? []) {
+    if (p.missing || !p.thumbnail?.source) continue;
+    retratos.set(daOrigem.get(p.title) ?? p.title, p.thumbnail.source);
+  }
+  process.stdout.write(`\r  ${retratos.size}/${artigos.length}`);
+  // a Wikipedia devolve 429 quando os 18 lotes saem em sequencia
+  await new Promise(r => setTimeout(r, 500));
+}
+process.stdout.write('\n');
+
+for (const item of roster) {
+  item.sprite = retratos.get(naWikipedia.get(item.id)) ?? null;
+  item.artwork = item.sprite;
+}
+
 // ------------------------------------------------------------ cobertura
 
 const total = roster.length;
@@ -183,6 +232,8 @@ console.log(`\nCobertura dos campos (${total} pilotos):`);
 coverage('nacionalidade', c => c.nationality);
 coverage('equipe', c => c.team);
 coverage('ano nasc.', c => c.birthYear != null);
+coverage('melhor coloc.', c => c.bestPosition != null);
+coverage('retrato', c => c.sprite);
 coverage('com vitoria', c => c.wins >= 1);
 coverage('com titulo', c => c.titles >= 1);
 coverage('sorteavel', c => c.eligible);

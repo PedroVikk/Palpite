@@ -74,7 +74,9 @@ const roster = raw.map((h, index) => {
     publisher: clean(bio.publisher),
     alignment: clean(bio.alignment),
     gender: clean(look.gender),
-    race: clean(look.race),
+    // a base marca com "-" quem nunca teve raca dita na HQ; sem um valor
+    // explicito, um quarto do elenco ficava com a celula cinza de "sem dado"
+    race: clean(look.race) ?? 'Unknown',
     intelligence: stats.intelligence ?? null,
     strength: stats.strength ?? null,
     speed: stats.speed ?? null,
@@ -100,7 +102,7 @@ console.log(`\nCobertura dos campos (${total} personagens):`);
 coverage('editora', c => c.publisher);
 coverage('alinhamento', c => c.alignment);
 coverage('genero', c => c.gender);
-coverage('raca', c => c.race);
+coverage('raca', c => c.race !== 'Unknown');
 coverage('altura', c => c.height != null);
 coverage('forca', c => c.strength != null);
 coverage('sorteavel', c => c.eligible);

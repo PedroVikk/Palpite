@@ -204,7 +204,9 @@ const JOB_RULES = [
 
 function jobOf(raw) {
   const text = lines(raw).map(bare).join(' | ');
-  if (!text) return null;
+  // ficha sem o campo e ficha com texto que nao cai em balde nenhum sao coisas
+  // diferentes: a primeira e "nao tem ocupacao", a segunda e "outra"
+  if (!text) return 'nenhuma';
   const found = JOB_RULES.find(([, pattern]) => pattern.test(text));
   return found ? found[0] : 'outros';
 }
@@ -363,11 +365,14 @@ for (const title of titles) {
     name,
     group: groupOf(affiliations, fields.occupation),
     gender: genderOf(fields.gender),
-    nen: nenOf(fields.type),
+    // ficha sem o campo `type` e de quem nunca foi mostrado usando nen; quem
+    // usa mas nunca revelou o tipo tem o campo escrito "Unknown", e o nenOf
+    // devolve isso. Sao respostas diferentes, e as duas contam como dica
+    nen: nenOf(fields.type) ?? 'None',
     status: statusOf(fields.status),
-    affiliation: affiliations,
+    affiliation: affiliations.length ? affiliations : ['None'],
     job: jobOf(fields.occupation),
-    hair: hairOf(fields.hair),
+    hair: hairOf(fields.hair) ?? 'Unknown',
     debutChapter: chapterOf(fields['manga debut']),
     inAnime: inAnimeOf(fields['anime debut']),
     sprite,
@@ -381,10 +386,12 @@ for (const title of titles) {
   const aliases = [...new Set([title, wikiName, alias].filter(a => a && a !== name))];
   if (aliases.length) item.aliases = aliases;
 
-  // sem retrato a linha de dica fica vazia; sem estreia nao da para comparar
+  // sem retrato a linha de dica fica vazia; sem estreia nao da para comparar.
+  // Nen e afiliacao agora tem valor ate quando a ficha nao diz, entao o teste
+  // e por conteudo: quem nao tem nem um nem outro e figurante
   item.eligible = Boolean(
     item.sprite && item.gender && item.status && item.debutChapter != null &&
-    (item.nen || item.affiliation.length),
+    (item.nen !== 'None' || item.affiliation[0] !== 'None'),
   );
   roster.push(item);
 }
