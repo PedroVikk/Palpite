@@ -463,6 +463,16 @@ export const UNIVERSES = {
       { id: 'arrancar', label: 'Arrancar' },
     ],
     defaultGroups: ['shinigami', 'humans', 'quincy', 'arrancar'],
+    scope: {
+      label: 'Épocas',
+      key: 'era',
+      options: [
+        { id: 'agente', label: 'Agente Shinigami', hint: 'Capítulos 1 a 70.' },
+        { id: 'soul-society', label: 'Soul Society', hint: 'Capítulos 71 a 182.' },
+        { id: 'arrancar', label: 'Arrancar', hint: 'Hueco Mundo e a Karakura falsa, capítulos 183 a 423.' },
+        { id: 'sangrenta', label: 'Guerra Sangrenta', hint: 'A guerra contra os Quincy, do capítulo 424 em diante.' },
+      ],
+    },
     columns: [
       { key: 'race', label: 'Raça', kind: 'text' },
       { key: 'gender', label: 'Gênero', kind: 'text', labels: { Male: 'Masculino', Female: 'Feminino' } },
@@ -534,12 +544,12 @@ export const UNIVERSES = {
     // aparece na guerra. O recorte e cumulativo: quem viu Shippuden viu o
     // Classico antes, entao "Shippuden" inclui o elenco de Part I
     scope: {
-      label: 'Até onde você assistiu',
-      default: 'boruto',
+      label: 'Épocas',
+      key: 'era',
       options: [
-        { id: 'classico', label: 'Clássico', hint: 'Só quem estreou até o capítulo 238.', key: 'inClassic', requires: true },
-        { id: 'shippuden', label: 'Shippūden', hint: 'Do Prólogo ao fim da guerra, no capítulo 699.', key: 'inShippuden', requires: true },
-        { id: 'boruto', label: 'Boruto', hint: 'Elenco completo, incluindo Naruto Gaiden e o mangá de Boruto.' },
+        { id: 'classico', label: 'Clássico', hint: 'Capítulos 1 a 238.' },
+        { id: 'shippuden', label: 'Shippūden', hint: 'Do Kakashi Gaiden ao fim da guerra, capítulos 239 a 699.' },
+        { id: 'boruto', label: 'Boruto', hint: 'Epílogo, Naruto Gaiden e o mangá de Boruto.' },
       ],
     },
     // clã, patente e altura sairam: sao ficha tecnica, nao memoria de quem
@@ -712,6 +722,15 @@ export const UNIVERSES = {
       { id: 'outros', label: 'Outros' },
     ],
     defaultGroups: ['human', 'alien', 'outros'],
+    scope: {
+      label: 'Temporadas',
+      key: 'era',
+      options: [
+        { id: 't1-2', label: '1ª e 2ª', hint: 'Quem apareceu até o fim da 2ª temporada.' },
+        { id: 't3-4', label: '3ª e 4ª', hint: 'Estreias da 3ª e da 4ª temporada.' },
+        { id: 't5-mais', label: '5ª em diante', hint: 'Estreias da 5ª temporada para cá.' },
+      ],
+    },
     columns: [
       // "unknown" e resposta da API, nao lacuna: o desenho nunca disse, e dois
       // desconhecidos fecham verde entre si
@@ -941,6 +960,15 @@ export const UNIVERSES = {
       { id: 'civis', label: 'Civis' },
     ],
     defaultGroups: ['chapeu', 'yonko', 'piratas', 'marinha', 'governo', 'revolucao', 'civis'],
+    scope: {
+      label: 'Épocas',
+      key: 'era',
+      options: [
+        { id: 'east-blue', label: 'East Blue', hint: 'A formação do bando, capítulos 1 a 100.' },
+        { id: 'paraiso', label: 'Paraíso', hint: 'De Alabasta a Marineford, capítulos 101 a 597.' },
+        { id: 'novo-mundo', label: 'Novo Mundo', hint: 'Depois do salto de dois anos, do capítulo 598 em diante.' },
+      ],
+    },
     columns: [
       { key: 'crew', label: 'Tripulação', kind: 'text' },
       { key: 'job', label: 'Papel', kind: 'text' },
@@ -1006,15 +1034,14 @@ export const UNIVERSES = {
       { id: 'outros', label: 'Outros' },
     ],
     defaultGroups: ['hunter', 'zoldyck', 'trupe', 'formigas', 'kakin', 'mafia', 'outros'],
-    // o manga passou muito do que o anime adaptou: metade do elenco do arco de
-    // Kakin nunca apareceu na tela, entao a sala escolhe o recorte
+    // aqui o eixo nao e o tempo, e a midia: o manga passou muito do que o anime
+    // adaptou, e metade do elenco do arco de Kakin nunca apareceu na tela
     scope: {
-      key: 'inAnime',
+      key: 'era',
       label: 'De onde vêm os personagens',
-      default: 'all',
       options: [
-        { id: 'all', label: 'Anime e mangá', hint: 'Elenco completo da Hunterpedia.' },
-        { id: 'anime', label: 'Só o anime', hint: 'Quem apareceu em algum episódio, OVA ou filme.', requires: true },
+        { id: 'anime', label: 'Anime', hint: 'Quem apareceu em algum episódio, OVA ou filme.' },
+        { id: 'manga', label: 'Só no mangá', hint: 'Quem o anime nunca chegou a adaptar — quase todo o arco de Kakin.' },
       ],
     },
     columns: [
@@ -1034,36 +1061,59 @@ export const DEFAULT_UNIVERSE = 'pokemon';
 export const getUniverse = (id) => UNIVERSES[id] ?? UNIVERSES[DEFAULT_UNIVERSE];
 
 /**
- * Recorte opcional do universo (anime ou tudo no Hunter x Hunter, ate onde o
- * jogador assistiu no Naruto). E um segundo filtro, independente dos grupos: a
- * opcao com `requires` exige que o item tenha `true` na chave declarada — a
- * dela, quando cada opcao recorta por uma chave diferente, senao a do escopo.
- * Opcao sem `requires` aceita todo mundo, e universo sem `scope` tambem.
+ * O **recorte** e o segundo eixo da sala, ao lado dos grupos: as **épocas** da
+ * obra. Cada opcao e uma fase da historia, na ordem, e o item guarda em
+ * `scope.key` o indice da fase em que ele estreia. A sala liga quantas quiser —
+ * quem parou no Clássico deixa so a primeira, quem quer tudo deixa todas.
+ *
+ * Universo sem `scope` nao tem esse eixo e aceita todo mundo.
  */
-export function scopeOption(universe, id) {
-  const scope = universe?.scope;
-  if (!scope) return null;
-  return scope.options.find(o => o.id === id) ?? scope.options.find(o => o.id === scope.default) ?? null;
-}
+export const scopeOptions = (universe) => universe?.scope?.options ?? [];
 
 /**
  * O valor de uma coluna sob o recorte escolhido. Um item pode trazer em
- * `byScope` a versao de um campo naquele recorte — e o caso do Naruto, onde a
+ * `byScope` a versao de um campo naquela epoca — e o caso do Naruto, onde a
  * ficha conta a carreira inteira mas a sala pode estar no Clássico, quando ele
  * ainda nao era sábio. Sem `byScope`, ou fora dele, vale o campo de sempre.
  */
 export const valueOf = (item, key, scopeId) => item?.byScope?.[scopeId]?.[key] ?? item?.[key];
 
 /** Chaves que o recorte le nos itens — o indice do cliente precisa levar todas. */
-export const scopeKeys = (universe) =>
-  [...new Set((universe?.scope?.options ?? [])
-    .filter(o => o.requires)
-    .map(o => o.key ?? universe.scope.key)
-    .filter(Boolean))];
+export const scopeKeys = (universe) => (universe?.scope?.key ? [universe.scope.key] : []);
 
-export function scopeFilter(universe, id) {
-  const option = scopeOption(universe, id);
-  if (!option?.requires) return () => true;
-  const key = option.key ?? universe.scope.key;
-  return (item) => item[key] === true;
+/** Ids validos, na ordem do schema; vazio ou torto vira o padrao (todas). */
+export function sanitizeScope(universe, raw) {
+  const scope = universe?.scope;
+  if (!scope) return null;
+  const pedidos = (Array.isArray(raw) ? raw : (raw == null ? [] : [raw])).map(String);
+  const escolhidas = scope.options.map(o => o.id).filter(id => pedidos.includes(id));
+  return escolhidas.length ? escolhidas : [...(scope.default ?? scope.options.map(o => o.id))];
+}
+
+/** Rotulo das epocas ligadas, para as mensagens da sala. */
+export const scopeLabel = (universe, ids) =>
+  scopeOptions(universe).filter(o => sanitizeScope(universe, ids).includes(o.id))
+    .map(o => o.label).join(', ');
+
+export function scopeFilter(universe, ids) {
+  const scope = universe?.scope;
+  if (!scope) return () => true;
+  const ligadas = new Set(sanitizeScope(universe, ids)
+    .map(id => scope.options.findIndex(o => o.id === id)));
+  // com todas ligadas o eixo nao filtra nada — e ai quem esta sem epoca no
+  // dataset continua no jogo, em vez de sumir por falta de dado
+  if (ligadas.size === scope.options.length) return () => true;
+  return (item) => ligadas.has(Number(item?.[scope.key]));
+}
+
+/**
+ * A epoca mais avancada que a sala ligou. E ela que decide a versao dos campos
+ * em `byScope`: numa sala de Clássico + Shippūden o Naruto ja e sábio, porque
+ * o segredo pode vir de Shippūden.
+ */
+export function scopeReach(universe, ids) {
+  const scope = universe?.scope;
+  if (!scope) return null;
+  const escolhidas = sanitizeScope(universe, ids);
+  return scope.options.map(o => o.id).filter(id => escolhidas.includes(id)).pop() ?? null;
 }

@@ -398,6 +398,26 @@ const roster = chars.map((c, index) => {
   return item;
 });
 
+/**
+ * `|first = [[Chapter 2]]; [[Episode 1]]` -> 2. So o mangao data: o anime muda
+ * a ordem, e ha personagem que estreia em filler.
+ */
+const capituloDe = (valor) => {
+  const achado = String(valor ?? '').match(/Chapter\s+(\d+)/i);
+  return achado ? Number(achado[1]) : null;
+};
+
+/**
+ * Indice da epoca em que o personagem estreia, na ordem do `scope` do schema:
+ * East Blue, Paraiso, Novo Mundo. Os cortes sao o fim do East Blue (capitulo
+ * 100) e o salto de dois anos, que abre o Novo Mundo no 598.
+ */
+const SAGAS = [100, 597];
+function eraDe(cap) {
+  const i = cap == null ? -1 : SAGAS.findIndex(fim => cap <= fim);
+  return i === -1 ? SAGAS.length : i;
+}
+
 // ------------------------------------------------- ficha do wiki (Char Box)
 
 /**
@@ -526,7 +546,12 @@ for (const item of roster) {
   item.origin = originOf(ficha.origin) ?? item.origin ?? null;
   item.bounty = bountyOf(ficha.bounty) ?? item.bounty;
   item.height = wikiCm(ficha.height) ?? item.height;
+  item.era = eraDe(capituloDe(ficha.first));
 }
+
+// sem ficha no wiki nao ha capitulo de estreia; a epoca mais nova e o palpite
+// menos errado, e a sala com todas ligadas nao filtra nada mesmo
+for (const item of roster) item.era = item.era ?? SAGAS.length;
 
 // mar de origem em branco no wiki e mesmo desconhecido — muito personagem
 // nunca teve a terra natal dita —, e isso conta como dica

@@ -3,9 +3,12 @@
  * A comparacao e guiada pelo schema do universo (shared/universes.js),
  * entao adicionar uma franquia nova nao mexe aqui.
  */
-import { UNIVERSES, DEFAULT_UNIVERSE, getUniverse, scopeFilter, scopeOption, valueOf } from '../shared/universes.js';
+import {
+  UNIVERSES, DEFAULT_UNIVERSE, getUniverse,
+  scopeFilter, scopeReach, scopeLabel, sanitizeScope, valueOf,
+} from '../shared/universes.js';
 
-export { UNIVERSES, getUniverse, scopeFilter, scopeOption };
+export { UNIVERSES, getUniverse, scopeFilter, scopeReach, scopeLabel };
 
 export const MODES = {
   HUNT: 'hunt', // servidor sorteia o segredo, NINGUEM sabe, todos adivinham em turnos
@@ -34,10 +37,10 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
   const requested = Array.isArray(raw.groups) ? raw.groups : (universeId === base.universe ? base.groups : null);
   const groups = (requested ?? []).map(String).filter(id => valid.has(id));
 
-  // o recorte tambem nao atravessa troca de universo: cada um tem o seu (ou
-  // nenhum, e ai o campo fica null)
+  // o recorte tambem nao atravessa troca de universo: cada um tem as suas
+  // epocas (ou nenhuma, e ai o campo fica null)
   const requestedScope = raw.scope ?? (universeId === base.universe ? base.scope : null);
-  const scope = universe.scope ? (scopeOption(universe, requestedScope)?.id ?? null) : null;
+  const scope = sanitizeScope(universe, requestedScope);
 
   const mode = raw.mode === MODES.DUEL ? MODES.DUEL : MODES.HUNT;
 

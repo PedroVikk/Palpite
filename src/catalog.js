@@ -23,15 +23,15 @@ const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
  * So o que alimenta a busca do chute e o contador de sorteaveis do lobby.
- * `keys` sao as chaves do recorte do universo (o `inAnime` do Hunter x Hunter,
- * o `inClassic`/`inShippuden` do Naruto): entram so onde existem, para o lobby
- * contar e o duelo filtrar sem baixar o dataset inteiro.
+ * `keys` sao as chaves do recorte do universo (o `era` de quem tem epocas):
+ * entram so onde existem, para o lobby contar e a busca filtrar sem baixar o
+ * dataset inteiro.
  */
 const forClient = (item, keys) => {
   const { id, name, sprite, group, eligible, aliases } = item;
   const lean = { id, name, sprite, group, eligible };
   if (aliases?.length) lean.aliases = aliases;
-  for (const key of keys) lean[key] = item[key] === true;
+  for (const key of keys) lean[key] = item[key];
   return lean;
 };
 

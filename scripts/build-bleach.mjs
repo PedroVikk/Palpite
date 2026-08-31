@@ -103,6 +103,17 @@ for (const race of RACES) {
   console.log(`  acumulado: ${byId.size} personagens`);
 }
 
+/**
+ * Indice da epoca em que o personagem estreia, na ordem do `scope` do schema:
+ * Agente Shinigami, Soul Society, Arrancar, Guerra Sangrenta. Os limites sao os
+ * arcos do mangao — quem parou na Soul Society nao conhece um Arrancar.
+ */
+const SAGAS = [70, 182, 423];
+function eraDe(cap) {
+  const i = cap == null ? -1 : SAGAS.findIndex(fim => cap <= fim);
+  return i === -1 ? SAGAS.length : i;
+}
+
 const roster = [...byId.values()].map(({ race, character: c }, index) => {
   const stats = c.stats ?? {};
   const professional = stats['Professional Status'] ?? {};
@@ -124,6 +135,7 @@ const roster = [...byId.values()].map(({ race, character: c }, index) => {
     bankai: clean(zanpakuto.bankai) ? 'Sim' : 'Não',
     shikai: clean(zanpakuto.shikai),
     debutChapter: chapterOf(debut.manga),
+    era: eraDe(chapterOf(debut.manga)),
     sprite: c.avatar?.[0] ?? null,
     artwork: c.avatar?.[0] ?? null,
   };

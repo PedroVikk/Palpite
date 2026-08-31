@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { UNIVERSES, getUniverse, scopeFilter } from '@shared/universes.js';
+import { UNIVERSES, getUniverse, scopeFilter, sanitizeScope } from '@shared/universes.js';
 import { socket } from '../socket.js';
 import { useDataset } from '../hooks/useDataset.js';
 import { CopyIcon, ExitIcon } from '../components/Icon.jsx';
@@ -59,6 +59,15 @@ export default function LobbyScreen({ state, myId, toast, onLeave }) {
     if (next.mode === 'duel') next.untilRight = false;
     setForm(next);
     if (isHost) socket.emit('room:settings', toSettings(next));
+  }
+
+  // as epocas ligadas, ja normalizadas: vazio ou torto vira "todas"
+  const epocas = sanitizeScope(universe, form.scope) ?? [];
+
+  function toggleScope(id) {
+    const scope = epocas.includes(id) ? epocas.filter(e => e !== id) : [...epocas, id];
+    if (!scope.length) return toast(`Deixe pelo menos uma opção de ${universe.scope.label.toLowerCase()} marcada.`);
+    change({ scope });
   }
 
   function toggleGroup(id) {
@@ -129,7 +138,7 @@ export default function LobbyScreen({ state, myId, toast, onLeave }) {
                 onChange={e => change({
                   universe: e.target.value,
                   groups: [...getUniverse(e.target.value).defaultGroups],
-                  scope: getUniverse(e.target.value).scope?.default ?? null,
+                  scope: sanitizeScope(getUniverse(e.target.value), null),
                 })}
               >
                 {Object.values(UNIVERSES).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
@@ -142,7 +151,7 @@ export default function LobbyScreen({ state, myId, toast, onLeave }) {
               <span>{universe.scope.label}</span>
               <div className="chips">
                 {universe.scope.options.map(option => {
-                  const on = (form.scope ?? universe.scope.default) === option.id;
+                  const on = epocas.includes(option.id);
                   return (
                     <button
                       key={option.id}
@@ -151,7 +160,7 @@ export default function LobbyScreen({ state, myId, toast, onLeave }) {
                       disabled={!isHost}
                       aria-pressed={on}
                       title={option.hint}
-                      onClick={() => change({ scope: option.id })}
+                      onClick={() => toggleScope(option.id)}
                     >
                       {option.label}
                     </button>
@@ -159,7 +168,7 @@ export default function LobbyScreen({ state, myId, toast, onLeave }) {
                 })}
               </div>
               <p className="muted">
-                {universe.scope.options.find(o => o.id === (form.scope ?? universe.scope.default))?.hint}
+                {universe.scope.options.filter(o => epocas.includes(o.id)).map(o => o.hint).join(' ')}
               </p>
             </div>
           )}

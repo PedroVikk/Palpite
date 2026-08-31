@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getUniverse, scopeFilter } from '@shared/universes.js';
+import { getUniverse, scopeFilter, scopeReach } from '@shared/universes.js';
 import { socket } from '../socket.js';
 import { useDataset } from '../hooks/useDataset.js';
 import { useCountdown } from '../hooks/useCountdown.js';
@@ -84,7 +84,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
 
             <HintsTable universe={universe} rows={state.rows} />
 
-            {state.secret && <Reveal universe={universe} secret={state.secret} scope={state.settings.scope} />}
+            {state.secret && <Reveal universe={universe} secret={state.secret} scope={scopeReach(universe, state.settings.scope)} />}
 
             <div className="game-actions">
               {isHost && state.phase === 'roundEnd' && (

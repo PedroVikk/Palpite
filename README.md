@@ -108,12 +108,30 @@ usando nen — as três valem como dica e fecham verde contra a igual. *Ocupaç�
 agrupa o texto livre da wiki em treze papéis, senão cada personagem teria um
 valor único e a coluna nunca ficaria verde.
 
-Hunter × Hunter tem **recorte**: o mangá passou muito do que foi animado, então
-a sala pergunta se entra o elenco todo (447 sorteáveis) ou só quem apareceu em
-algum episódio, OVA ou filme (271). Quem não tem `anime debut` na ficha só
-existe no papel — é quase todo o arco de Kakin. O Naruto tem o dele, por era
-(Clássico, Shippūden ou Boruto). O recorte é um segundo filtro, independente dos
-grupos; qualquer universo pode ganhar o seu declarando `scope` no schema.
+### As épocas
+
+Toda obra com linha do tempo tem um segundo eixo na sala, ao lado dos grupos: as
+**épocas**. São botões como os dos grupos — a sala liga quantas quiser, e quem
+parou no meio deixa só as que viu.
+
+| Universo | Épocas |
+| --- | --- |
+| **Naruto** | Clássico (81) · Shippūden (78) · Boruto (31) |
+| **Bleach** | Agente Shinigami (25) · Soul Society (27) · Arrancar (37) · Guerra Sangrenta (17) |
+| **One Piece** | East Blue (42) · Paraíso (132) · Novo Mundo (201) |
+| **Rick and Morty** | 1ª e 2ª (84) · 3ª e 4ª (10) · 5ª em diante (3) |
+| **Hunter × Hunter** | Anime (271) · Só no mangá (176) |
+
+O corte sai sempre da estreia: capítulo do mangá, episódio, o que a fonte
+souber datar. Em Hunter × Hunter o eixo não é o tempo e sim a mídia — o mangá
+passou muito do que foi animado, e quase todo o arco de Kakin nunca chegou à
+tela —, mas o mecanismo é o mesmo.
+
+No schema é um `scope` com uma lista de fases em ordem, e o item guarda em
+`era` o índice da sua. Os universos sem linha do tempo (Pokémon, Clash, LoL,
+Valorant, Carros, Fórmula 1, Yu-Gi-Oh!, Senhor dos Anéis) não têm o eixo: ou a
+obra não tem fases, ou elas já são os grupos — a geração do Pokémon e a década
+da Fórmula 1 são exatamente isso.
 
 Em **Carros**, cada item é um modelo (as versões de motor viram um só "Toyota
 Corolla"), e o secreto precisa de 3+ anos de linha e ficha completa — elétricos
@@ -212,10 +230,8 @@ para `data/icons/naruto/` e servidos em `/icons`. Cabem os cinco elementos onde
 "Raio, Fogo, Vento +3" não cabia, e o nome continua no balão do mouse. Qualquer
 universo pode fazer o mesmo declarando `icons` na coluna.
 
-Dessa mesma tabela sai o recorte **Até onde você assistiu**: Clássico (81),
-Shippūden (159) ou Boruto (190). Ele é cumulativo — quem viu Shippūden viu o
-Clássico antes —, e cada opção lê a sua própria chave no item (`inClassic`,
-`inShippuden`), diferente do recorte de Hunter × Hunter, que é um booleano só.
+Dessa mesma tabela saem as **épocas** do Naruto: Clássico (81), Shippūden (78)
+e Boruto (31), pelo arco em que o personagem estreia.
 
 ### As colunas voltam no tempo junto com o recorte
 
@@ -232,10 +248,13 @@ sentidos — um valor só sai de uma era se houver técnica provando que veio
 depois, e valor que nenhuma técnica data fica em todas. O recorte adia, nunca
 inventa.
 
-Onde muda, o item guarda a versão em `byScope`, e `valueOf(item, chave, recorte)`
+Onde muda, o item guarda a versão em `byScope`, e `valueOf(item, chave, época)`
 resolve na hora da comparação — dos dois lados, chute e segredo. São 84 dos 190
-personagens. Ficam de fora *Filiações*, *Gênero* e o arco: filiação a wiki não
-data (o Sasuke aparece na Akatsuki desde o Clássico) e os outros dois não mudam.
+personagens. Com mais de uma época ligada vale a mais avançada
+(`scopeReach`): numa sala de Clássico + Shippūden o Naruto já é sábio, porque o
+segredo pode vir de Shippūden. Ficam de fora *Filiações*, *Gênero* e o arco:
+filiação a wiki não data (o Sasuke aparece na Akatsuki desde o Clássico) e os
+outros dois não mudam.
 
 O limite do método é que a técnica é datada por ela mesma, não por quem a usa: a
 Sakura sai como ninja médica já no Clássico porque a Palma Mística é do capítulo
@@ -396,7 +415,21 @@ run dev` (servidor na 3000) e `npm run dev:client` (Vite na 5173, com proxy de
    precisa de `id`, `name`, `group`, `sprite`, `artwork`, `eligible` e uma chave
    por coluna. Opcional: `aliases` (nomes alternativos para a busca). Só os
    `eligible` entram no jogo — os outros o servidor descarta na subida.
-2. Adicione a entrada em `shared/universes.js` com `groups` e `columns`.
+2. Adicione a entrada em `shared/universes.js` com `groups` e `columns`. Se a
+   obra tiver linha do tempo, declare também `scope` com as fases em ordem e
+   grave em cada item o índice da dele (veja *As épocas*).
+
+O padrão que os universos seguem, e que vale para os novos:
+
+- **Coluna só se o jogador souber a resposta de cabeça** — ficha técnica fica de
+  fora, e coluna que lista tudo não diz nada: pode até valer podar o vocabulário
+  da fonte, como o *Tipos de Jutsu* do Naruto.
+- **Célula vazia é resposta, não lacuna** — grave o valor explícito ("Não tem",
+  "Nenhum") ou marque `blank` na coluna numérica.
+- **Só entra quem alguém reconhece** — `eligible` é o filtro, e o servidor
+  descarta o resto na subida.
+- **Épocas quando a obra tem fases**, e valores em `byScope` quando eles mudam
+  com ela.
 
 Nada em `src/game.js`, `src/rooms.js` ou no cliente precisa mudar — as colunas
 da tabela, os filtros do lobby e a comparação saem do schema. O teste também é

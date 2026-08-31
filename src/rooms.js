@@ -7,7 +7,7 @@
  */
 import { randomUUID } from 'node:crypto';
 import {
-  MODES, getUniverse, sanitizeSettings, isUntilRight, scopeFilter, scopeOption,
+  MODES, getUniverse, sanitizeSettings, isUntilRight, scopeFilter, scopeReach, scopeLabel,
   compareGuess, scoreForWin, SCORE_CHOOSER_SURVIVED, pickSecret,
 } from './game.js';
 import { datasetOf as datasetFor } from './catalog.js';
@@ -527,8 +527,8 @@ function onConnection(socket) {
       return socket.emit('room:error', `${mon.name} não tem dados completos o bastante para ser o segredo.`);
     }
     if (!scopeFilter(universeOf(room), room.settings.scope)(mon)) {
-      const option = scopeOption(universeOf(room), room.settings.scope);
-      return socket.emit('room:error', `Esta sala está em "${option.label}", e ${mon.name} fica de fora.`);
+      const epocas = scopeLabel(universeOf(room), room.settings.scope);
+      return socket.emit('room:error', `Esta sala está em "${epocas}", e ${mon.name} fica de fora.`);
     }
     clearTimer(room);
     room.secret = mon;
@@ -550,13 +550,13 @@ function onConnection(socket) {
     // aqui. E o recorte nao e preferencia, e o combinado da sala — quem parou no
     // Shippūden nao pode receber uma dica sobre o Boruto
     if (!scopeFilter(universeOf(room), room.settings.scope)(guess)) {
-      const option = scopeOption(universeOf(room), room.settings.scope);
-      return socket.emit('room:error', `Esta sala está em "${option.label}", e ${guess.name} fica de fora.`);
+      const epocas = scopeLabel(universeOf(room), room.settings.scope);
+      return socket.emit('room:error', `Esta sala está em "${epocas}", e ${guess.name} fica de fora.`);
     }
 
     if (room.guessesLeft[player.id] !== null) room.guessesLeft[player.id] -= 1;
     room.rows.push({
-      ...compareGuess(guess, room.secret, universeOf(room), room.settings.scope),
+      ...compareGuess(guess, room.secret, universeOf(room), scopeReach(universeOf(room), room.settings.scope)),
       playerId: player.id,
       playerName: player.name,
     });

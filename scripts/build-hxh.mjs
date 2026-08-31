@@ -375,6 +375,8 @@ for (const title of titles) {
     hair: hairOf(fields.hair) ?? 'Unknown',
     debutChapter: chapterOf(fields['manga debut']),
     inAnime: inAnimeOf(fields['anime debut']),
+    // aqui a "epoca" e a midia: 0 = chegou ao anime, 1 = so existe no mangá
+    era: inAnimeOf(fields['anime debut']) ? 0 : 1,
     sprite,
     artwork: sprite,
   };

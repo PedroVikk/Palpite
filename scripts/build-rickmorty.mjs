@@ -54,6 +54,17 @@ for (let page = 2; page <= first.info.pages; page++) {
 }
 process.stdout.write('\n');
 
+/**
+ * Indice da epoca em que o personagem estreia, na ordem do `scope` do schema.
+ * A API numera os episodios em sequencia, sem reiniciar a cada temporada: a 2a
+ * fecha no 21 e a 4a no 41, entao sao esses os cortes.
+ */
+const TEMPORADAS = [21, 41];
+function eraDe(ep) {
+  const i = ep == null ? -1 : TEMPORADAS.findIndex(fim => ep <= fim);
+  return i === -1 ? TEMPORADAS.length : i;
+}
+
 const roster = raw.map((c, index) => {
   const item = {
     id: index + 1,
@@ -73,6 +84,9 @@ const roster = raw.map((c, index) => {
     sprite: c.image ?? null,
     artwork: c.image ?? null,
   };
+
+  // indice da epoca em que estreia, na ordem do `scope` do schema
+  item.era = eraDe(item.firstEpisode);
 
   // 2+ episodios filtra os figurantes de uma cena so, que ninguem adivinharia
   item.eligible = Boolean(

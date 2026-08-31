@@ -6,7 +6,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { UNIVERSES, scopeFilter, valueOf } from '../shared/universes.js';
+import { UNIVERSES, scopeFilter, scopeReach, valueOf } from '../shared/universes.js';
 import { compareGuess } from '../src/game.js';
 import { io } from 'socket.io-client';
 
@@ -340,7 +340,7 @@ try {
   // ------------------------------------------------------- recorte do universo
   console.log('\n== Recorte (Hunter x Hunter) ==');
   const hxh = JSON.parse(await fs.readFile('data/hxh.json', 'utf8')).filter(c => c.eligible);
-  const soAnime = hxh.filter(c => c.inAnime);
+  const soAnime = hxh.filter(c => c.era === 0);
   check('hxh: recorte do anime e menor que o elenco todo',
     soAnime.length > 100 && soAnime.length < hxh.length);
 
@@ -349,11 +349,11 @@ try {
     name: 'Rec',
     settings: {
       mode: 'hunt', universe: 'hxh', groups: [...UNIVERSES.hxh.defaultGroups],
-      scope: 'anime', rounds: 3, turnSeconds: 120, guessesPerPlayer: 1,
+      scope: ['anime'], rounds: 3, turnSeconds: 120, guessesPerPlayer: 1,
     },
   }, res));
   await until(rec, s => s.phase === 'lobby', 'sala com recorte montada');
-  check('recorte gravado nas configuracoes', rec.state.settings.scope === 'anime');
+  check('recorte gravado nas configuracoes', String(rec.state.settings.scope) === 'anime');
 
   // um chute so por rodada: a rodada fecha sozinha e revela o segredo. O host
   // pula os 12s de intervalo com game:next
@@ -370,18 +370,18 @@ try {
     }
   }
   check('sortearam-se tres segredos', sorteados.length === 3);
-  check('todo segredo sorteado saiu do anime', sorteados.every(s => s.inAnime === true));
+  check('todo segredo sorteado saiu do anime', sorteados.every(s => s.era === 0));
 
   rec.socket.disconnect();
 
   // no duelo, quem esconde o segredo tambem esta preso ao recorte
-  const foraDoAnime = hxh.find(c => !c.inAnime);
+  const foraDoAnime = hxh.find(c => c.era !== 0);
   const [duo1, duo2] = await Promise.all([connect('Duo1'), connect('Duo2')]);
   const roomDuo = await new Promise(res => duo1.socket.emit('room:create', {
     name: 'Duo1',
     settings: {
       mode: 'duel', universe: 'hxh', groups: [...UNIVERSES.hxh.defaultGroups],
-      scope: 'anime', rounds: 2, turnSeconds: 120, guessesPerPlayer: 4,
+      scope: ['anime'], rounds: 2, turnSeconds: 120, guessesPerPlayer: 4,
     },
   }, res));
   await new Promise(res => duo2.socket.emit('room:join', { code: roomDuo.code, name: 'Duo2' }, res));
@@ -394,10 +394,10 @@ try {
   chooser.socket.emit('game:choose', { pokemonId: foraDoAnime.id });
   await sleep(250);
   check('duelo recusa quem esta fora do recorte', chooser.errors.length === 1);
-  check('a recusa explica o recorte', /S(ó|o) o anime/.test(chooser.errors[0] ?? ''));
+  check('a recusa explica o recorte', /Anime/.test(chooser.errors[0] ?? ''));
   check('a escolha recusada nao virou segredo', chooser.state.phase === 'choosing');
 
-  const dentroDoAnime = hxh.find(c => c.inAnime);
+  const dentroDoAnime = hxh.find(c => c.era === 0);
   chooser.socket.emit('game:choose', { pokemonId: dentroDoAnime.id });
   await until(duo1, s => s.phase === 'playing', 'duelo comecou com segredo do anime');
   duo1.socket.disconnect();
@@ -406,13 +406,16 @@ try {
   // --------------------------------------------------------- recorte por era (Naruto)
   console.log('\n== Recorte por era (Naruto) ==');
   const naruto = JSON.parse(await fs.readFile('data/naruto.json', 'utf8')).filter(c => c.eligible);
-  const ate = (id) => naruto.filter(scopeFilter(UNIVERSES.naruto, id)).length;
-  check('as tres eras tem elenco', ate('classico') > 30 && ate('shippuden') > ate('classico'));
-  check('Boruto e o elenco inteiro', ate('boruto') === naruto.length);
-  // cada opcao le a sua propria chave, entao o recorte tem de ser cumulativo:
-  // ninguem pode estar no Classico sem estar tambem em Shippuden
-  check('quem e do Classico tambem vale em Shippuden',
-    naruto.every(c => !c.inClassic || c.inShippuden));
+  const ate = (...ids) => naruto.filter(scopeFilter(UNIVERSES.naruto, ids)).length;
+  check('as tres epocas tem elenco',
+    ate('classico') > 30 && ate('shippuden') > 30 && ate('boruto') > 10);
+  check('as tres somam o elenco inteiro',
+    ate('classico') + ate('shippuden') + ate('boruto') === naruto.length);
+  // e da para ligar mais de uma, como nos grupos
+  check('duas epocas juntas somam as duas',
+    ate('classico', 'boruto') === ate('classico') + ate('boruto'));
+  check('a epoca mais avancada manda nos valores',
+    scopeReach(UNIVERSES.naruto, ['classico', 'shippuden']) === 'shippuden');
 
   // a ficha da wiki conta a carreira inteira; o recorte tem de voltar no tempo
   const naruto7 = naruto.find(c => c.name === 'Naruto Uzumaki');
@@ -423,13 +426,13 @@ try {
   const dica = compareGuess(naruto7, naruto7, UNIVERSES.naruto, 'classico');
   check('a dica sai no recorte da sala', !dica.cells.classification.value.includes('Sage'));
 
-  const soBoruto = naruto.find(c => !c.inShippuden);
+  const soBoruto = naruto.find(c => c.era === 2);
   const [era1, era2] = await Promise.all([connect('Era1'), connect('Era2')]);
   const roomEra = await new Promise(res => era1.socket.emit('room:create', {
     name: 'Era1',
     settings: {
       mode: 'duel', universe: 'naruto', groups: [...UNIVERSES.naruto.defaultGroups],
-      scope: 'classico', rounds: 1, turnSeconds: 120, guessesPerPlayer: 4,
+      scope: ['classico'], rounds: 1, turnSeconds: 120, guessesPerPlayer: 4,
     },
   }, res));
   await new Promise(res => era2.socket.emit('room:join', { code: roomEra.code, name: 'Era2' }, res));
@@ -446,7 +449,7 @@ try {
 
   // e o mesmo vale para o chute, nao so para a escolha do segredo: a busca do
   // navegador ja esconde quem esta fora, mas o servidor nao confia nela
-  const dentro = naruto.find(c => c.inClassic);
+  const dentro = naruto.find(c => c.era === 0);
   dono.errors.length = 0;
   dono.socket.emit('game:choose', { pokemonId: dentro.id });
   await until(era1, s => s.phase === 'playing', 'duelo do Classico comecou');

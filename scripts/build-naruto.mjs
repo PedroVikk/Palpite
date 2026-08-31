@@ -538,9 +538,8 @@ const roster = candidatos.map((c) => {
     affiliation: orElse(affiliation.filter(a => AFILIACOES.has(a)), 'Sem filiação'),
     ...completo,
     debutArc: arco?.index ?? null,
-    // recorte cumulativo: quem viu Shippūden viu o Clássico antes
-    inClassic: arco?.era === 'classico',
-    inShippuden: arco?.era === 'classico' || arco?.era === 'shippuden',
+    // indice da epoca em que ele estreia, na ordem do `scope` do schema
+    era: ERAS.indexOf(arco?.era ?? 'boruto'),
     ...(Object.keys(byScope).length ? { byScope } : {}),
     sprite: c.images?.[0] ?? null,
     artwork: c.images?.[0] ?? null,
@@ -604,7 +603,7 @@ const conta = (chave, lista) => {
   console.log(`\n${lista}:`, JSON.stringify(tally));
 };
 conta(c => c.group, 'Por vila');
-conta(c => (c.inClassic ? 'clássico' : c.inShippuden ? 'shippūden' : 'boruto'), 'Por era');
+conta(c => ERAS[c.era], 'Por era');
 
 await fs.mkdir(path.dirname(OUT), { recursive: true });
 await fs.writeFile(OUT, JSON.stringify(jogaveis));
