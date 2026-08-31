@@ -513,10 +513,26 @@ select { appearance: none; cursor: pointer; }
 .cell.unknown { background: var(--unknown); color: var(--unknown-text); font-style: italic; }
 
 .cell.guess {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--line);
   gap: 4px;
 }
+/* a celula corta o que transborda, entao o nome aparece por cima dela mesma */
+.cell.guess .name-tip {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 4px 6px;
+  background: rgb(0 0 0 / .82);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  opacity: 0;
+  transition: opacity .12s ease;
+  pointer-events: none;
+}
+.cell.guess:hover .name-tip,
+.cell.guess:focus-within .name-tip { opacity: 1; }
 .cell.guess .by { font-size: 11px; font-weight: 400; color: var(--muted); }
 /* o retrato e quem identifica o chute, entao ele manda no tamanho da linha */
 .cell.guess img { width: 60px; height: 60px; object-fit: contain; image-rendering: pixelated; flex: none; }

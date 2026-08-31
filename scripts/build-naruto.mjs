@@ -224,12 +224,19 @@ async function retratosDaWiki(nomes) {
 // ------------------------------------------------------------ tipos de jutsu
 
 /**
- * A API lista o nome das tecnicas, nao o tipo delas. O tipo mora no infobox da
- * pagina do jutsu, no campo `jutsu classification` — entao o build le o
- * wikitexto de cada tecnica uma vez e guarda o resultado no cache.
+ * A API lista o nome das tecnicas, nao o que elas sao nem quando apareceram —
+ * isso mora no infobox da pagina do jutsu. O build le o wikitexto de cada uma
+ * (uma vez, o resto sai do cache) e guarda tres campos:
+ *
+ *   classes  `jutsu classification` — Ninjutsu, Senjutsu, "Kekkei Genkai~Sharingan"
+ *   naturezas `jutsu type`          — Fire Release, Lava Release
+ *   era      de `debut manga` + as bandeiras de serie (boruto, retsuden...)
+ *
+ * A era e o que permite responder "no Classico o Naruto ainda nao era sábio":
+ * o Modo Sábio estreia no capitulo 375, entao ele so entra em Shippūden.
  */
-async function classificarJutsu(nomes) {
-  return comCache('jutsu_classes.json', nomes, async (faltando, mapa) => {
+async function fichasDeJutsu(nomes) {
+  return comCache('jutsu_fichas.json', nomes, async (faltando, mapa) => {
     for (let i = 0; i < faltando.length; i += 50) {
       process.stdout.write(`\r  ${i}/${faltando.length}`);
       const lote = faltando.slice(i, i + 50);
@@ -237,17 +244,51 @@ async function classificarJutsu(nomes) {
       const original = desfazerSaltos(json);
       for (const page of Object.values(json.query?.pages ?? {})) {
         const texto = page.revisions?.[0]?.slots?.main['*'] ?? '';
-        const campo = texto.match(/\|\s*jutsu classification\s*=([^|\n]*)/i);
-        mapa[original(page.title)] = campo
-          ? campo[1].split(',').map(s => s.replace(/[[\]']/g, '').trim()).filter(Boolean)
-          : [];
+        mapa[original(page.title)] = {
+          classes: campoEmLista(texto, 'jutsu classification'),
+          naturezas: campoEmLista(texto, 'jutsu type'),
+          era: eraDoJutsu(texto),
+        };
       }
       // tecnica sem pagina (a API cita algumas que a wiki nao tem) nao volta na
-      // resposta; marcar como vazio evita pedir de novo no proximo build
-      for (const nome of lote) if (mapa[nome] === undefined) mapa[nome] = [];
+      // resposta; marcar como vazia evita pedir de novo no proximo build
+      for (const nome of lote) if (mapa[nome] === undefined) mapa[nome] = { classes: [], naturezas: [], era: null };
     }
     process.stdout.write(`\r  ${faltando.length}/${faltando.length}\n`);
   });
+}
+
+/** `|campo=valor` do infobox, cru. */
+const campoDoInfobox = (texto, campo) =>
+  texto.match(new RegExp(`\\|\\s*${campo}\\s*=([^|\\n]*)`, 'i'))?.[1]?.trim() ?? null;
+
+/** `|campo=A, B, C` do infobox -> ['A', 'B', 'C']. Apostrofo faz parte do nome. */
+const campoEmLista = (texto, campo) =>
+  (campoDoInfobox(texto, campo) ?? '').split(',').map(s => s.replace(/[[\]]/g, '').trim()).filter(Boolean);
+
+/**
+ * Ate onde e preciso ter assistido para conhecer a tecnica. Serie diferente de
+ * Naruto (Boruto, os spin-offs) e sempre a era mais nova; senao vale o capitulo
+ * de estreia. Tecnica que so existe no anime nao tem capitulo, e ai vale o
+ * episodio: `debut shippuden` e `boruto anime` dizem de qual anime ele e.
+ *
+ * Sem nada disso — tecnica de jogo, de filme — volta null: nao serve para datar
+ * nada, e o recorte a ignora.
+ */
+function eraDoJutsu(texto) {
+  const bandeira = (campo) => /^yes$/i.test(campoDoInfobox(texto, campo) ?? '');
+  if (['boruto', 'sasuke retsuden', 'konoha shinden', 'blue vortex'].some(bandeira)) return 'boruto';
+
+  const capitulo = Number(campoDoInfobox(texto, 'debut manga'));
+  if (Number.isFinite(capitulo) && capitulo > 0) {
+    if (capitulo <= 238) return 'classico';
+    return capitulo <= 699 ? 'shippuden' : 'boruto';
+  }
+
+  if (bandeira('boruto anime')) return 'boruto';
+  if (bandeira('debut shippuden')) return 'shippuden';
+  const episodio = Number(campoDoInfobox(texto, 'debut anime'));
+  return Number.isFinite(episodio) && episodio > 0 ? 'classico' : null;
 }
 
 /**
@@ -289,10 +330,6 @@ const AFILIACOES = new Set([
 ]);
 
 /**
- * Mangekyō e Mangekyō Eterno sao o mesmo Sharingan mais adiante, e a ficha
- * lista os tres: sem juntar, a celula do Sasuke virava uma lista de quatro.
- */
-/**
  * Ordem fixa das duas listas, para a celula ler sempre igual: ninjutsu antes de
  * taijutsu, fogo antes de agua. Sem isto a ordem seria a das tecnicas na ficha,
  * que muda de personagem para personagem — e como a celula corta em tres, o
@@ -305,6 +342,10 @@ const ordenarPor = (ordem) => {
 const porTipoDeJutsu = ordenarPor(['Ninjutsu', 'Taijutsu', 'Genjutsu', 'Kenjutsu', 'Medical Ninjutsu']);
 const porNatureza = ordenarPor(Object.keys(NARUTO_NATURE_ICONS));
 
+/**
+ * Mangekyō e Mangekyō Eterno sao o mesmo Sharingan mais adiante, e a ficha
+ * lista os tres: sem juntar, a celula do Sasuke virava uma lista de quatro.
+ */
 const DOJUTSU_RAIZ = new Map([
   ['Mangekyō Sharingan', 'Sharingan'],
   ['Eternal Mangekyō Sharingan', 'Sharingan'],
@@ -402,10 +443,35 @@ const links = await contarLinks([...new Set(raw.map(nomeDe))]);
 const candidatos = raw.filter(c => estreiaNoManga(c.debut?.manga) && (links[nomeDe(c)] ?? 0) >= NOTORIEDADE);
 console.log(`  ${candidatos.length} passam de ${NOTORIEDADE} links, de ${raw.length} no total`);
 
-console.log('\nLendo a classificação das técnicas na Narutopedia...');
+console.log('\nLendo a ficha das técnicas na Narutopedia...');
 const tecnicas = [...new Set(candidatos.flatMap(c => (c.jutsu ?? []).map(tidy)))]
   .filter(nome => ehValor(nome) && !nome.includes('|'));
-const classes = await classificarJutsu(tecnicas);
+const fichas = await fichasDeJutsu(tecnicas);
+
+const ERAS = ['classico', 'shippuden', 'boruto'];
+const ateOnde = (era) => ERAS.indexOf(era);
+
+/**
+ * As colunas mudam com o recorte da sala: no Classico o Naruto ainda nao era
+ * sábio nem tinha afinidade com vento, e a ficha da Narutopedia so conta a
+ * carreira inteira. Quem data cada coisa e a estreia das tecnicas do proprio
+ * personagem — o Modo Sábio dele e do capitulo 375, o Rasenshuriken do 339.
+ *
+ * A regra e conservadora nos dois sentidos: um valor so sai de uma era se
+ * houver tecnica provando que veio depois, e valor sem tecnica nenhuma para
+ * datar fica em todas. Assim o recorte nunca inventa, so adia.
+ */
+function porEra(c, valores, casa) {
+  const usadas = (c.jutsu ?? []).map(j => fichas[tidy(j)]).filter(Boolean);
+  const estreia = new Map();
+  for (const valor of valores) {
+    // tecnica sem data (so jogo, so filme) nao prova nada e sai da conta; sem
+    // nenhuma prova datada o valor fica em todas as eras
+    const datadas = usadas.filter(ficha => ficha.era && casa(ficha, valor)).map(ficha => ateOnde(ficha.era));
+    estreia.set(valor, datadas.length ? Math.min(...datadas) : 0);
+  }
+  return (era) => valores.filter(valor => estreia.get(valor) <= ateOnde(era));
+}
 
 const roster = candidatos.map((c) => {
   const personal = c.personal ?? {};
@@ -413,12 +479,51 @@ const roster = candidatos.map((c) => {
   const estreia = estreiaNoManga(c.debut.manga);
   const arco = arcoDe(estreia);
 
-  const tipos = new Set();
-  for (const jutsu of c.jutsu ?? []) {
-    for (const classe of classes[tidy(jutsu)] ?? []) {
-      const tipo = TIPOS_DE_JUTSU.get(classe);
-      if (tipo) tipos.add(tipo);
+  // tipo de jutsu ja e uma propriedade das tecnicas: basta filtrar por era
+  const tiposAte = (era) => {
+    const tipos = new Set();
+    for (const jutsu of c.jutsu ?? []) {
+      const ficha = fichas[tidy(jutsu)];
+      if (!ficha || (ficha.era && ateOnde(ficha.era) > ateOnde(era))) continue;
+      for (const classe of ficha.classes) {
+        const tipo = TIPOS_DE_JUTSU.get(classe);
+        if (tipo) tipos.add(tipo);
+      }
     }
+    return [...tipos].sort(porTipoDeJutsu);
+  };
+
+  const naturezas = asList(c.natureType).sort(porNatureza);
+  const naturezasAte = porEra(c, naturezas, (ficha, nome) => ficha.naturezas.includes(nome));
+
+  // kekkei mōra e kekkei tōta sao o mesmo tipo de heranca, so que mais raros
+  const kekkei = [...new Set(asList([personal.kekkeiGenkai, personal.kekkeiMōra, personal.kekkeiTōta].flat())
+    .map(kg => DOJUTSU_RAIZ.get(kg) ?? kg))];
+  // elemento misturado aparece como `jutsu type`; dōjutsu, na classificacao
+  // ("Kekkei Genkai~Sharingan") — e o Mangekyō conta como Sharingan tambem
+  const kekkeiAte = porEra(c, kekkei, (ficha, nome) => ficha.naturezas.includes(nome)
+    || ficha.classes.some(classe => classe.startsWith('Kekkei Genkai~')
+      && (DOJUTSU_RAIZ.get(classe.slice(14)) ?? classe.slice(14)) === nome));
+
+  // sábio e ninja médico sao o que a pessoa faz, e a tecnica diz quando
+  const POR_TECNICA = new Map([['Sage', 'Senjutsu'], ['Medical-nin', 'Medical Ninjutsu']]);
+  const atributos = asList(personal.classification);
+  const atributosAte = porEra(c, atributos, (ficha, nome) =>
+    POR_TECNICA.has(nome) && ficha.classes.includes(POR_TECNICA.get(nome)));
+
+  const daEra = (era) => ({
+    jutsuTypes: orElse(tiposAte(era), 'Nenhum'),
+    kekkeiGenkai: orElse(kekkeiAte(era), 'Não tem'),
+    natureType: orElse(naturezasAte(era), 'Nenhum'),
+    classification: orElse(atributosAte(era), 'Nenhum'),
+  });
+
+  const completo = daEra('boruto');
+  const byScope = {};
+  for (const era of ['classico', 'shippuden']) {
+    const recorte = Object.fromEntries(Object.entries(daEra(era))
+      .filter(([chave, lista]) => String(lista) !== String(completo[chave])));
+    if (Object.keys(recorte).length) byScope[era] = recorte;
   }
 
   return {
@@ -429,20 +534,14 @@ const roster = candidatos.map((c) => {
     // "File:Gender Various.svg Various". Besta com cauda nao tem sexo na ficha,
     // e isso e a resposta: "sem gênero", nao "nao sabemos"
     gender: clean(String(personal.sex ?? '').replace(/^File:.*?\.(?:svg|png|jpg)\s*/i, '')) ?? 'None',
+    // filiacao a ficha nao data: fica a carreira inteira, em toda era
     affiliation: orElse(affiliation.filter(a => AFILIACOES.has(a)), 'Sem filiação'),
-    jutsuTypes: orElse([...tipos].sort(porTipoDeJutsu), 'Nenhum'),
-    // kekkei mōra e kekkei tōta sao o mesmo tipo de heranca, so que mais raros
-    kekkeiGenkai: orElse(
-      [...new Set(asList([personal.kekkeiGenkai, personal.kekkeiMōra, personal.kekkeiTōta].flat())
-        .map(kg => DOJUTSU_RAIZ.get(kg) ?? kg))],
-      'Não tem',
-    ),
-    natureType: orElse(asList(c.natureType).sort(porNatureza), 'Nenhum'),
-    classification: orElse(asList(personal.classification), 'Nenhum'),
+    ...completo,
     debutArc: arco?.index ?? null,
     // recorte cumulativo: quem viu Shippūden viu o Clássico antes
     inClassic: arco?.era === 'classico',
     inShippuden: arco?.era === 'classico' || arco?.era === 'shippuden',
+    ...(Object.keys(byScope).length ? { byScope } : {}),
     sprite: c.images?.[0] ?? null,
     artwork: c.images?.[0] ?? null,
   };

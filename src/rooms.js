@@ -545,10 +545,18 @@ function onConnection(socket) {
     const guess = itemById(room, pokemonId);
     if (!guess) return socket.emit('room:error', 'Chute inválido.');
     if (room.rows.some(r => r.id === guess.id)) return socket.emit('room:error', `${guess.name} já foi chutado.`);
+    // a busca do chute ja esconde quem esta fora do recorte, mas quem esconde e
+    // o navegador: com uma aba de antes da troca de recorte o nome ainda chega
+    // aqui. E o recorte nao e preferencia, e o combinado da sala — quem parou no
+    // Shippūden nao pode receber uma dica sobre o Boruto
+    if (!scopeFilter(universeOf(room), room.settings.scope)(guess)) {
+      const option = scopeOption(universeOf(room), room.settings.scope);
+      return socket.emit('room:error', `Esta sala está em "${option.label}", e ${guess.name} fica de fora.`);
+    }
 
     if (room.guessesLeft[player.id] !== null) room.guessesLeft[player.id] -= 1;
     room.rows.push({
-      ...compareGuess(guess, room.secret, universeOf(room)),
+      ...compareGuess(guess, room.secret, universeOf(room), room.settings.scope),
       playerId: player.id,
       playerName: player.name,
     });

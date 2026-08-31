@@ -48,20 +48,25 @@ export default function HintsTable({ universe, rows }) {
           ))}
         </div>
 
-        {/* em ordem de chegada: o primeiro chute em cima, o seguinte embaixo —
-            e assim a linha nova aparece sempre no mesmo lugar, no fim */}
-        {rows.map(row => (
+        {/* pilha: o chute mais recente no topo */}
+        {[...rows].reverse().map(row => (
           <div
             key={row.id}
             className={`hints-row ${row === newest ? 'newest' : ''} ${row.correct ? 'correct' : ''}`}
           >
-            {/* o retrato e o chute; o nome fica no balao do mouse. Sem retrato
-                (universo que a API nao ilustra) o nome volta a ser o conteudo */}
+            {/* o retrato e o chute; o nome so aparece com o mouse em cima, numa
+                tarja sobre a propria celula. Sem retrato (universo que a API nao
+                ilustra) o nome volta a ser o conteudo, sempre visivel */}
             <div className="cell guess" title={row.name}>
               <span className="by">{row.playerName}</span>
-              {row.sprite
-                ? <img src={row.sprite} alt={row.name} loading="lazy" />
-                : <span className="name">{row.name}</span>}
+              {row.sprite ? (
+                <>
+                  <img src={row.sprite} alt={row.name} loading="lazy" />
+                  <span className="name-tip" aria-hidden="true">{row.name}</span>
+                </>
+              ) : (
+                <span className="name">{row.name}</span>
+              )}
             </div>
 
             {universe.columns.map(column => {

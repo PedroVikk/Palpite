@@ -3,7 +3,7 @@
  * A comparacao e guiada pelo schema do universo (shared/universes.js),
  * entao adicionar uma franquia nova nao mexe aqui.
  */
-import { UNIVERSES, DEFAULT_UNIVERSE, getUniverse, scopeFilter, scopeOption } from '../shared/universes.js';
+import { UNIVERSES, DEFAULT_UNIVERSE, getUniverse, scopeFilter, scopeOption, valueOf } from '../shared/universes.js';
 
 export { UNIVERSES, getUniverse, scopeFilter, scopeOption };
 
@@ -109,37 +109,44 @@ function compareList(guessValue, secretValue) {
  * Slot (tipo 1 / tipo 2 do Pokemon): igual -> verde; o valor existe no
  * secreto, mas no outro slot -> amarelo.
  */
-function compareSlot(column, guess, secret) {
-  const value = guess[column.key] ?? null;
-  const expected = secret[column.key] ?? null;
+function compareSlot(column, guess, secret, scope) {
+  const value = valueOf(guess, column.key, scope) ?? null;
+  const expected = valueOf(secret, column.key, scope) ?? null;
   if (value === expected) return { status: 'hit', hint: null };
-  const secretSlots = (column.slots ?? [column.key]).map(k => secret[k]).filter(Boolean);
+  const secretSlots = (column.slots ?? [column.key]).map(k => valueOf(secret, k, scope)).filter(Boolean);
   if (value && secretSlots.includes(value)) return { status: 'partial', hint: null };
   return { status: 'miss', hint: null };
 }
 
-function compareColumn(column, guess, secret) {
+function compareColumn(column, guess, secret, scope) {
+  const value = valueOf(guess, column.key, scope);
+  const expected = valueOf(secret, column.key, scope);
   switch (column.kind) {
     case 'slot':
-      return compareSlot(column, guess, secret);
+      return compareSlot(column, guess, secret, scope);
     case 'list':
-      return compareList(guess[column.key], secret[column.key]);
+      return compareList(value, expected);
     case 'number':
-      return compareNumber(guess[column.key], secret[column.key], column);
+      return compareNumber(value, expected, column);
     default: {
-      const value = guess[column.key] ?? null;
-      const expected = secret[column.key] ?? null;
-      if (isEmpty(value) || isEmpty(expected)) return { status: 'unknown', hint: null };
+      if (isEmpty(value ?? null) || isEmpty(expected ?? null)) return { status: 'unknown', hint: null };
       return { status: value === expected ? 'hit' : 'miss', hint: null };
     }
   }
 }
 
-/** Compara um chute com o segredo e devolve a linha de dicas. */
-export function compareGuess(guess, secret, universe) {
+/**
+ * Compara um chute com o segredo e devolve a linha de dicas. `scope` e o
+ * recorte da sala: onde o item guarda versao por recorte, e ela que vale dos
+ * dois lados — a dica tem de responder pelo periodo que a sala escolheu.
+ */
+export function compareGuess(guess, secret, universe, scope = null) {
   const cells = {};
   for (const column of universe.columns) {
-    cells[column.key] = { value: guess[column.key] ?? null, ...compareColumn(column, guess, secret) };
+    cells[column.key] = {
+      value: valueOf(guess, column.key, scope) ?? null,
+      ...compareColumn(column, guess, secret, scope),
+    };
   }
   return {
     id: guess.id,

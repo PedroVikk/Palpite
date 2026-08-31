@@ -217,6 +217,30 @@ Shippūden (159) ou Boruto (190). Ele é cumulativo — quem viu Shippūden viu 
 Clássico antes —, e cada opção lê a sua própria chave no item (`inClassic`,
 `inShippuden`), diferente do recorte de Hunter × Hunter, que é um booleano só.
 
+### As colunas voltam no tempo junto com o recorte
+
+O recorte não escolhe só quem entra: escolhe também **quando**. A ficha da
+Narutopedia conta a carreira inteira, então no Clássico o Naruto aparecia como
+sábio, com afinidade de vento e três kekkei genkai — coisas que ele só teria
+centenas de capítulos depois.
+
+Quem data cada valor é a estreia das técnicas do próprio personagem, que o
+`build:naruto` lê do infobox de cada jutsu (`debut manga`, ou o episódio quando
+a técnica só existe no anime). O Modo Sábio é do capítulo 375, o Rasenshuriken
+do 339: no Clássico nenhum dos dois conta. A regra é conservadora nos dois
+sentidos — um valor só sai de uma era se houver técnica provando que veio
+depois, e valor que nenhuma técnica data fica em todas. O recorte adia, nunca
+inventa.
+
+Onde muda, o item guarda a versão em `byScope`, e `valueOf(item, chave, recorte)`
+resolve na hora da comparação — dos dois lados, chute e segredo. São 84 dos 190
+personagens. Ficam de fora *Filiações*, *Gênero* e o arco: filiação a wiki não
+data (o Sasuke aparece na Akatsuki desde o Clássico) e os outros dois não mudam.
+
+O limite do método é que a técnica é datada por ela mesma, não por quem a usa: a
+Sakura sai como ninja médica já no Clássico porque a Palma Mística é do capítulo
+165, ainda que ela só vá aprendê-la em Shippūden.
+
 ### As cores do Pokémon saem do sprite
 
 O `color` da PokéAPI é a categoria de busca da Pokédex, não a aparência: é um
@@ -332,9 +356,9 @@ esperar a hora de `max-age`.
 - **Cinza em itálico**: falta o dado de um dos lados, então não dá para comparar.
   Não é a mesma coisa que errar, por isso não fica vermelho.
 
-A coluna do chute é o retrato: o nome aparece ao passar o mouse, e só volta a
-ser escrito onde não há foto (Carros). As linhas ficam em ordem de chegada — o
-primeiro chute em cima —, então a linha nova sai sempre no mesmo lugar.
+A coluna do chute é o retrato: o nome aparece numa tarja sobre a célula ao
+passar o mouse, e só volta a ser escrito onde não há foto (Carros). O chute mais
+recente fica no topo.
 
 Listas longas aparecem cortadas (`A, B, C +2`); passe o mouse para ver tudo.
 Onde a coluna tem símbolo (os elementos de chakra do Naruto), a célula mostra o
@@ -382,7 +406,8 @@ Tipos de coluna: `text` (igual/diferente), `slot` (igual, ou existe no outro
 slot → amarelo), `list` (conjuntos iguais → verde, interseção → amarelo) e
 `number` (com `tolerance` proporcional, `nearby` cru e seta). Qualquer coluna
 pode trazer `labels` (o texto traduzido) e `icons` (um símbolo por valor, como
-os elementos de chakra do Naruto).
+os elementos de chakra do Naruto). E qualquer item pode trazer `byScope`, com a
+versão de um campo em cada recorte da sala.
 
 ## Testes
 

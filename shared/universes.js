@@ -538,7 +538,7 @@ export const UNIVERSES = {
       default: 'boruto',
       options: [
         { id: 'classico', label: 'Clássico', hint: 'Só quem estreou até o capítulo 238.', key: 'inClassic', requires: true },
-        { id: 'shippuden', label: 'Shippūden', hint: 'Todo o mangá de Naruto, do Prólogo ao capítulo 700.', key: 'inShippuden', requires: true },
+        { id: 'shippuden', label: 'Shippūden', hint: 'Do Prólogo ao fim da guerra, no capítulo 699.', key: 'inShippuden', requires: true },
         { id: 'boruto', label: 'Boruto', hint: 'Elenco completo, incluindo Naruto Gaiden e o mangá de Boruto.' },
       ],
     },
@@ -1045,6 +1045,14 @@ export function scopeOption(universe, id) {
   if (!scope) return null;
   return scope.options.find(o => o.id === id) ?? scope.options.find(o => o.id === scope.default) ?? null;
 }
+
+/**
+ * O valor de uma coluna sob o recorte escolhido. Um item pode trazer em
+ * `byScope` a versao de um campo naquele recorte — e o caso do Naruto, onde a
+ * ficha conta a carreira inteira mas a sala pode estar no Clássico, quando ele
+ * ainda nao era sábio. Sem `byScope`, ou fora dele, vale o campo de sempre.
+ */
+export const valueOf = (item, key, scopeId) => item?.byScope?.[scopeId]?.[key] ?? item?.[key];
 
 /** Chaves que o recorte le nos itens — o indice do cliente precisa levar todas. */
 export const scopeKeys = (universe) =>

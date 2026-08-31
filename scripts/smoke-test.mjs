@@ -6,7 +6,8 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { UNIVERSES, scopeFilter } from '../shared/universes.js';
+import { UNIVERSES, scopeFilter, valueOf } from '../shared/universes.js';
+import { compareGuess } from '../src/game.js';
 import { io } from 'socket.io-client';
 
 const PORT = 3999;
@@ -413,6 +414,15 @@ try {
   check('quem e do Classico tambem vale em Shippuden',
     naruto.every(c => !c.inClassic || c.inShippuden));
 
+  // a ficha da wiki conta a carreira inteira; o recorte tem de voltar no tempo
+  const naruto7 = naruto.find(c => c.name === 'Naruto Uzumaki');
+  check('no Clássico o Naruto ainda não era sábio',
+    naruto7.classification.includes('Sage')
+    && !valueOf(naruto7, 'classification', 'classico').includes('Sage')
+    && valueOf(naruto7, 'classification', 'shippuden').includes('Sage'));
+  const dica = compareGuess(naruto7, naruto7, UNIVERSES.naruto, 'classico');
+  check('a dica sai no recorte da sala', !dica.cells.classification.value.includes('Sage'));
+
   const soBoruto = naruto.find(c => !c.inShippuden);
   const [era1, era2] = await Promise.all([connect('Era1'), connect('Era2')]);
   const roomEra = await new Promise(res => era1.socket.emit('room:create', {
@@ -433,6 +443,19 @@ try {
   await sleep(250);
   check('sala do Classico recusa personagem de Boruto', dono.errors.length === 1);
   check('a recusa explica a era', /Cl(á|a)ssico/.test(dono.errors[0] ?? ''));
+
+  // e o mesmo vale para o chute, nao so para a escolha do segredo: a busca do
+  // navegador ja esconde quem esta fora, mas o servidor nao confia nela
+  const dentro = naruto.find(c => c.inClassic);
+  dono.errors.length = 0;
+  dono.socket.emit('game:choose', { pokemonId: dentro.id });
+  await until(era1, s => s.phase === 'playing', 'duelo do Classico comecou');
+  const chutador = era1.state.turnPlayerId === roomEra.playerId ? era1 : era2;
+  chutador.errors.length = 0;
+  chutador.socket.emit('game:guess', { pokemonId: soBoruto.id });
+  await sleep(250);
+  check('sala do Classico recusa chute de Boruto', chutador.errors.length === 1);
+  check('e nao virou linha na tabela', era1.state.rows.length === 0);
   era1.socket.disconnect();
   era2.socket.disconnect();
 

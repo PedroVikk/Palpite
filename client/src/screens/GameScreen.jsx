@@ -84,7 +84,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
 
             <HintsTable universe={universe} rows={state.rows} />
 
-            {state.secret && <Reveal universe={universe} secret={state.secret} />}
+            {state.secret && <Reveal universe={universe} secret={state.secret} scope={state.settings.scope} />}
 
             <div className="game-actions">
               {isHost && state.phase === 'roundEnd' && (

@@ -1,3 +1,5 @@
+import { valueOf } from '@shared/universes.js';
+
 /**
  * Formatacao das celulas de dica. O valor bruto vem do servidor; o schema do
  * universo diz como exibir (rotulo traduzido, unidade, lista encurtada).
@@ -31,10 +33,10 @@ export function formatValue(column, value) {
   return String(value);
 }
 
-/** Resumo do segredo revelado, uma entrada por coluna. */
-export const revealChips = (universe, secret) =>
+/** Resumo do segredo revelado, uma entrada por coluna — no recorte da sala. */
+export const revealChips = (universe, secret, scope = null) =>
   universe.columns.map(column => ({
     key: column.key,
     label: column.label,
-    text: fullValue(column, secret[column.key]),
+    text: fullValue(column, valueOf(secret, column.key, scope)),
   }));
