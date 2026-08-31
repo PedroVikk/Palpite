@@ -15,6 +15,42 @@ export const rememberName = (name) => safe(() => localStorage.setItem(NAME_KEY, 
 export const savedPlayerId = (code) => safe(() => sessionStorage.getItem(playerKey(code)));
 export const rememberPlayerId = (code, id) => safe(() => sessionStorage.setItem(playerKey(code), id));
 
+// --------------------------------------------------------- voltar depois
+
+/**
+ * Rastro da ultima sala, este no localStorage: e o que sobra quando a aba
+ * fecha e leva o sessionStorage junto — sem ele, reabrir o navegador seria
+ * entrar como um jogador novo, sem placar.
+ *
+ * Ele nunca reconecta sozinho: a volta por aqui e sempre um clique do jogador
+ * na home, senao abrir uma segunda aba roubaria a cadeira da primeira, que e
+ * exatamente o que o sessionStorage existe para evitar.
+ */
+const LAST_KEY = 'palpite:last';
+/**
+ * Prazo generoso de propria casa. Quem decide se a cadeira ainda existe e o
+ * servidor (a janela dele e mais curta); este prazo so evita oferecer a volta
+ * para uma partida de ontem.
+ */
+const LAST_TTL = 30 * 60 * 1000;
+
+export const rememberSession = (code, playerId, name) =>
+  safe(() => localStorage.setItem(LAST_KEY, JSON.stringify({ code, playerId, name, at: Date.now() })));
+
+export function savedSession() {
+  const raw = safe(() => localStorage.getItem(LAST_KEY));
+  if (!raw) return null;
+  try {
+    const last = JSON.parse(raw);
+    if (!last?.code || !last?.playerId) return null;
+    return Date.now() - last.at > LAST_TTL ? null : last;
+  } catch {
+    return null;
+  }
+}
+
+export const forgetSession = () => safe(() => localStorage.removeItem(LAST_KEY));
+
 // ------------------------------------------------------- desafio do dia
 
 /**

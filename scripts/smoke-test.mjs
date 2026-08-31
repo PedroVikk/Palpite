@@ -513,7 +513,107 @@ try {
   check('placar preservado', rejoined.state.players.find(p => p.id === rejoined.playerId).score > 0);
   check('sala nao duplicou jogador', rejoined.state.players.length === 2);
 
-  for (const p of [ash, misty, brock, ...squad, gary, may, ...fila, ...arena, inf1, inf2, ini1, ini2, solo, duelista, back]) p.socket.close();
+  check('a volta e reconhecida como volta', rejoined.resumed === true);
+
+  // --------------------------------------------------------- vaga guardada
+  // Cair no meio da partida guarda a cadeira: placar, chutes e lugar na ordem
+  // continuam la ate a janela de reconexao fechar. Sair pelo botao nao guarda.
+  console.log('\n== Vaga guardada ==');
+  const trio = await Promise.all([connect('Q1'), connect('Q2'), connect('Q3')]);
+  const [olho, sai, cai] = trio;   // olho observa; sai clica em sair, cai perde a conexao
+  const salaQ = await new Promise(res => olho.socket.emit('room:create', {
+    name: 'Q1',
+    settings: { mode: 'hunt', universe: 'pokemon', groups: ['1'], rounds: 5, turnSeconds: 120, guessesPerPlayer: 4 },
+  }, res));
+  const idsQ = [salaQ.playerId];
+  for (const p of trio.slice(1)) {
+    const entrada = await new Promise(res => p.socket.emit('room:join', { code: salaQ.code, name: p.name }, res));
+    idsQ.push(entrada.playerId);
+  }
+  const porIdQ = new Map(idsQ.map((id, i) => [id, trio[i]]));
+  const idDeQuemCai = idsQ[2];
+  const idDeQuemSai = idsQ[1];
+  await until(olho, s => s.players.length === 3, 'sala da vaga montada');
+
+  olho.socket.emit('game:start');
+  await until(olho, s => s.phase === 'playing', 'partida da vaga comecou');
+
+  // chutes de Gen 2 nunca acertam (a sala so ligou a Gen 1): a rodada fica
+  // aberta enquanto o teste leva o turno ate quem vai cair
+  let bicho = 151;
+  while (olho.state.turnPlayerId !== idDeQuemCai) {
+    const antes = olho.state.rows.length;
+    porIdQ.get(olho.state.turnPlayerId).socket.emit('game:guess', { pokemonId: ++bicho });
+    await until(olho, s => s.rows.length > antes, 'turno andando ate quem vai cair');
+  }
+  cai.socket.emit('game:guess', { pokemonId: ++bicho });
+  await until(olho, s => s.turnPlayerId !== idDeQuemCai, 'chute de quem vai cair');
+  const gastou = olho.state.players.find(p => p.id === idDeQuemCai).guessesLeft;
+  check('o chute foi descontado antes da queda', gastou === 3);
+
+  cai.socket.disconnect();
+  await until(olho, s => !s.players.find(p => p.id === idDeQuemCai).connected, 'queda registrada');
+  check('a cadeira continua na sala', olho.state.players.length === 3);
+  check('a sala avisa que a vaga fica guardada', /vaga fica guardada/.test(olho.state.message ?? ''));
+  check('os chutes de quem caiu ficam guardados',
+    olho.state.players.find(p => p.id === idDeQuemCai).guessesLeft === 3);
+
+  const voltou = await connect('Q3');
+  const volta = await new Promise(res => voltou.socket.emit('room:join', {
+    code: salaQ.code, name: 'Q3', playerId: idDeQuemCai,
+  }, res));
+  check('voltou para a propria cadeira', volta.resumed === true && volta.playerId === idDeQuemCai);
+  check('sala nao ganhou um jogador a mais', volta.state.players.length === 3);
+  check('os chutes voltaram com ele',
+    volta.state.players.find(p => p.id === idDeQuemCai).guessesLeft === 3);
+  check('a volta e anunciada na sala', /voltou para a partida/.test(volta.state.message ?? ''));
+
+  // o turno volta a passar por quem voltou
+  while (olho.state.phase === 'playing' && olho.state.turnPlayerId !== idDeQuemCai) {
+    const antes = olho.state.rows.length;
+    porIdQ.get(olho.state.turnPlayerId).socket.emit('game:guess', { pokemonId: ++bicho });
+    await until(olho, s => s.rows.length > antes || s.phase !== 'playing', 'turno depois da volta');
+  }
+  check('quem voltou entra no rodizio de novo', olho.state.turnPlayerId === idDeQuemCai);
+
+  // sair pelo botao e definitivo: a cadeira e liberada na hora
+  sai.socket.emit('room:leave');
+  await until(olho, s => s.players.length === 2, 'saida pelo botao');
+  check('sair pelo botao libera a cadeira',
+    !olho.state.players.some(p => p.id === idDeQuemSai));
+
+  const arrependido = await connect('Q2');
+  const semVaga = await new Promise(res => arrependido.socket.emit('room:join', {
+    code: salaQ.code, name: 'Q2', playerId: idDeQuemSai,
+  }, res));
+  check('quem saiu de vez volta como jogador novo',
+    semVaga.resumed === false && semVaga.playerId !== idDeQuemSai);
+  check('e o placar antigo nao volta com ele',
+    semVaga.state.players.find(p => p.id === semVaga.playerId).score === 0);
+
+  // a rodada espera quem caiu em vez de fechar sem ele: jogando sozinho, um
+  // F5 fechava a propria rodada — o acidente que a vaga guardada desfaz
+  const so = await connect('So');
+  const salaSo = await new Promise(res => so.socket.emit('room:create', {
+    name: 'So',
+    settings: { mode: 'hunt', universe: 'pokemon', groups: ['1'], rounds: 3, turnSeconds: 120, guessesPerPlayer: 4 },
+  }, res));
+  so.socket.emit('game:start');
+  await until(so, s => s.phase === 'playing', 'partida de quem joga sozinho');
+  so.socket.emit('game:guess', { pokemonId: 152 });
+  await until(so, s => s.rows.length === 1, 'chute antes do F5');
+  so.socket.disconnect();
+
+  const depoisDoF5 = await connect('So');
+  const retomou = await new Promise(res => depoisDoF5.socket.emit('room:join', {
+    code: salaSo.code, name: 'So', playerId: salaSo.playerId,
+  }, res));
+  check('a rodada esperou quem caiu em vez de fechar',
+    retomou.state.phase === 'playing' && retomou.state.round === 1);
+  check('a tabela de dicas sobreviveu a queda', retomou.state.rows.length === 1);
+  check('a vez volta para quem voltou', retomou.state.turnPlayerId === salaSo.playerId);
+
+  for (const p of [ash, misty, brock, ...squad, gary, may, ...fila, ...arena, inf1, inf2, ini1, ini2, solo, duelista, back, ...trio, voltou, arrependido, depoisDoF5]) p.socket.close();
 } catch (err) {
   console.error('\nERRO NO TESTE:', err.message);
   failures++;

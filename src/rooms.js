@@ -20,6 +20,18 @@ let io = null;
 const rooms = new Map();
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem I, O, 0, 1
 
+/**
+ * Janela de reconexao: por quanto tempo a cadeira de quem caiu no meio da
+ * partida fica reservada, com placar, chutes e lugar na fila do duelo. Cair
+ * (aba fechada, sinal ruim, F5) nao pode custar o jogo — mas a cadeira tambem
+ * nao pode ficar guardada para sempre segurando o limite de 12.
+ */
+const RECONNECT_MS = 5 * 60 * 1000;
+const RECONNECT_MIN = RECONNECT_MS / 60000;
+
+/** Fases em que ha partida rolando: so nelas a cadeira vale ser guardada. */
+const liveMatch = (room) => room.phase === 'choosing' || room.phase === 'playing' || room.phase === 'roundEnd';
+
 function newCode() {
   let code;
   do {
@@ -42,6 +54,7 @@ function createRoom(settings) {
     chooserQueue: [],   // rodizio de quem esconde no duelo (ver nextChooser)
     rows: [],
     turnPlayerId: null,
+    pausedAfter: null,  // de quem era a vez quando a rodada parou (ver pauseRound)
     guessesLeft: {},
     deadline: null,
     timer: null,
@@ -210,12 +223,13 @@ function startRound(room) {
   if (!activePlayers(room).length) {
     clearTimer(room);
     room.phase = 'lobby';
-    room.message = 'Todo mundo saiu. A partida voltou para o lobby.';
+    room.message = 'Todo mundo caiu. A partida voltou para o lobby, com as vagas de pé.';
     return broadcast(room);
   }
 
   room.round += 1;
   room.rows = [];
+  room.pausedAfter = null;
   room.winnerId = null;
   room.message = null;
   room.summary = null;
@@ -256,9 +270,45 @@ function armTurnTimer(room) {
 function beginGuessing(room) {
   room.phase = 'playing';
   room.turnPlayerId = firstTurn(room);
-  if (!room.turnPlayerId) return endRound(room, null);
+  if (!room.turnPlayerId) return awaitingReturn(room) ? pauseRound(room, null) : endRound(room, null);
   armTurnTimer(room);
   broadcast(room);
+}
+
+/**
+ * Ninguem pode chutar agora, mas ha cadeira guardada que poderia chutar de
+ * volta. Sem isto, um F5 de quem esta jogando sozinho fecharia a propria
+ * rodada — justamente o acidente que a vaga guardada existe para desfazer.
+ */
+function awaitingReturn(room) {
+  return [...room.players.values()].some(p =>
+    !p.connected && p.leftAt && p.id !== room.chooserId && hasGuessLeft(guessesOf(room, p.id)));
+}
+
+/** Congela a rodada ate alguem voltar; `pausedAfter` guarda o rodizio. */
+function pauseRound(room, afterId) {
+  clearTimer(room);
+  room.pausedAfter = afterId;
+  room.turnPlayerId = null;
+  room.message = `A rodada parou, esperando quem caiu voltar (até ${RECONNECT_MIN} minutos).`;
+  broadcast(room);
+}
+
+/**
+ * Destrava a rodada parada. Se ha quem chute, o rodizio segue de onde parou;
+ * se nao ha mais ninguem por quem esperar (a ultima vaga venceu), a rodada
+ * fecha como teria fechado se a queda nao tivesse acontecido.
+ */
+function unpause(room) {
+  if (room.phase !== 'playing' || room.turnPlayerId) return;
+  const next = nextTurn(room, room.pausedAfter);
+  if (next) {
+    room.pausedAfter = null;
+    room.turnPlayerId = next;
+    room.message = null;
+    return armTurnTimer(room);
+  }
+  if (!awaitingReturn(room)) endRound(room, null);
 }
 
 function onTurnTimeout(room) {
@@ -274,7 +324,7 @@ function onTurnTimeout(room) {
 
 function advance(room) {
   const next = nextTurn(room, room.turnPlayerId);
-  if (!next) return endRound(room, null);
+  if (!next) return awaitingReturn(room) ? pauseRound(room, room.turnPlayerId) : endRound(room, null);
   room.turnPlayerId = next;
   armTurnTimer(room);
   broadcast(room);
@@ -344,14 +394,22 @@ function findPlayerRoom(socket) {
 
 const cleanName = (name) => String(name ?? '').trim().slice(0, 16) || 'Treinador';
 
+/**
+ * Sentar na sala. Com um playerId que ainda tem cadeira guardada isto e uma
+ * volta: placar, chutes e lugar na fila continuam de onde pararam. O `resumed`
+ * da resposta e como o cliente sabe se voltou para a propria cadeira ou entrou
+ * como jogador novo (a janela de reconexao fechou, ou a sala reiniciou).
+ */
 function joinRoom(socket, room, name, playerId, cb) {
   const existing = room.players.get(playerId);
+  const wasAway = Boolean(existing) && !existing.connected;
   if (existing) {
     existing.connected = true;
+    existing.leftAt = null;
     existing.name = name;
     existing.socketId = socket.id;
   } else {
-    room.players.set(playerId, { id: playerId, name, score: 0, connected: true, socketId: socket.id });
+    room.players.set(playerId, { id: playerId, name, score: 0, connected: true, leftAt: null, socketId: socket.id });
     room.order.push(playerId);
     // quem entra com a rodada em andamento so joga a partir da proxima
     room.guessesLeft[playerId] = room.phase === 'lobby' ? guessBudget(room) : 0;
@@ -361,35 +419,62 @@ function joinRoom(socket, room, name, playerId, cb) {
   socket.data.code = room.code;
   socket.data.playerId = playerId;
   socket.join(room.code);
-  cb?.({ code: room.code, playerId, state: publicState(room) });
+  unpause(room);
+
+  // so nas fases em que `message` e recado de bastidor: em roundEnd ela carrega
+  // o resultado da rodada, e anunciar a volta por cima apagaria o placar
+  if (wasAway && (room.phase === 'playing' || room.phase === 'choosing')) {
+    room.message = `${name} voltou para a partida.`;
+  }
+
+  cb?.({ code: room.code, playerId, state: publicState(room), resumed: Boolean(existing) });
   broadcast(room);
 }
 
+/** Tira o jogador da sala de vez: cadeira liberada, placar esquecido. */
+function dropPlayer(room, id) {
+  room.players.delete(id);
+  room.order = room.order.filter(x => x !== id);
+  delete room.guessesLeft[id];
+}
+
+/**
+ * Sair da sala tem dois sabores. Clicar em sair, ou cair ainda no lobby,
+ * libera a cadeira na hora — ha intencao clara, ou nao ha placar em jogo.
+ * Cair com a partida rolando e outra coisa: a cadeira fica guardada por
+ * RECONNECT_MS e `room:join` com o mesmo playerId devolve o jogador a ela,
+ * com placar, chutes e lugar na fila intactos.
+ */
 function handleDisconnect(socket, permanent) {
   const { room, player } = findPlayerRoom(socket);
   if (!room || !player) return;
   socket.leave(room.code);
 
-  if (permanent || room.phase === 'lobby') {
-    room.players.delete(player.id);
-    room.order = room.order.filter(id => id !== player.id);
-    delete room.guessesLeft[player.id];
-  } else {
+  const keepSeat = !permanent && room.phase !== 'lobby';
+  if (keepSeat) {
     player.connected = false;
+    player.leftAt = Date.now();
+  } else {
+    dropPlayer(room, player.id);
   }
 
   if (room.hostId === player.id) room.hostId = activePlayers(room)[0]?.id ?? null;
 
+  const verb = keepSeat ? 'caiu' : 'saiu';
+  const seat = keepSeat ? ` A vaga fica guardada por ${RECONNECT_MIN} minutos.` : '';
+
   if (room.phase === 'playing' && room.turnPlayerId === player.id) {
-    room.message = `${player.name} saiu no meio do turno.`;
+    room.message = `${player.name} ${verb} no meio do turno.${seat}`;
     return advance(room);
   }
   if (room.phase === 'choosing' && room.chooserId === player.id) {
     room.chooserId = null;
     room.secret = pickSecret(pool(room));
-    room.message = `${player.name} saiu: o segredo foi sorteado.`;
+    room.message = `${player.name} ${verb}: o segredo foi sorteado.`;
     return beginGuessing(room);
   }
+  // roundEnd e gameOver ficam de fora: la `message` e o resultado da rodada
+  if (room.phase === 'playing') room.message = `${player.name} ${verb}.${seat}`;
   broadcast(room);
 }
 
@@ -498,16 +583,33 @@ function onConnection(socket) {
   socket.on('disconnect', () => handleDisconnect(socket, false));
 }
 
-// limpeza de salas abandonadas
+/**
+ * Faxina: primeiro as cadeiras guardadas que passaram da janela de reconexao,
+ * depois as salas que ninguem mais abre. As cadeiras so vencem com a partida
+ * rolando — no fim de jogo elas sao o placar final, e apagar quem caiu no
+ * ultimo minuto seria reescrever o resultado.
+ */
 setInterval(() => {
-  const cutoff = Date.now() - 30 * 60 * 1000;
+  const now = Date.now();
   for (const [code, room] of rooms) {
-    if (!activePlayers(room).length && room.lastActivity < cutoff) {
+    if (liveMatch(room)) {
+      const expired = [...room.players.values()]
+        .filter(p => !p.connected && p.leftAt && now - p.leftAt > RECONNECT_MS);
+      for (const p of expired) {
+        dropPlayer(room, p.id);
+        if (room.hostId === p.id) room.hostId = activePlayers(room)[0]?.id ?? null;
+      }
+      if (expired.length) {
+        unpause(room);
+        broadcast(room);
+      }
+    }
+    if (!activePlayers(room).length && room.lastActivity < now - 30 * 60 * 1000) {
       clearTimer(room);
       rooms.delete(code);
     }
   }
-}, 5 * 60 * 1000).unref();
+}, 60 * 1000).unref();
 
 /** Liga a maquina de salas a um servidor socket.io ja criado. */
 export function attachRooms(server) {

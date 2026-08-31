@@ -1,6 +1,8 @@
 import { useState } from 'react';
 
-export default function HomeScreen({ name, onName, onCreate, onJoin, onDaily, toast }) {
+export default function HomeScreen({
+  name, onName, onCreate, onJoin, onDaily, toast, resume, onResume, onForgetResume,
+}) {
   // convite chega como ?sala=XXXX: o codigo ja vem preenchido
   const [code, setCode] = useState(() =>
     (new URLSearchParams(location.search).get('sala') ?? '').toUpperCase());
@@ -19,6 +21,23 @@ export default function HomeScreen({ name, onName, onCreate, onJoin, onDaily, to
         <h1>Palpite</h1>
         <p>Dezoito universos, de Pokémon a carros: adivinhe o secreto em turnos, com seus amigos.</p>
       </header>
+
+      {/* caiu no meio da partida e a aba perdeu a identidade: um clique devolve
+          a cadeira, com placar e chutes de onde parou */}
+      {resume && (
+        <div className="card narrow resume">
+          <span className="tag">Você estava jogando</span>
+          <strong>Sala {resume.code}</strong>
+          <p className="muted">
+            A vaga de <b>{resume.name}</b> fica guardada por alguns minutos: volte e o
+            placar continua de onde parou.
+          </p>
+          <div className="resume-actions">
+            <button className="btn primary" onClick={onResume}>Voltar para a partida</button>
+            <button className="btn link" onClick={onForgetResume}>Agora não</button>
+          </div>
+        </div>
+      )}
 
       <div className="card narrow stack">
         <label className="field">

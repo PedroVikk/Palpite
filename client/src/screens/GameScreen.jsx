@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { getUniverse, scopeFilter } from '@shared/universes.js';
 import { socket } from '../socket.js';
 import { useDataset } from '../hooks/useDataset.js';
@@ -13,6 +14,10 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   const universe = getUniverse(state.settings.universe);
   const items = useDataset(state.settings.universe) ?? [];
   const left = useCountdown(state.deadline);
+
+  // sair e a unica saida que nao guarda a cadeira; com a partida rolando o
+  // botao pede confirmacao, senao um toque errado custa o placar
+  const [leaving, setLeaving] = useState(false);
 
   const isHost = state.hostId === myId;
   const untilRight = state.settings.guessesPerPlayer === 0;
@@ -89,9 +94,17 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
               {isHost && untilRight && (
                 <button className="btn" onClick={() => socket.emit('game:end')}>Encerrar partida</button>
               )}
-              <button className="btn link" onClick={onLeave}>
-                <ExitIcon width={16} height={16} /> Sair da sala
-              </button>
+              {leaving ? (
+                <>
+                  <span className="muted">Sair de vez abre mão da vaga e do placar.</span>
+                  <button className="btn small" onClick={onLeave}>Sair mesmo assim</button>
+                  <button className="btn link" onClick={() => setLeaving(false)}>Ficar</button>
+                </>
+              ) : (
+                <button className="btn link" onClick={() => setLeaving(true)}>
+                  <ExitIcon width={16} height={16} /> Sair da sala
+                </button>
+              )}
             </div>
           </>
         )}

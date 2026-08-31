@@ -230,6 +230,33 @@ volta a ser o próximo quando reconecta.
   Quem não chuta a tempo perde a vez (e um chute, se houver limite).
 - **Chutes por jogador** — quando todos zeram, a rodada acaba sem vencedor.
 
+## Se você cair no meio da partida
+
+Fechar a aba sem querer, perder o sinal, dar F5: nada disso custa a partida.
+Ao cair com o jogo rolando, **sua cadeira fica guardada por 5 minutos** — com
+placar, chutes que sobraram e seu lugar na fila do duelo. Voltar é sentar nela
+de novo, não entrar zerado.
+
+A volta acontece de três jeitos, do mais silencioso ao mais explícito:
+
+- **A conexão caiu, a aba continua aberta** — o socket reconecta sozinho e volta
+  para a sala sem você perceber.
+- **F5, ou o navegador recarregou a página** — o endereço guarda o código da
+  sala e a aba guarda a sua identidade: a partida reabre direto, sem passar pela
+  home.
+- **A aba fechou (ou o navegador)** — aí a identidade por aba se perde, e a home
+  mostra o cartão **"Você estava jogando"** com um botão para voltar. Ele só
+  aparece quando nenhuma outra aba está com aquela sala aberta: duas abas são
+  dois jogadores, e o convite não pode roubar a cadeira da aba ao lado.
+
+Enquanto a cadeira estiver guardada, o placar mostra **"vaga guardada"** no
+lugar dos chutes, e **a rodada espera em vez de fechar** se não sobrar mais
+ninguém para chutar — sem isso, um F5 de quem joga sozinho encerraria a própria
+rodada. Passados os 5 minutos a cadeira é liberada e a rodada segue sem ela.
+
+**Sair pelo botão é definitivo**: abre mão da vaga e do placar, e por isso ele
+pede confirmação com a partida em andamento. Cair é acidente, sair é decisão.
+
 ## Cache entre deploys
 
 Os assets do Vite têm hash no nome e ficam cravados no cache por um ano, mas o
@@ -309,7 +336,8 @@ npm test
 
 Sobe o servidor de verdade, conecta jogadores falsos e joga partidas completas
 nos dois modos e **nos dezoito universos**, verificando turnos, dicas, timeout,
-pontuação, filtros de grupo, sigilo do segredo e reconexão. São 211 verificações.
+pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 228
+verificações.
 
 ## Atualizar os dados
 
@@ -393,7 +421,9 @@ O servidor respeita a variável `PORT` e responde em `/healthz`.
 
 - A identidade do jogador fica no `sessionStorage`, por aba. Recarregar a página
   reconecta você na mesma partida com o mesmo placar; abrir uma segunda aba cria
-  um segundo jogador.
+  um segundo jogador. Quando a aba fecha e leva o `sessionStorage` junto, sobra
+  o rastro da última sala no `localStorage` — é o que vira o cartão de voltar
+  (ver [Se você cair no meio da partida](#se-você-cair-no-meio-da-partida)).
 - Quem entra com a rodada em andamento assiste e começa a jogar na rodada
   seguinte.
 - Se o host cair, o cargo passa para o próximo jogador conectado.
