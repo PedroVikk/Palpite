@@ -286,6 +286,135 @@ const OP_ORIGIN_PT = {
   'Sky Island': 'Ilha do Céu', 'Calm Belt': 'Calm Belt', Unknown: 'Desconhecida',
 };
 
+/**
+ * Os arcos do mangá em ordem, com o capítulo em que cada um abre. O dataset
+ * guarda o índice desta lista (o build importa daqui, para nao existirem duas
+ * tabelas de arco) e a coluna mostra o nome: o número esta ali so para a seta
+ * ▲/▼ dizer de que lado da historia o segredo esta.
+ *
+ * Os limites vem da Narutopedia, da frase "covers chapters X to Y of the
+ * manga" de cada pagina de arco. `era` e ate onde o jogador precisa ter visto
+ * para conhecer o pessoal que estreia ali.
+ */
+export const NARUTO_ARCS = [
+  { serie: 'naruto', start: 1, era: 'classico', label: 'Prólogo — País das Ondas' },
+  { serie: 'naruto', start: 34, era: 'classico', label: 'Exame Chūnin' },
+  { serie: 'naruto', start: 116, era: 'classico', label: 'Destruição de Konoha' },
+  { serie: 'naruto', start: 139, era: 'classico', label: 'Busca por Tsunade' },
+  { serie: 'naruto', start: 172, era: 'classico', label: 'Resgate do Sasuke' },
+  // intermezzo entre as duas partes: o anime so contou isso em Shippūden
+  { serie: 'naruto', start: 239, era: 'shippuden', label: 'Kakashi Gaiden' },
+  { serie: 'naruto', start: 245, era: 'shippuden', label: 'Resgate do Kazekage' },
+  { serie: 'naruto', start: 282, era: 'shippuden', label: 'Ponte Tenchi' },
+  { serie: 'naruto', start: 311, era: 'shippuden', label: 'Caçada à Akatsuki' },
+  { serie: 'naruto', start: 343, era: 'shippuden', label: 'Perseguição a Itachi' },
+  { serie: 'naruto', start: 368, era: 'shippuden', label: 'A Lenda de Jiraiya' },
+  { serie: 'naruto', start: 384, era: 'shippuden', label: 'Irmãos Frente a Frente' },
+  { serie: 'naruto', start: 413, era: 'shippuden', label: 'Invasão de Pain' },
+  { serie: 'naruto', start: 454, era: 'shippuden', label: 'Reunião dos Cinco Kage' },
+  { serie: 'naruto', start: 484, era: 'shippuden', label: 'Contagem para a Guerra' },
+  { serie: 'naruto', start: 516, era: 'shippuden', label: 'Guerra: Confronto' },
+  { serie: 'naruto', start: 560, era: 'shippuden', label: 'Guerra: Clímax' },
+  { serie: 'naruto', start: 640, era: 'shippuden', label: 'Jinchūriki das Dez Caudas' },
+  { serie: 'naruto', start: 678, era: 'shippuden', label: 'Kaguya Ōtsutsuki' },
+  { serie: 'naruto', start: 700, era: 'boruto', label: 'Epílogo' },
+  // o Gaiden numera os capitulos como "700+1" ... "700+10"; o build soma
+  { serie: 'naruto', start: 701, era: 'boruto', label: 'Naruto Gaiden' },
+  { serie: 'boruto', start: 1, era: 'boruto', label: 'Boruto: Versus Momoshiki' },
+  { serie: 'boruto', start: 11, era: 'boruto', label: 'Boruto: Bandidos Mujina' },
+  { serie: 'boruto', start: 16, era: 'boruto', label: 'Boruto: Ao' },
+  { serie: 'boruto', start: 24, era: 'boruto', label: 'Boruto: Kawaki' },
+  { serie: 'boruto', start: 56, era: 'boruto', label: 'Boruto: Investida de Code' },
+  { serie: 'boruto', start: 68, era: 'boruto', label: 'Boruto: Onipotência' },
+];
+
+const NARUTO_ARC_PT = Object.fromEntries(NARUTO_ARCS.map((arc, i) => [i, arc.label]));
+
+const NARUTO_NATURE_PT = {
+  'Fire Release': 'Fogo', 'Wind Release': 'Vento', 'Lightning Release': 'Raio',
+  'Earth Release': 'Terra', 'Water Release': 'Água', 'Yin Release': 'Yin',
+  'Yang Release': 'Yang', 'Yin–Yang Release': 'Yin-Yang', 'Wood Release': 'Madeira',
+  'Ice Release': 'Gelo', 'Lava Release': 'Lava', 'Magnet Release': 'Ímã',
+  'Boil Release': 'Vapor', 'Dust Release': 'Poeira', 'Storm Release': 'Tempestade',
+  'Explosion Release': 'Explosão', 'Steel Release': 'Aço', 'Scorch Release': 'Escaldante',
+  'Swift Release': 'Rapidez', 'Crystal Release': 'Cristal', 'Dark Release': 'Trevas',
+  'Mud Release': 'Lama', 'Typhoon Release': 'Tufão',
+};
+
+/**
+ * Kekkei genkai e ou um dōjutsu (nome proprio, sai como veio) ou um elemento
+ * misturado — e ai o nome e o mesmo da coluna de natureza, so que como herança.
+ */
+const NARUTO_KEKKEI_PT = {
+  ...Object.fromEntries(Object.entries(NARUTO_NATURE_PT).map(([en, pt]) => [en, `Elemento ${pt}`])),
+  Shikotsumyaku: 'Shikotsumyaku',
+  "Jūgo's Clan's Kekkei Genkai": 'Kekkei genkai do clã do Jūgo',
+  "Sakon and Ukon's Kekkei Genkai": 'Kekkei genkai de Sakon e Ukon',
+  "Iburi Clan's Kekkei Genkai": 'Kekkei genkai do clã Iburi',
+  "Kurama Clan's Kekkei Genkai": 'Kekkei genkai do clã Kurama',
+  "Rinha Clan's Kekkei Genkai": 'Kekkei genkai do clã Rinha',
+  "Ranmaru's Kekkei Genkai": 'Kekkei genkai do Ranmaru',
+  "Ryūzetsu's Kekkei Genkai": 'Kekkei genkai da Ryūzetsu',
+  'Eternal Mangekyō Sharingan': 'Mangekyō Sharingan Eterno',
+  "Isshiki's Dōjutsu": 'Dōjutsu do Isshiki',
+};
+
+/**
+ * Tipo de jutsu, e nao o jutsu em si: a ficha da Narutopedia classifica cada
+ * tecnica, e o personagem herda o conjunto das dele. Fora desta lista tudo o
+ * mais que a wiki usa ("Chakra Flow", "Clone Techniques", "Hiden~Nara Clan")
+ * e recorte fino demais para valer como dica.
+ */
+const NARUTO_JUTSU_PT = {
+  Ninjutsu: 'Ninjutsu', Taijutsu: 'Taijutsu', Genjutsu: 'Genjutsu',
+  Fūinjutsu: 'Fūinjutsu', Kenjutsu: 'Kenjutsu', Dōjutsu: 'Dōjutsu',
+  Senjutsu: 'Senjutsu', Kinjutsu: 'Kinjutsu', Bukijutsu: 'Bukijutsu',
+  'Medical Ninjutsu': 'Ninjutsu médico',
+};
+
+/**
+ * Filiacoes da Narutopedia. Vila oculta, clã e organizacao sao nome proprio e
+ * saem como vieram — quem esta aqui e so o que tem nome em portugues.
+ */
+const NARUTO_AFFILIATION_PT = {
+  'Sem filiação': 'Sem filiação',
+  'Allied Shinobi Forces': 'Forças Aliadas Shinobi',
+  'Seven Ninja Swordsmen of the Mist': 'Sete Espadachins da Névoa',
+  'Konoha Military Police Force': 'Polícia Militar de Konoha',
+  'Sound Four': 'Quarteto do Som',
+  Root: 'Raiz',
+  'Land of Fire': 'País do Fogo',
+  'Land of Wind': 'País do Vento',
+  'Land of Water': 'País da Água',
+  'Land of Earth': 'País da Terra',
+  'Land of Lightning': 'País do Raio',
+  'Land of Rain': 'País da Chuva',
+  'Land of Iron': 'País do Ferro',
+  'Land of Sound': 'País do Som',
+  'Land of Rice Fields': 'País dos Arrozais',
+  'Land of Waves': 'País das Ondas',
+  'Land of Valleys': 'País dos Vales',
+  'Land of Ancestors': 'País dos Ancestrais',
+  'Fire Temple': 'Templo do Fogo',
+  'Twelve Guardian Ninja': 'Doze Ninjas Guardiões',
+  'Ninja Academy': 'Academia Ninja',
+  'Konoha Orphanage': 'Orfanato de Konoha',
+  'Mount Myōboku': 'Monte Myōboku',
+  'Ryūchi Cave': 'Caverna Ryūchi',
+  'Shikkotsu Forest': 'Floresta Shikkotsu',
+  'Tsuchigumo Clan': 'Clã Tsuchigumo',
+  Moon: 'Lua',
+};
+
+const NARUTO_CLASS_PT = {
+  'Missing-nin': 'Ninja renegado', Summon: 'Invocação', 'Medical-nin': 'Ninja médico',
+  'Sensor Type': 'Sensor', Daimyō: 'Daimyō', Jinchūriki: 'Jinchūriki', Sage: 'Sábio',
+  'Mercenary Ninja': 'Ninja mercenário', 'S-rank': 'Rank S', Samurai: 'Samurai',
+  'Tailed Beast': 'Besta com Cauda', 'Pseudo-Jinchūriki': 'Pseudo-Jinchūriki',
+  'Ninja monk': 'Monge ninja', Sannin: 'Sannin', 'Hunter-nin': 'Ninja caçador',
+  'Cooking-nin': 'Ninja cozinheiro',
+};
+
 export const UNIVERSES = {
   pokemon: {
     id: 'pokemon',
@@ -387,22 +516,37 @@ export const UNIVERSES = {
       { id: 'outros', label: 'Outros' },
     ],
     defaultGroups: ['konoha', 'suna', 'kiri', 'iwa', 'kumo', 'oto', 'akatsuki', 'outros'],
-    // "Altura" saiu (ninguem sabe que o Kakashi tem 181cm) e entrou "Estado",
-    // que a Narutopedia responde para todo mundo. Cla, classificacao e natureza
-    // em branco viram "Sem cla"/"Nenhuma" no dataset: e a resposta da ficha,
-    // nao falta de dado, entao dois personagens sem cla fecham verde
+    // quem parou no Clássico nao tem como adivinhar um personagem que so
+    // aparece na guerra. O recorte e cumulativo: quem viu Shippuden viu o
+    // Classico antes, entao "Shippuden" inclui o elenco de Part I
+    scope: {
+      label: 'Até onde você assistiu',
+      default: 'boruto',
+      options: [
+        { id: 'classico', label: 'Clássico', hint: 'Só quem estreou até o capítulo 238.', key: 'inClassic', requires: true },
+        { id: 'shippuden', label: 'Shippūden', hint: 'Todo o mangá de Naruto, do Prólogo ao capítulo 700.', key: 'inShippuden', requires: true },
+        { id: 'boruto', label: 'Boruto', hint: 'Elenco completo, incluindo Naruto Gaiden e o mangá de Boruto.' },
+      ],
+    },
+    // clã, patente e altura sairam: sao ficha tecnica, nao memoria de quem
+    // assistiu. Ficaram as colunas que o jogador responde de cabeça — e vazio
+    // aqui e resposta ("Não tem"), nao falta de dado
     columns: [
       {
         key: 'gender', label: 'Gênero', kind: 'text',
-        labels: { Male: 'Masculino', Female: 'Feminino', Various: 'Vários' },
+        labels: { Male: 'Masculino', Female: 'Feminino', Various: 'Vários', None: 'Sem gênero' },
       },
-      { key: 'clan', label: 'Clã', kind: 'list' },
-      { key: 'affiliation', label: 'Afiliação', kind: 'list' },
-      { key: 'classification', label: 'Classificação', kind: 'list' },
-      { key: 'natureType', label: 'Natureza', kind: 'list' },
-      { key: 'ninjaRank', label: 'Patente', kind: 'text' },
-      { key: 'status', label: 'Estado', kind: 'text' },
-      { key: 'debutChapter', label: 'Estreia', kind: 'number', prefix: 'Cap. ', tolerance: 0.1 },
+      { key: 'affiliation', label: 'Filiações', kind: 'list', labels: NARUTO_AFFILIATION_PT },
+      { key: 'jutsuTypes', label: 'Tipos de Jutsu', kind: 'list', labels: NARUTO_JUTSU_PT },
+      { key: 'kekkeiGenkai', label: 'Kekkei Genkai', kind: 'list', labels: NARUTO_KEKKEI_PT },
+      { key: 'natureType', label: 'Tipos de natureza', kind: 'list', labels: NARUTO_NATURE_PT },
+      { key: 'classification', label: 'Atributos', kind: 'list', labels: NARUTO_CLASS_PT },
+      // o indice do arco existe so para a seta ▲/▼ dizer o lado da historia;
+      // a celula mostra o nome. `nearby: 1` deixa o arco vizinho em amarelo
+      {
+        key: 'debutArc', label: 'Arco de estreia', kind: 'number',
+        nearby: 1, labels: NARUTO_ARC_PT,
+      },
     ],
   },
 
@@ -873,9 +1017,11 @@ export const DEFAULT_UNIVERSE = 'pokemon';
 export const getUniverse = (id) => UNIVERSES[id] ?? UNIVERSES[DEFAULT_UNIVERSE];
 
 /**
- * Recorte opcional do universo (hoje so Hunter x Hunter: anime ou tudo). E um
- * segundo filtro, independente dos grupos: a opcao com `requires` exige que o
- * item tenha `true` na chave declarada. Universo sem `scope` aceita todo mundo.
+ * Recorte opcional do universo (anime ou tudo no Hunter x Hunter, ate onde o
+ * jogador assistiu no Naruto). E um segundo filtro, independente dos grupos: a
+ * opcao com `requires` exige que o item tenha `true` na chave declarada — a
+ * dela, quando cada opcao recorta por uma chave diferente, senao a do escopo.
+ * Opcao sem `requires` aceita todo mundo, e universo sem `scope` tambem.
  */
 export function scopeOption(universe, id) {
   const scope = universe?.scope;
@@ -883,8 +1029,16 @@ export function scopeOption(universe, id) {
   return scope.options.find(o => o.id === id) ?? scope.options.find(o => o.id === scope.default) ?? null;
 }
 
+/** Chaves que o recorte le nos itens — o indice do cliente precisa levar todas. */
+export const scopeKeys = (universe) =>
+  [...new Set((universe?.scope?.options ?? [])
+    .filter(o => o.requires)
+    .map(o => o.key ?? universe.scope.key)
+    .filter(Boolean))];
+
 export function scopeFilter(universe, id) {
   const option = scopeOption(universe, id);
   if (!option?.requires) return () => true;
-  return (item) => item[universe.scope.key] === true;
+  const key = option.key ?? universe.scope.key;
+  return (item) => item[key] === true;
 }

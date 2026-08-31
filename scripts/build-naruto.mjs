@@ -3,9 +3,18 @@
  *   npm run build:naruto
  *
  * A base publica e https://dattebayo-api.onrender.com (o dominio .vercel.app
- * serve so a documentacao). Sao 1431 personagens em paginas de 100.
+ * serve so a documentacao). Sao 1431 personagens em paginas de 100 — e a
+ * maioria esmagadora e figurante de um episodio so. Quem chuta "Kajika" nao
+ * aprende nada sobre o segredo e ainda perde o turno, entao o dataset gravado
+ * so tem quem da para reconhecer: personagem de mangao com peso na Narutopedia
+ * (veja NOTORIEDADE) e retrato que carrega.
  *
- * Os retratos que ela indica envelhecem: a Narutopedia renomeia e apaga
+ * Alem do elenco, o build resolve tres coisas que a API nao entrega prontas:
+ *   - tipo de jutsu, lendo a classificacao de cada tecnica na Narutopedia;
+ *   - arco de estreia, cruzando o capitulo com a tabela de shared/universes.js;
+ *   - ate onde o jogador precisa ter assistido (Classico, Shippuden, Boruto).
+ *
+ * Os retratos que a API indica envelhecem: a Narutopedia renomeia e apaga
  * arquivos e a API segue servindo o link antigo. Por isso, antes de escrever o
  * dataset, cada imagem e conferida e as mortas dao lugar ao retrato atual da
  * propria wiki.
@@ -13,6 +22,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { NARUTO_ARCS } from '../shared/universes.js';
 
 const API = 'https://dattebayo-api.onrender.com';
 const WIKI = 'https://naruto.fandom.com/api.php';
@@ -22,7 +32,48 @@ const OUT = path.join(ROOT, 'data', 'naruto.json');
 const CACHE_DIR = path.join(ROOT, '.cache', 'naruto');
 const PAGE_SIZE = 100;
 
+/**
+ * Quantas paginas da Narutopedia precisam apontar para o personagem para ele
+ * valer como chute. O corte separa bem: o Zabuza tem 164 links, o Gatō 59, o
+ * Inari 49 — e o figurante que ninguem lembra vive na casa dos 10 a 20
+ * (a mediana do elenco inteiro e 11). Abaixo de 40 sobrava so quem o jogador
+ * nunca viu; acima de 40 comecam a sumir nomes de verdade.
+ */
+const NOTORIEDADE = 40;
+
 await fs.mkdir(CACHE_DIR, { recursive: true });
+
+// ------------------------------------------------------------ rede
+
+/** Fila unica consumida por N workers, com o veredito guardado em cache. */
+async function emParalelo(itens, trabalho, largura = 8) {
+  let cursor = 0;
+  let feitas = 0;
+  const worker = async () => {
+    while (cursor < itens.length) {
+      await trabalho(itens[cursor++]);
+      if (++feitas % 50 === 0) process.stdout.write(`\r  ${feitas}/${itens.length}`);
+    }
+  };
+  await Promise.all(Array.from({ length: largura }, worker));
+  if (itens.length) process.stdout.write(`\r  ${feitas}/${itens.length}\n`);
+}
+
+/** Cache em disco de um mapa nome -> valor; so o que falta vai para a rede. */
+async function comCache(arquivo, chaves, buscar, largura = 8) {
+  const file = path.join(CACHE_DIR, arquivo);
+  let mapa = {};
+  try {
+    mapa = JSON.parse(await fs.readFile(file, 'utf8'));
+  } catch {}
+
+  const faltando = chaves.filter(chave => mapa[chave] === undefined);
+  if (!faltando.length) return mapa;
+
+  await buscar(faltando, mapa, largura);
+  await fs.writeFile(file, JSON.stringify(mapa));
+  return mapa;
+}
 
 async function getPage(page) {
   const file = path.join(CACHE_DIR, `page_${page}.json`);
@@ -43,97 +94,160 @@ async function getPage(page) {
   }
 }
 
-// ------------------------------------------------------------ retratos
+/** Uma consulta ao MediaWiki, com o par (titulos -> resposta) guardado no cache. */
+async function consultaWiki(params, lote) {
+  const joined = lote.join('|');
+  const slug = createHash('sha1').update(`${params.prop}:${joined}`).digest('hex').slice(0, 12);
+  const file = path.join(CACHE_DIR, `wiki_${slug}.json`);
+  try {
+    return JSON.parse(await fs.readFile(file, 'utf8'));
+  } catch {}
+
+  const query = new URLSearchParams({ action: 'query', titles: joined, redirects: '1', format: 'json', ...params });
+  const res = await fetch(`${WIKI}?${query}`, { headers: UA });
+  if (!res.ok) throw new Error(`Narutopedia: HTTP ${res.status}`);
+  const json = await res.json();
+  await fs.writeFile(file, JSON.stringify(json));
+  return json;
+}
+
+/**
+ * O MediaWiki normaliza o titulo e segue redirecionamento, entao a resposta
+ * volta com o nome final da pagina. Este mapa desfaz os dois saltos, para
+ * casar de volta com o nome que entrou.
+ */
+function desfazerSaltos(json) {
+  const daNormalizacao = new Map((json.query?.normalized ?? []).map(n => [n.to, n.from]));
+  const doRedirect = new Map((json.query?.redirects ?? []).map(r => [r.to, r.from]));
+  return (titulo) => {
+    const antes = doRedirect.get(titulo) ?? titulo;
+    return daNormalizacao.get(antes) ?? antes;
+  };
+}
+
+// ------------------------------------------------------------ notoriedade
+
+/**
+ * Quantas paginas da wiki linkam para o personagem. E o melhor sinal barato de
+ * "alguem lembra dele": um protagonista e citado em centenas de paginas, o
+ * figurante do episodio filler so na propria e na lista do arco.
+ */
+const contarLinks = (nomes) => comCache('backlinks.json', nomes, (faltando, mapa) =>
+  emParalelo(faltando, async (nome) => {
+    const params = new URLSearchParams({
+      action: 'query', prop: 'linkshere', titles: nome, redirects: '1',
+      lhnamespace: '0', lhshow: '!redirect', lhlimit: '500', format: 'json',
+    });
+    try {
+      const res = await fetch(`${WIKI}?${params}`, { headers: UA, signal: AbortSignal.timeout(20_000) });
+      const json = await res.json();
+      const page = Object.values(json.query?.pages ?? {})[0];
+      // 500 e o teto do MediaWiki; com `continue` ha mais, e ai o numero exato
+      // nao importa — ja passou de qualquer corte
+      mapa[nome] = (page?.linkshere ?? []).length + (json.continue ? 500 : 0);
+    } catch {
+      mapa[nome] = 0;
+    }
+  }));
 
 /**
  * Confere por HEAD se cada retrato ainda existe. Nao da para adivinhar quais
- * apodreceram sem perguntar, entao vao todos — mas o veredito fica no cache,
- * junto das paginas, e so as URLs novas sao checadas na proxima vez.
+ * apodreceram sem perguntar, entao vao todos — mas o veredito fica no cache e
+ * so as URLs novas sao checadas na proxima vez.
  */
-async function checarImagens(urls) {
-  const file = path.join(CACHE_DIR, 'imagens_vivas.json');
-  let veredito = {};
-  try {
-    veredito = JSON.parse(await fs.readFile(file, 'utf8'));
-  } catch {}
-
-  const faltando = urls.filter(url => veredito[url] === undefined);
-  if (!faltando.length) return veredito;
-
-  let cursor = 0;
-  let feitas = 0;
-  const worker = async () => {
-    while (cursor < faltando.length) {
-      const url = faltando[cursor++];
-      try {
-        const res = await fetch(url, { method: 'HEAD', headers: UA, signal: AbortSignal.timeout(15_000) });
-        veredito[url] = res.ok;
-      } catch {
-        veredito[url] = false;
-      }
-      if (++feitas % 50 === 0) process.stdout.write(`\r  ${feitas}/${faltando.length}`);
+const checarImagens = (urls) => comCache('imagens_vivas.json', urls, (faltando, mapa) =>
+  emParalelo(faltando, async (url) => {
+    try {
+      const res = await fetch(url, { method: 'HEAD', headers: UA, signal: AbortSignal.timeout(15_000) });
+      mapa[url] = res.ok;
+    } catch {
+      mapa[url] = false;
     }
-  };
-  await Promise.all(Array.from({ length: 8 }, worker));
-  process.stdout.write(`\r  ${feitas}/${faltando.length}\n`);
+  }));
 
-  await fs.writeFile(file, JSON.stringify(veredito));
-  return veredito;
+/** Retrato atual de cada pagina da Narutopedia (prop=pageimages). */
+async function retratosDaWiki(nomes) {
+  const retratos = new Map();
+  for (let i = 0; i < nomes.length; i += 50) {
+    process.stdout.write(`\r  ${i}/${nomes.length}`);
+    const json = await consultaWiki({ prop: 'pageimages', pithumbsize: '400' }, nomes.slice(i, i + 50));
+    const original = desfazerSaltos(json);
+    for (const page of Object.values(json.query?.pages ?? {})) {
+      if (page.thumbnail?.source) retratos.set(original(page.title), page.thumbnail.source);
+    }
+  }
+  process.stdout.write(`\r  ${nomes.length}/${nomes.length}\n`);
+  return retratos;
+}
+
+// ------------------------------------------------------------ tipos de jutsu
+
+/**
+ * A API lista o nome das tecnicas, nao o tipo delas. O tipo mora no infobox da
+ * pagina do jutsu, no campo `jutsu classification` — entao o build le o
+ * wikitexto de cada tecnica uma vez e guarda o resultado no cache.
+ */
+async function classificarJutsu(nomes) {
+  return comCache('jutsu_classes.json', nomes, async (faltando, mapa) => {
+    for (let i = 0; i < faltando.length; i += 50) {
+      process.stdout.write(`\r  ${i}/${faltando.length}`);
+      const lote = faltando.slice(i, i + 50);
+      const json = await consultaWiki({ prop: 'revisions', rvprop: 'content', rvslots: 'main' }, lote);
+      const original = desfazerSaltos(json);
+      for (const page of Object.values(json.query?.pages ?? {})) {
+        const texto = page.revisions?.[0]?.slots?.main['*'] ?? '';
+        const campo = texto.match(/\|\s*jutsu classification\s*=([^|\n]*)/i);
+        mapa[original(page.title)] = campo
+          ? campo[1].split(',').map(s => s.replace(/[[\]']/g, '').trim()).filter(Boolean)
+          : [];
+      }
+      // tecnica sem pagina (a API cita algumas que a wiki nao tem) nao volta na
+      // resposta; marcar como vazio evita pedir de novo no proximo build
+      for (const nome of lote) if (mapa[nome] === undefined) mapa[nome] = [];
+    }
+    process.stdout.write(`\r  ${faltando.length}/${faltando.length}\n`);
+  });
 }
 
 /**
- * Retrato atual de cada pagina da Narutopedia (prop=pageimages, o mesmo caminho
- * do build do Hunter x Hunter). O MediaWiki normaliza o titulo e segue
- * redirecionamento, entao o mapa desfaz os dois saltos: ele volta com o nome
- * que entrou, nao com o titulo final da pagina.
+ * Da classificacao crua da wiki para os tipos que valem como dica. Recorte
+ * fino ("Chakra Flow", "Clone Techniques", "Hiden~Nara Clan") fica de fora;
+ * variacao de ninjutsu volta a ser ninjutsu, e shuriken e arma como as outras.
  */
-async function retratosDaWiki(nomes) {
-  const retratos = new Map();
-  const lotes = Array.from(
-    { length: Math.ceil(nomes.length / 50) },
-    (_, i) => nomes.slice(i * 50, i * 50 + 50),
-  );
-
-  for (const [i, lote] of lotes.entries()) {
-    process.stdout.write(`\r  lote ${i + 1}/${lotes.length}`);
-    const joined = lote.join('|');
-    const slug = createHash('sha1').update(joined).digest('hex').slice(0, 12);
-    const file = path.join(CACHE_DIR, `retratos_${slug}.json`);
-
-    let json;
-    try {
-      json = JSON.parse(await fs.readFile(file, 'utf8'));
-    } catch {
-      const params = new URLSearchParams({
-        action: 'query', prop: 'pageimages', pithumbsize: '400',
-        titles: joined, redirects: '1', format: 'json',
-      });
-      const res = await fetch(`${WIKI}?${params}`, { headers: UA });
-      if (!res.ok) throw new Error(`Narutopedia: HTTP ${res.status}`);
-      json = await res.json();
-      await fs.writeFile(file, JSON.stringify(json));
-    }
-
-    const daNormalizacao = new Map((json.query?.normalized ?? []).map(n => [n.to, n.from]));
-    const doRedirect = new Map((json.query?.redirects ?? []).map(r => [r.to, r.from]));
-    for (const page of Object.values(json.query?.pages ?? {})) {
-      if (!page.thumbnail?.source) continue;
-      const antes = doRedirect.get(page.title) ?? page.title;
-      retratos.set(daNormalizacao.get(antes) ?? antes, page.thumbnail.source);
-    }
-  }
-  process.stdout.write('\n');
-  return retratos;
-}
+const TIPOS_DE_JUTSU = new Map([
+  ['Ninjutsu', 'Ninjutsu'],
+  ['Cooperation Ninjutsu', 'Ninjutsu'],
+  ['Barrier Ninjutsu', 'Ninjutsu'],
+  ['Space–Time Ninjutsu', 'Ninjutsu'],
+  ['Reincarnation Ninjutsu', 'Ninjutsu'],
+  ['Medical Ninjutsu', 'Medical Ninjutsu'],
+  ['Taijutsu', 'Taijutsu'],
+  ['Genjutsu', 'Genjutsu'],
+  ['Fūinjutsu', 'Fūinjutsu'],
+  ['Kenjutsu', 'Kenjutsu'],
+  ['Dōjutsu', 'Dōjutsu'],
+  ['Senjutsu', 'Senjutsu'],
+  ['Kinjutsu', 'Kinjutsu'],
+  ['Bukijutsu', 'Bukijutsu'],
+  ['Shurikenjutsu', 'Bukijutsu'],
+]);
 
 // ------------------------------------------------------------ parsing
 
 /** Remove notas como "(Anime only)" / "(Affinity)" e espacos duplicados. */
 const tidy = (text) => String(text ?? '').replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
 
+/**
+ * A ficha da wiki as vezes vaza HTML ou o aviso de validacao do proprio
+ * MediaWiki para dentro de um campo de lista (o tipo de chakra do Ido veio como
+ * uma tag <img>). Nada disso e resposta: valor com marcacao ou tamanho de
+ * frase nao e nome de nada e cai fora.
+ */
+const ehValor = (text) => text.length > 0 && text.length <= 48 && !/[<>"]/.test(text);
+
 const asList = (value) => {
   const list = Array.isArray(value) ? value : (value ? [value] : []);
-  return [...new Set(list.map(tidy).filter(Boolean))];
+  return [...new Set(list.map(tidy).filter(ehValor))];
 };
 
 const clean = (value) => {
@@ -141,46 +255,34 @@ const clean = (value) => {
   return text && !/^(unknown|n\/a|none)$/i.test(text) ? text : null;
 };
 
-/** Campos como height/ninjaRank vem por arco; pegamos o mais recente disponivel. */
-const ARC_ORDER = ['Blank Period', 'Part II', 'Gaiden', 'Part I', 'Academy Graduate'];
-function byArc(value) {
-  if (!value || typeof value !== 'object') return clean(value);
-  for (const arc of ARC_ORDER) if (value[arc]) return clean(value[arc]);
-  const first = Object.values(value)[0];
-  return first ? clean(first) : null;
-}
-
-/** "145.3cm - 147.5cm" / "166cm" -> 145.3 / 166 */
-function heightCm(value) {
-  const text = byArc(value);
-  const match = String(text ?? '').match(/([\d.]+)\s*cm/i);
-  const n = match ? Number(match[1]) : NaN;
-  return Number.isFinite(n) ? n : null;
-}
-
-const chapterOf = (text) => {
-  const match = String(text ?? '').match(/chapter\s*#?\s*(\d+)/i);
-  return match ? Number(match[1]) : null;
-};
-
-/** "Hyūga,Uzumaki Clan" -> ["Hyūga", "Uzumaki"] */
-const clanList = (value) =>
-  asList(String(value ?? '').split(',')).map(name => name.replace(/\s*Clan$/i, '')).filter(Boolean);
-
 /**
  * Campo em branco na Narutopedia nao e falta de dado, e a resposta: a ficha so
- * lista cla, natureza ou classificacao quando o personagem tem. Sem um valor
- * explicito a celula ficaria cinza de "sem dado" para dois terços do elenco —
- * e duas pessoas sem cla nenhum nunca fechariam verde entre si.
+ * lista natureza, atributo ou kekkei genkai quando o personagem tem. Sem um
+ * valor explicito a celula ficaria cinza de "sem dado" para dois tercos do
+ * elenco — e duas pessoas sem kekkei genkai nunca fechariam verde entre si.
  */
 const orElse = (list, fallback) => (list.length ? list : [fallback]);
 
 /**
- * A ficha so escreve `status` para quem morreu; quem esta vivo nao tem o campo.
- * "Presumed Deceased" e "Incapacitated" contam como morto — quem sumiu do
- * mangao nao volta como resposta certa de "vivo".
+ * "Naruto Chapter #239" -> { serie: 'naruto', cap: 239 }. O Gaiden numera
+ * "700+1" a "700+10", que a tabela de arcos le como 701 em diante. Estreia que
+ * nao e no mangao de Naruto nem no de Boruto (databook, novel, so anime) volta
+ * null: sem capitulo nao ha arco nem era, e sem os dois o personagem nao entra.
  */
-const statusOf = (value) => (/deceased|incapacitated/i.test(String(value ?? '')) ? 'Morto' : 'Vivo');
+function estreiaNoManga(text) {
+  const match = String(text ?? '').match(/^(Naruto|Boruto)\s+Chapter\s*#?\s*(\d+)(?:\s*\+\s*(\d+))?/i);
+  if (!match) return null;
+  const extra = match[3] ? Number(match[3]) : 0;
+  return { serie: match[1].toLowerCase(), cap: Number(match[2]) + extra };
+}
+
+/** Ultimo arco que ja tinha comecado no capitulo de estreia. */
+function arcoDe(estreia) {
+  const daSerie = NARUTO_ARCS
+    .map((arc, index) => ({ ...arc, index }))
+    .filter(arc => arc.serie === estreia.serie && arc.start <= estreia.cap);
+  return daSerie.length ? daSerie[daSerie.length - 1] : null;
+}
 
 const VILLAGES = [
   ['konoha', 'Konohagakure'], ['suna', 'Sunagakure'], ['kiri', 'Kirigakure'],
@@ -210,32 +312,61 @@ for (let page = 2; page <= totalPages; page++) {
 }
 process.stdout.write('\n');
 
-const roster = raw.map((c, index) => {
+// ------------------------------------------------------- quem entra no jogo
+
+// o nome sai como veio da API porque ele e o titulo da pagina na Narutopedia —
+// e e o parenteses que separa os quatro Raikage chamados "A"
+const nomeDe = (c) => String(c.name ?? '').replace(/\s+/g, ' ').trim();
+
+console.log('\nPesando cada personagem pelos links da Narutopedia...');
+const links = await contarLinks([...new Set(raw.map(nomeDe))]);
+
+const candidatos = raw.filter(c => estreiaNoManga(c.debut?.manga) && (links[nomeDe(c)] ?? 0) >= NOTORIEDADE);
+console.log(`  ${candidatos.length} passam de ${NOTORIEDADE} links, de ${raw.length} no total`);
+
+console.log('\nLendo a classificação das técnicas na Narutopedia...');
+const tecnicas = [...new Set(candidatos.flatMap(c => (c.jutsu ?? []).map(tidy)))]
+  .filter(nome => ehValor(nome) && !nome.includes('|'));
+const classes = await classificarJutsu(tecnicas);
+
+const roster = candidatos.map((c) => {
   const personal = c.personal ?? {};
   const affiliation = asList(personal.affiliation);
+  const estreia = estreiaNoManga(c.debut.manga);
+  const arco = arcoDe(estreia);
 
-  const item = {
-    id: index + 1,
-    sourceId: c.id,
-    name: tidy(c.name),
+  const tipos = new Set();
+  for (const jutsu of c.jutsu ?? []) {
+    for (const classe of classes[tidy(jutsu)] ?? []) {
+      const tipo = TIPOS_DE_JUTSU.get(classe);
+      if (tipo) tipos.add(tipo);
+    }
+  }
+
+  return {
+    id: c.id,
+    name: nomeDe(c),
     group: groupOf(affiliation),
     // a ficha de quem muda de forma vem com o icone junto:
-    // "File:Gender Various.svg Various"
-    gender: clean(String(personal.sex ?? '').replace(/^File:.*?\.(?:svg|png|jpg)\s*/i, '')),
-    clan: orElse(clanList(personal.clan), 'Sem clã'),
-    affiliation,
-    classification: orElse(asList(personal.classification), 'Nenhuma'),
-    natureType: orElse(asList(c.natureType), 'Nenhuma'),
-    ninjaRank: byArc(c.rank?.ninjaRank) ?? 'Desconhecida',
-    status: statusOf(personal.status),
-    debutChapter: chapterOf(c.debut?.manga),
-    // altura nao e coluna de dica (ninguem sabe que o Kakashi tem 181cm), mas
-    // e o melhor sinal de que a ficha do personagem esta completa
-    height: heightCm(personal.height),
+    // "File:Gender Various.svg Various". Besta com cauda nao tem sexo na ficha,
+    // e isso e a resposta: "sem gênero", nao "nao sabemos"
+    gender: clean(String(personal.sex ?? '').replace(/^File:.*?\.(?:svg|png|jpg)\s*/i, '')) ?? 'None',
+    affiliation: orElse(affiliation, 'Sem filiação'),
+    jutsuTypes: orElse([...tipos], 'Nenhum'),
+    // kekkei mōra e kekkei tōta sao o mesmo tipo de heranca, so que mais raros
+    kekkeiGenkai: orElse(
+      asList([personal.kekkeiGenkai, personal.kekkeiMōra, personal.kekkeiTōta].flat()),
+      'Não tem',
+    ),
+    natureType: orElse(asList(c.natureType), 'Nenhum'),
+    classification: orElse(asList(personal.classification), 'Nenhum'),
+    debutArc: arco?.index ?? null,
+    // recorte cumulativo: quem viu Shippūden viu o Clássico antes
+    inClassic: arco?.era === 'classico',
+    inShippuden: arco?.era === 'classico' || arco?.era === 'shippuden',
     sprite: c.images?.[0] ?? null,
     artwork: c.images?.[0] ?? null,
   };
-  return item;
 });
 
 // ------------------------------------------------------- conserto de imagens
@@ -243,8 +374,10 @@ const roster = raw.map((c, index) => {
 console.log('\nConferindo os retratos indicados pela API...');
 const veredito = await checarImagens([...new Set(roster.map(c => c.sprite).filter(Boolean))]);
 
-const quebrados = roster.filter(c => c.sprite && !veredito[c.sprite]);
-console.log(`  ${quebrados.length} fora do ar`);
+// link morto e ficha sem imagem nenhuma (a do Kurama e a da Chiyo) tem a mesma
+// saida: perguntar o retrato atual para a Narutopedia
+const quebrados = roster.filter(c => !c.sprite || !veredito[c.sprite]);
+console.log(`  ${quebrados.length} sem retrato que carregue`);
 
 if (quebrados.length) {
   console.log('Procurando o retrato atual na Narutopedia...');
@@ -261,40 +394,37 @@ if (quebrados.length) {
   console.log(`  ${repostos} repostos, ${quebrados.length - repostos} ficaram sem imagem`);
 }
 
-// so quem tem dados completos pode ser sorteado como segredo; qualquer um
-// continua valendo como chute. Vem depois do conserto porque a imagem conta.
-for (const item of roster) {
-  item.eligible = Boolean(
-    item.gender && item.affiliation.length && item.debutChapter != null &&
-    item.height != null && item.sprite,
-  );
-}
+// ------------------------------------------------------------ gravacao
 
-// ------------------------------------------------------------ cobertura
+// sem retrato o segredo revelado fica um retangulo vazio, entao quem ficou sem
+// imagem sai. Vem depois do conserto porque a wiki repoe boa parte deles.
+for (const item of roster) item.eligible = Boolean(item.sprite && item.debutArc != null);
 
-const total = roster.length;
+const jogaveis = roster.filter(item => item.eligible);
+const perdidos = roster.length - jogaveis.length;
+
+const total = jogaveis.length;
 const coverage = (label, predicate) => {
-  const n = roster.filter(predicate).length;
-  console.log(`  ${label.padEnd(16)} ${String(n).padStart(4)}/${total}  (${Math.round(n / total * 100)}%)`);
+  const n = jogaveis.filter(predicate).length;
+  console.log(`  ${label.padEnd(18)} ${String(n).padStart(4)}/${total}  (${Math.round(n / total * 100)}%)`);
 };
 
-console.log(`\nCobertura dos campos (${total} personagens):`);
-coverage('genero', c => c.gender);
-coverage('cla', c => c.clan[0] !== 'Sem clã');
-coverage('afiliacao', c => c.affiliation.length);
-coverage('classificacao', c => c.classification[0] !== 'Nenhuma');
-coverage('natureza', c => c.natureType[0] !== 'Nenhuma');
-coverage('patente', c => c.ninjaRank !== 'Desconhecida');
-coverage('morto', c => c.status === 'Morto');
-coverage('cap. estreia', c => c.debutChapter != null);
-coverage('altura', c => c.height != null);
-coverage('imagem', c => c.sprite);
-coverage('sorteavel', c => c.eligible);
+console.log(`\nCobertura dos campos (${total} jogáveis, ${perdidos} descartados por falta de retrato):`);
+coverage('gênero', c => c.gender !== 'None');
+coverage('filiação', c => c.affiliation[0] !== 'Sem filiação');
+coverage('tipo de jutsu', c => c.jutsuTypes[0] !== 'Nenhum');
+coverage('kekkei genkai', c => c.kekkeiGenkai[0] !== 'Não tem');
+coverage('natureza', c => c.natureType[0] !== 'Nenhum');
+coverage('atributos', c => c.classification[0] !== 'Nenhum');
 
-const porGrupo = {};
-for (const c of roster) if (c.eligible) porGrupo[c.group] = (porGrupo[c.group] ?? 0) + 1;
-console.log('\nSorteaveis por vila:', JSON.stringify(porGrupo));
+const conta = (chave, lista) => {
+  const tally = {};
+  for (const c of jogaveis) tally[chave(c)] = (tally[chave(c)] ?? 0) + 1;
+  console.log(`\n${lista}:`, JSON.stringify(tally));
+};
+conta(c => c.group, 'Por vila');
+conta(c => (c.inClassic ? 'clássico' : c.inShippuden ? 'shippūden' : 'boruto'), 'Por era');
 
 await fs.mkdir(path.dirname(OUT), { recursive: true });
-await fs.writeFile(OUT, JSON.stringify(roster));
+await fs.writeFile(OUT, JSON.stringify(jogaveis));
 console.log(`\nPronto: ${total} personagens -> data/naruto.json (${Math.round((await fs.stat(OUT)).size / 1024)} KB)`);

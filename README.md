@@ -32,7 +32,7 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Pokémon** | 1025 | 1025 | Gerações 1–9 | Tipo 1, Tipo 2, Geração, Cores, Evolução, Altura, Peso |
 | **Bleach** | 221 | 106 | Shinigami, Humanos, Quincy, Arrancar | Raça, Gênero, Afiliação, Bankai, Estreia, Altura, Peso |
 | **Clash Royale** | 120 | 120 | 5 raridades | Raridade, Tipo, Elixir, Arena, Alvo, Velocidade, Vida |
-| **Naruto** | 1431 | 230 | 8 vilas + Akatsuki | Gênero, Clã, Afiliação, Classificação, Natureza, Patente, Estado, Estreia |
+| **Naruto** | 190 | 190 | 8 vilas + Akatsuki | Gênero, Filiações, Tipos de Jutsu, Kekkei Genkai, Tipos de natureza, Atributos, Arco de estreia |
 | **Yu-Gi-Oh!** | 3000 | 600 | 10 tipos de carta | Tipo, Atributo, Raça, Nível, ATK, DEF, Arquétipo |
 | **League of Legends** | 173 | 170 | 6 classes | Gênero, Posições, Espécie, Recurso, Alcance, Região, Lançamento |
 | **Valorant · Agentes** | 29 | 29 | 4 funções | Função, Gênero, Raça, Origem, Lançamento |
@@ -48,13 +48,17 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Dragon Ball** | 58 | 43 | 6 raças | Raça, Gênero, Afiliação, Planeta, Transformações, Ki base, Ki máximo |
 | **Hunter × Hunter 2011** | 607 | 447 | 7 facções | Gênero, Nen, Estado, Afiliação, Ocupação, Cabelo, Estreia |
 
-**Sorteáveis** são os que têm dados completos o bastante para uma rodada justa.
-Qualquer um pode ser **chutado** — a restrição vale só para o secreto. Por isso
-Naruto e Rick and Morty têm poucos sorteáveis: as APIs deixam a maioria dos
-secundários sem altura, afiliação ou episódio de estreia. No Yu-Gi-Oh, das 14 mil
-cartas ficam as 3000 mais vistas no site, e só as 600 mais vistas viram segredo.
-Na Fórmula 1, sorteáveis são os vencedores de corrida, quem tem 5+ temporadas ou
-quem correu de 2020 para cá — os outros 588 são nomes de uma prova só.
+**Sorteáveis** são os que entram na partida: viram segredo e são os únicos
+nomes que a busca de chute oferece. Quem fica de fora não existe para a sala —
+chutar o figurante de um episódio só não dava dica nenhuma e ainda gastava o
+turno. A coluna **Itens** é o tamanho do dataset em `data/`; a diferença entre
+as duas é o que o servidor descarta na subida (`src/catalog.js`).
+
+O corte muda com a fonte. No Yu-Gi-Oh, das 14 mil cartas ficam as 3000 mais
+vistas no site, e só as 600 mais vistas viram segredo. Na Fórmula 1, entram os
+vencedores de corrida, quem tem 5+ temporadas ou quem correu de 2020 para cá —
+os outros 588 são nomes de uma prova só. No Naruto, o critério é quantas páginas
+da Narutopedia apontam para o personagem (veja *O elenco do Naruto* abaixo).
 
 **Uma coluna só vale se o jogador puder saber a resposta de cabeça.** É o que
 guia a escolha aqui, e é por isso que a ficha de *League of Legends* e a de
@@ -81,8 +85,8 @@ a resposta — o ninja não é de clã nenhum, a magia de Yu-Gi-Oh não tem ATK,
 marinheiro não tem recompensa. Nesses casos o dataset agora grava o valor
 explícito ("Sem clã", "Nenhuma", "Sem arquétipo"), e nas colunas numéricas o
 schema marca `blank`, que faz duas cartas sem ATK fecharem verde entre si. Isso
-tirou o cinza de 65% das células de *Clã* e *Classificação* no Naruto, de um
-terço da tabela do Yu-Gi-Oh e de 69% da *Recompensa* do One Piece.
+tirou o cinza de 60% das células de *Kekkei Genkai* e *Atributos* no Naruto, de
+um terço da tabela do Yu-Gi-Oh e de 69% da *Recompensa* do One Piece.
 
 Em **One Piece**, a api-onepiece não traz imagem e ficou meio traduzida do
 francês ("Baggy", "Chapeau de Paille"), então a ficha vem dela e o nome
@@ -104,12 +108,12 @@ usando nen — as três valem como dica e fecham verde contra a igual. *Ocupaç�
 agrupa o texto livre da wiki em treze papéis, senão cada personagem teria um
 valor único e a coluna nunca ficaria verde.
 
-Hunter × Hunter é também o único universo com **recorte**: o mangá passou muito
-do que foi animado, então a sala pergunta se entra o elenco todo (447
-sorteáveis) ou só quem apareceu em algum episódio, OVA ou filme (271). Quem não
-tem `anime debut` na ficha só existe no papel — é quase todo o arco de Kakin.
-O recorte é um segundo filtro, independente dos grupos; qualquer universo pode
-ganhar o seu declarando `scope` no schema.
+Hunter × Hunter tem **recorte**: o mangá passou muito do que foi animado, então
+a sala pergunta se entra o elenco todo (447 sorteáveis) ou só quem apareceu em
+algum episódio, OVA ou filme (271). Quem não tem `anime debut` na ficha só
+existe no papel — é quase todo o arco de Kakin. O Naruto tem o dele, por era
+(Clássico, Shippūden ou Boruto). O recorte é um segundo filtro, independente dos
+grupos; qualquer universo pode ganhar o seu declarando `scope` no schema.
 
 Em **Carros**, cada item é um modelo (as versões de motor viram um só "Toyota
 Corolla"), e o secreto precisa de 3+ anos de linha e ficha completa — elétricos
@@ -171,6 +175,33 @@ Cinco fontes pedidas **não** deram para usar direto e foram substituídas:
   API do MediaWiki da **Hunterpedia**: `list=embeddedin` acha as 610 páginas que
   transcluem a ficha de personagem, e o resto é limpar wikitexto.
 
+### O elenco do Naruto
+
+A Dattebayo API entrega 1431 personagens, e a esmagadora maioria é figurante de
+um episódio só. Isso não deixava o jogo mais difícil no sentido bom: chutar
+"Kajika" não dizia nada sobre o segredo e ainda queimava o turno.
+
+O corte usa duas perguntas. **Apareceu no mangá?** — estreia em capítulo de
+*Naruto* ou de *Boruto*, o que já tira o elenco de filler, de filme e de novel.
+**Alguém lembra dele?** — quantas páginas da Narutopedia apontam para a dele
+(`prop=linkshere`). O segundo separa surpreendentemente bem: Zabuza tem 164
+links, Gatō 59, Inari 49, e o figurante vive na casa dos 10 a 20 (a mediana do
+elenco inteiro é 11). O corte está em 40; abaixo disso só sobrava gente que
+ninguém viu, acima começavam a sumir nomes de verdade. Sobram **190 jogáveis**.
+
+Duas colunas não vêm prontas da API. **Tipos de Jutsu** sai do infobox de cada
+técnica na Narutopedia (`jutsu classification`): o build lê as 1400 páginas de
+jutsu uma vez, guarda em `.cache/` e o personagem herda o conjunto dos tipos
+dele. **Arco de estreia** cruza o capítulo com a tabela de arcos que vive em
+`shared/universes.js` — o dataset guarda o índice do arco, e a coluna é
+numérica só para a seta ▲/▼ dizer de que lado da história está o segredo (com
+`nearby: 1`, o arco vizinho fecha em amarelo).
+
+Dessa mesma tabela sai o recorte **Até onde você assistiu**: Clássico (81),
+Shippūden (159) ou Boruto (190). Ele é cumulativo — quem viu Shippūden viu o
+Clássico antes —, e cada opção lê a sua própria chave no item (`inClassic`,
+`inShippuden`), diferente do recorte de Hunter × Hunter, que é um booleano só.
+
 ### As cores do Pokémon saem do sprite
 
 O `color` da PokéAPI é a categoria de busca da Pokédex, não a aparência: é um
@@ -183,7 +214,7 @@ Então `build:pokedex` mede o próprio sprite e grava um campo `colors` com as
 cores que ocupam pelo menos 18% dele (no máximo três, e a dominante entra
 sempre). O vocabulário continua o mesmo da Pokédex, para a coluna seguir
 traduzida, e a coluna virou `list`: conjunto igual fica verde, interseção fica
-amarela — como já acontece com Clã ou Afiliação no Naruto.
+amarela — como já acontece com Filiações ou Tipos de natureza no Naruto.
 
 Isso resolve as duas metades do problema. Charizard deixa de ser só *vermelho*
 e vira *marrom, vermelho, azul* (asas). Bulbasaur, que é ciano, sai como *verde
@@ -278,9 +309,10 @@ esperar a hora de `max-age`.
 - **Verde**: exato.
 - **Vermelho**: errado.
 - **Amarelo em tipo**: esse tipo existe no secreto, mas no outro slot.
-- **Amarelo em lista** (afiliação, clã, funções): há itens em comum, mas as
-  listas não são idênticas.
-- **Amarelo em número**: diferença de até 10%.
+- **Amarelo em lista** (filiações, tipos de jutsu, funções): há itens em comum,
+  mas as listas não são idênticas.
+- **Amarelo em número**: diferença de até 10% — ou o vizinho, onde a escala é
+  curta (o arco de estreia do Naruto).
 - **▲ / ▼**: o valor do secreto é maior / menor que o do seu chute.
 - **Cinza em itálico**: falta o dado de um dos lados, então não dá para comparar.
   Não é a mesma coisa que errar, por isso não fica vermelho.
@@ -317,7 +349,8 @@ run dev` (servidor na 3000) e `npm run dev:client` (Vite na 5173, com proxy de
 
 1. Escreva um `scripts/build-<nome>.mjs` que gere `data/<nome>.json`. Cada item
    precisa de `id`, `name`, `group`, `sprite`, `artwork`, `eligible` e uma chave
-   por coluna. Opcional: `aliases` (nomes alternativos para a busca).
+   por coluna. Opcional: `aliases` (nomes alternativos para a busca). Só os
+   `eligible` entram no jogo — os outros o servidor descarta na subida.
 2. Adicione a entrada em `shared/universes.js` com `groups` e `columns`.
 
 Nada em `src/game.js`, `src/rooms.js` ou no cliente precisa mudar — as colunas
@@ -387,10 +420,11 @@ retratos com 404 — 73 no Naruto (o Jiraiya entre eles) e 1 no My Little Pony.
 
 Por isso `build:naruto` e `build:mlp` conferem cada imagem por HEAD antes de
 escrever o dataset e, para as mortas, pedem o retrato atual à própria wiki
-(`prop=pageimages`, o mesmo caminho que o `build:hxh` já usava). Sobraram dois
-personagens do Naruto sem retrato em lugar nenhum: ficam com `sprite: null`, e
-o cliente simplesmente não pede imagem. O veredito de cada URL fica em
-`.cache/`, então a conferência só custa na primeira vez.
+(`prop=pageimages`, o mesmo caminho que o `build:hxh` já usava). Ficha sem
+imagem nenhuma na API entra na mesma fila — é o caso do Kurama e da Chiyo, que
+só têm retrato do lado do wiki. Quem não tem foto em lugar nenhum fica de fora
+do jogo: o reveal do segredo seria um retângulo vazio. O veredito de cada URL
+fica em `.cache/`, então a conferência só custa na primeira vez.
 
 Fora do espelho ficou a arte grande do reveal: guardá-las em tamanho cheio
 custaria centenas de MB. Quando ela não carrega, o reveal cai na miniatura
@@ -428,11 +462,10 @@ O servidor respeita a variável `PORT` e responde em `/healthz`.
   seguinte.
 - Se o host cair, o cargo passa para o próximo jogador conectado.
 - **Os dados são das APIs, com os defeitos delas.** No Bleach, Ichigo aparece
-  como "Humano" e Yhwach não existe na base. No Naruto, o clã da Sakura vem como
-  "Uchiha" (pós-casamento) e o do Gaara como "Kazekage", que é título.
-- **A coluna *Estado* do Naruto sai do silêncio da ficha**: a Narutopedia só
-  escreve `status` para quem morreu, então ausência do campo é "vivo". Dá um
-  53%/47% — a divisão mais equilibrada da tabela.
+  como "Humano" e Yhwach não existe na base.
+- **O *Arco de estreia* do Naruto é o do mangá, não o do anime.** Quem só
+  assistiu vai estranhar o Minato em *Kakashi Gaiden*: no mangá ele aparece ali
+  (capítulo 239), e o anime só contou essa história em Shippūden.
 - **Os dados de carreira da Fórmula 1 são agregados por nós** a partir da
   classificação de cada temporada, não vêm prontos da API. Títulos e vitórias
   batem com a história (Schumacher e Hamilton com 7, Senna com 3 e 41). A f1api

@@ -69,13 +69,18 @@ const isEmpty = (value) => value === null || value === undefined || value === ''
 /**
  * Numero: acerto, "quase" (dentro da tolerancia) ou erro + seta.
  *
+ * `tolerance` e proporcional ao segredo (10% da recompensa do One Piece);
+ * `nearby` e uma distancia crua, para escala pequena e sem meio-termo, como o
+ * indice do arco de estreia do Naruto, onde "quase" quer dizer "o arco do
+ * lado". Vale a mais generosa das duas.
+ *
  * Vazio quer dizer duas coisas diferentes conforme a coluna. Sem `blank`, e
  * falta de dado: nao da para comparar, a celula fica cinza de "sem dado". Com
  * `blank` (o ATK de uma magia de Yu-Gi-Oh), vazio e a resposta — "essa carta
  * nao tem ATK" —, entao duas cartas sem o campo fecham verde e uma com e outra
  * sem fecham erro, so que sem seta: nao existe maior nem menor que "nao tem".
  */
-function compareNumber(guessValue, secretValue, { tolerance = 0, blank = null } = {}) {
+function compareNumber(guessValue, secretValue, { tolerance = 0, nearby = 0, blank = null } = {}) {
   const semChute = isEmpty(guessValue);
   const semSegredo = isEmpty(secretValue);
   if (semChute || semSegredo) {
@@ -83,7 +88,8 @@ function compareNumber(guessValue, secretValue, { tolerance = 0, blank = null } 
     return { status: semChute && semSegredo ? 'hit' : 'miss', hint: null };
   }
   if (guessValue === secretValue) return { status: 'hit', hint: null };
-  const close = Math.abs(guessValue - secretValue) <= Math.abs(secretValue) * tolerance;
+  const distancia = Math.abs(guessValue - secretValue);
+  const close = distancia <= Math.max(nearby, Math.abs(secretValue) * tolerance);
   return { status: close ? 'close' : 'miss', hint: guessValue < secretValue ? 'up' : 'down' };
 }
 

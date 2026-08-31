@@ -6,7 +6,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { UNIVERSES } from '../shared/universes.js';
+import { UNIVERSES, scopeFilter } from '../shared/universes.js';
 import { io } from 'socket.io-client';
 
 const PORT = 3999;
@@ -243,20 +243,22 @@ try {
   console.log('\n== Todos os universos ==');
   const arena = [];
   for (const universe of Object.values(UNIVERSES)) {
-    const data = JSON.parse(await fs.readFile(path.join('data', universe.dataFile), 'utf8'));
+    // o catalogo do servidor so carrega os jogaveis, entao o teste chuta pela
+    // mesma lista: quem esta de fora nem existe para a sala
+    const data = JSON.parse(await fs.readFile(path.join('data', universe.dataFile), 'utf8'))
+      .filter(item => item.eligible);
     const validGroups = new Set(universe.groups.map(g => g.id));
 
     const eligibleByGroup = new Map();
     for (const item of data) {
-      if (!item.eligible || !validGroups.has(item.group)) continue;
+      if (!validGroups.has(item.group)) continue;
       if (!eligibleByGroup.has(item.group)) eligibleByGroup.set(item.group, []);
       eligibleByGroup.get(item.group).push(item);
     }
 
     // grupo so vale para quem pode ser sorteado: datasets podem ter um balde
     // de descarte (ex.: 'sem-casa' no Harry Potter) fora do schema
-    const unknownGroups = [...new Set(data.filter(i => i.eligible).map(i => i.group))]
-      .filter(g => !validGroups.has(g));
+    const unknownGroups = [...new Set(data.map(i => i.group))].filter(g => !validGroups.has(g));
     check(`${universe.label}: grupos do schema batem com os dados`, unknownGroups.length === 0);
     check(`${universe.label}: todo grupo do schema tem sorteaveis`, eligibleByGroup.size === validGroups.size);
 
@@ -336,10 +338,10 @@ try {
 
   // ------------------------------------------------------- recorte do universo
   console.log('\n== Recorte (Hunter x Hunter) ==');
-  const hxh = JSON.parse(await fs.readFile('data/hxh.json', 'utf8'));
-  const soAnime = hxh.filter(c => c.eligible && c.inAnime);
+  const hxh = JSON.parse(await fs.readFile('data/hxh.json', 'utf8')).filter(c => c.eligible);
+  const soAnime = hxh.filter(c => c.inAnime);
   check('hxh: recorte do anime e menor que o elenco todo',
-    soAnime.length > 100 && soAnime.length < hxh.filter(c => c.eligible).length);
+    soAnime.length > 100 && soAnime.length < hxh.length);
 
   const rec = await connect('Rec');
   const roomRec = await new Promise(res => rec.socket.emit('room:create', {
@@ -372,7 +374,7 @@ try {
   rec.socket.disconnect();
 
   // no duelo, quem esconde o segredo tambem esta preso ao recorte
-  const foraDoAnime = hxh.find(c => c.eligible && !c.inAnime);
+  const foraDoAnime = hxh.find(c => !c.inAnime);
   const [duo1, duo2] = await Promise.all([connect('Duo1'), connect('Duo2')]);
   const roomDuo = await new Promise(res => duo1.socket.emit('room:create', {
     name: 'Duo1',
@@ -394,11 +396,45 @@ try {
   check('a recusa explica o recorte', /S(ó|o) o anime/.test(chooser.errors[0] ?? ''));
   check('a escolha recusada nao virou segredo', chooser.state.phase === 'choosing');
 
-  const dentroDoAnime = hxh.find(c => c.eligible && c.inAnime);
+  const dentroDoAnime = hxh.find(c => c.inAnime);
   chooser.socket.emit('game:choose', { pokemonId: dentroDoAnime.id });
   await until(duo1, s => s.phase === 'playing', 'duelo comecou com segredo do anime');
   duo1.socket.disconnect();
   duo2.socket.disconnect();
+
+  // --------------------------------------------------------- recorte por era (Naruto)
+  console.log('\n== Recorte por era (Naruto) ==');
+  const naruto = JSON.parse(await fs.readFile('data/naruto.json', 'utf8')).filter(c => c.eligible);
+  const ate = (id) => naruto.filter(scopeFilter(UNIVERSES.naruto, id)).length;
+  check('as tres eras tem elenco', ate('classico') > 30 && ate('shippuden') > ate('classico'));
+  check('Boruto e o elenco inteiro', ate('boruto') === naruto.length);
+  // cada opcao le a sua propria chave, entao o recorte tem de ser cumulativo:
+  // ninguem pode estar no Classico sem estar tambem em Shippuden
+  check('quem e do Classico tambem vale em Shippuden',
+    naruto.every(c => !c.inClassic || c.inShippuden));
+
+  const soBoruto = naruto.find(c => !c.inShippuden);
+  const [era1, era2] = await Promise.all([connect('Era1'), connect('Era2')]);
+  const roomEra = await new Promise(res => era1.socket.emit('room:create', {
+    name: 'Era1',
+    settings: {
+      mode: 'duel', universe: 'naruto', groups: [...UNIVERSES.naruto.defaultGroups],
+      scope: 'classico', rounds: 1, turnSeconds: 120, guessesPerPlayer: 4,
+    },
+  }, res));
+  await new Promise(res => era2.socket.emit('room:join', { code: roomEra.code, name: 'Era2' }, res));
+  await until(era1, s => s.players.length === 2, 'sala do Classico montada');
+  era1.socket.emit('game:start');
+  await until(era1, s => s.phase === 'choosing', 'duelo do Classico comecou');
+
+  const dono = era1.state.chooserId === roomEra.playerId ? era1 : era2;
+  dono.errors.length = 0;
+  dono.socket.emit('game:choose', { pokemonId: soBoruto.id });
+  await sleep(250);
+  check('sala do Classico recusa personagem de Boruto', dono.errors.length === 1);
+  check('a recusa explica a era', /Cl(á|a)ssico/.test(dono.errors[0] ?? ''));
+  era1.socket.disconnect();
+  era2.socket.disconnect();
 
   // --------------------------------------------------------- rodada "ate acertar"
   console.log('\n== Rodada "ate acertar" ==');
