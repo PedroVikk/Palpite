@@ -22,7 +22,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { NARUTO_ARCS } from '../shared/universes.js';
+import { NARUTO_ARCS, NARUTO_NATURE_ICONS } from '../shared/universes.js';
 
 const API = 'https://dattebayo-api.onrender.com';
 const WIKI = 'https://naruto.fandom.com/api.php';
@@ -40,6 +40,10 @@ const PAGE_SIZE = 100;
  * nunca viu; acima de 40 comecam a sumir nomes de verdade.
  */
 const NOTORIEDADE = 40;
+
+/** Nome do arquivo na Narutopedia -> nome com que ele fica em data/icons/. */
+const NATURE_ICONS = new Map(Object.values(NARUTO_NATURE_ICONS)
+  .map(icon => [icon.wiki, path.basename(icon.src, '.svg')]));
 
 await fs.mkdir(CACHE_DIR, { recursive: true });
 
@@ -165,6 +169,43 @@ const checarImagens = (urls) => comCache('imagens_vivas.json', urls, (faltando, 
     }
   }));
 
+/**
+ * Os simbolos de chakra (o 火 do fogo, o 水 da agua) que a coluna de natureza
+ * mostra no lugar do nome. Sao 23 SVGs de poucos KB, entao ficam no repositorio
+ * como o resto do schema — nao sao miniatura de item, e por isso nao passam
+ * pelo espelho de data/sprites/.
+ */
+async function baixarIconesDeNatureza() {
+  const dir = path.join(ROOT, 'data', 'icons', 'naruto');
+  await fs.mkdir(dir, { recursive: true });
+  const existentes = new Set(await fs.readdir(dir));
+
+  const faltando = [...NATURE_ICONS].filter(([, slug]) => !existentes.has(`${slug}.svg`));
+  if (!faltando.length) return console.log(`  ${NATURE_ICONS.size} ja no disco`);
+
+  const titulos = faltando.map(([nome]) => `File:Nature Icon ${nome}.svg`);
+  const json = await consultaWiki({ prop: 'imageinfo', iiprop: 'url' }, titulos);
+  const urlPorTitulo = new Map(
+    Object.values(json.query?.pages ?? {})
+      .filter(page => page.imageinfo?.[0]?.url)
+      .map(page => [page.title, page.imageinfo[0].url]),
+  );
+
+  let baixados = 0;
+  for (const [nome, slug] of faltando) {
+    const url = urlPorTitulo.get(`File:Nature Icon ${nome}.svg`);
+    if (!url) {
+      console.log(`  sem icone para ${nome}`);
+      continue;
+    }
+    const res = await fetch(url, { headers: UA });
+    if (!res.ok) throw new Error(`icone ${nome}: HTTP ${res.status}`);
+    await fs.writeFile(path.join(dir, `${slug}.svg`), Buffer.from(await res.arrayBuffer()));
+    baixados++;
+  }
+  console.log(`  ${baixados} baixados, ${NATURE_ICONS.size - faltando.length} ja no disco`);
+}
+
 /** Retrato atual de cada pagina da Narutopedia (prop=pageimages). */
 async function retratosDaWiki(nomes) {
   const retratos = new Map();
@@ -210,9 +251,18 @@ async function classificarJutsu(nomes) {
 }
 
 /**
- * Da classificacao crua da wiki para os tipos que valem como dica. Recorte
- * fino ("Chakra Flow", "Clone Techniques", "Hiden~Nara Clan") fica de fora;
- * variacao de ninjutsu volta a ser ninjutsu, e shuriken e arma como as outras.
+ * Da classificacao crua da wiki para os tipos que valem como dica.
+ *
+ * O vocabulario da Narutopedia tem dezenas de rotulos, e usar todos enchia a
+ * celula ("Kenjutsu, Ninjutsu, Dōjutsu +6" para o Sasuke) sem dizer mais nada:
+ * quem assistiu responde ninjutsu, taijutsu, genjutsu, espada ou medicina, e
+ * so. Entao variacao de ninjutsu volta a ser ninjutsu e o resto (fūinjutsu,
+ * senjutsu, kinjutsu, dōjutsu, "Chakra Flow", "Hiden~Nara Clan") nao entra —
+ * dōjutsu ja e a coluna de kekkei genkai.
+ *
+ * "Bukijutsu" e "Shurikenjutsu" tambem ficaram de fora: como todo ninja atira
+ * kunai, eles davam kenjutsu para o Gaara e para a Sakura. Kenjutsu aqui e
+ * espada mesmo, e sao 20 personagens — uma dica que separa.
  */
 const TIPOS_DE_JUTSU = new Map([
   ['Ninjutsu', 'Ninjutsu'],
@@ -223,13 +273,41 @@ const TIPOS_DE_JUTSU = new Map([
   ['Medical Ninjutsu', 'Medical Ninjutsu'],
   ['Taijutsu', 'Taijutsu'],
   ['Genjutsu', 'Genjutsu'],
-  ['Fūinjutsu', 'Fūinjutsu'],
   ['Kenjutsu', 'Kenjutsu'],
-  ['Dōjutsu', 'Dōjutsu'],
-  ['Senjutsu', 'Senjutsu'],
-  ['Kinjutsu', 'Kinjutsu'],
-  ['Bukijutsu', 'Bukijutsu'],
-  ['Shurikenjutsu', 'Bukijutsu'],
+]);
+
+/**
+ * Filiacao que o jogador guarda: vila, organizacao. A ficha da Narutopedia
+ * mistura nisso o pais, o time de invocacao e a coalizao da guerra — e as
+ * "Forças Aliadas Shinobi", que metade do elenco tem, so faziam a celula
+ * fechar amarelo sem separar ninguem.
+ */
+const AFILIACOES = new Set([
+  'Konohagakure', 'Sunagakure', 'Kirigakure', 'Iwagakure', 'Kumogakure',
+  'Otogakure', 'Amegakure', 'Takigakure', 'Kusagakure', 'Yugakure',
+  'Uzushiogakure', 'Hoshigakure', 'Akatsuki', 'Kara', 'Root', 'Anbu', 'Taka',
+]);
+
+/**
+ * Mangekyō e Mangekyō Eterno sao o mesmo Sharingan mais adiante, e a ficha
+ * lista os tres: sem juntar, a celula do Sasuke virava uma lista de quatro.
+ */
+/**
+ * Ordem fixa das duas listas, para a celula ler sempre igual: ninjutsu antes de
+ * taijutsu, fogo antes de agua. Sem isto a ordem seria a das tecnicas na ficha,
+ * que muda de personagem para personagem — e como a celula corta em tres, o
+ * corte cairia num tipo diferente em cada linha.
+ */
+const ordenarPor = (ordem) => {
+  const peso = new Map(ordem.map((valor, i) => [valor, i]));
+  return (a, b) => (peso.get(a) ?? ordem.length) - (peso.get(b) ?? ordem.length);
+};
+const porTipoDeJutsu = ordenarPor(['Ninjutsu', 'Taijutsu', 'Genjutsu', 'Kenjutsu', 'Medical Ninjutsu']);
+const porNatureza = ordenarPor(Object.keys(NARUTO_NATURE_ICONS));
+
+const DOJUTSU_RAIZ = new Map([
+  ['Mangekyō Sharingan', 'Sharingan'],
+  ['Eternal Mangekyō Sharingan', 'Sharingan'],
 ]);
 
 // ------------------------------------------------------------ parsing
@@ -351,14 +429,15 @@ const roster = candidatos.map((c) => {
     // "File:Gender Various.svg Various". Besta com cauda nao tem sexo na ficha,
     // e isso e a resposta: "sem gênero", nao "nao sabemos"
     gender: clean(String(personal.sex ?? '').replace(/^File:.*?\.(?:svg|png|jpg)\s*/i, '')) ?? 'None',
-    affiliation: orElse(affiliation, 'Sem filiação'),
-    jutsuTypes: orElse([...tipos], 'Nenhum'),
+    affiliation: orElse(affiliation.filter(a => AFILIACOES.has(a)), 'Sem filiação'),
+    jutsuTypes: orElse([...tipos].sort(porTipoDeJutsu), 'Nenhum'),
     // kekkei mōra e kekkei tōta sao o mesmo tipo de heranca, so que mais raros
     kekkeiGenkai: orElse(
-      asList([personal.kekkeiGenkai, personal.kekkeiMōra, personal.kekkeiTōta].flat()),
+      [...new Set(asList([personal.kekkeiGenkai, personal.kekkeiMōra, personal.kekkeiTōta].flat())
+        .map(kg => DOJUTSU_RAIZ.get(kg) ?? kg))],
       'Não tem',
     ),
-    natureType: orElse(asList(c.natureType), 'Nenhum'),
+    natureType: orElse(asList(c.natureType).sort(porNatureza), 'Nenhum'),
     classification: orElse(asList(personal.classification), 'Nenhum'),
     debutArc: arco?.index ?? null,
     // recorte cumulativo: quem viu Shippūden viu o Clássico antes
@@ -370,6 +449,9 @@ const roster = candidatos.map((c) => {
 });
 
 // ------------------------------------------------------- conserto de imagens
+
+console.log('\nBaixando os símbolos de chakra da Narutopedia...');
+await baixarIconesDeNatureza();
 
 console.log('\nConferindo os retratos indicados pela API...');
 const veredito = await checarImagens([...new Set(roster.map(c => c.sprite).filter(Boolean))]);

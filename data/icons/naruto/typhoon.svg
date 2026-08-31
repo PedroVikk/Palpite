@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" id="svg3347" sodipodi:version="0.32" inkscape:version="0.91 r13725" width="100" height="100" sodipodi:docname="Símbolo_Taiton.svg" inkscape:output_extension="org.inkscape.output.svg.inkscape" version="1.0">
+  <metadata id="metadata11">
+    <rdf:RDF>
+      <cc:Work rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs id="defs3350">
+    <linearGradient id="linearGradientWood">
+      <stop id="stopWood0" offset="0" style="stop-color:#dbffff;stop-opacity:0.38392857;"/>
+      <stop style="stop-color:#83c8c6;stop-opacity:0.69019608;" offset="0.5" id="stop3781"/>
+      <stop offset="1" id="stopWood1" style="stop-color:#2b928d;stop-opacity:1;"/>
+    </linearGradient>
+    <radialGradient gradientUnits="userSpaceOnUse" r="50.000004" fy="49.999996" fx="50.000004" cy="49.999996" cx="50.000004" id="radialGradientWood" xlink:href="#linearGradientWood" inkscape:collect="always"/>
+  </defs>
+  <sodipodi:namedview inkscape:window-height="737" inkscape:window-width="1280" inkscape:pageshadow="2" inkscape:pageopacity="0.0" guidetolerance="10.0" gridtolerance="10.0" objecttolerance="10.0" borderopacity="1.0" bordercolor="#666666" pagecolor="#ffffff" id="base" showgrid="false" inkscape:zoom="1.0074671" inkscape:cx="35.880001" inkscape:cy="49.007414" inkscape:window-x="-8" inkscape:window-y="-8" inkscape:current-layer="svg3347" inkscape:window-maximized="1"/>
+  <path style="fill:url(#radialGradientWood);fill-opacity:1.0;fill-rule:evenodd;stroke:#000000;stroke-width:5.66037750000000010;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none" d="m 2.8301925,31.132074 9.4339625,-9.433963 0,-9.433962 9.433962,0 9.433963,-9.433963 37.73585,0 9.433963,9.433963 9.433962,0 0,9.433962 9.433963,9.433963 0,37.73585 -9.433963,9.433962 0,9.433963 -9.433962,0 -9.433963,9.433962 -37.73585,0 -9.433963,-9.433962 -9.433962,0 0,-9.433963 -9.4339625,-9.433962 0,-37.73585 z" sodipodi:nodetypes="ccccccccccccccccccccc" id="Taiton icon" inkscape:connector-curvature="0"/>
+  <g id="Taiton kanji" transform="matrix(0.01553541,0,0,-0.01528038,19.569644,77.994549)" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:63.89712143px;line-height:125%;font-family:'MS Gothic';-inkscape-font-specification:'MS Gothic';text-align:start;writing-mode:lr-tb;text-anchor:start;fill:#000000;fill-opacity:1;stroke:none">
+    <path id="path3039" d="m 2650,3032 -125,-547 -163,-3 c -149,-2 -163,-4 -158,-20 3,-9 19,-71 36,-137 32,-121 51,-165 72,-165 6,0 25,15 42,33 l 31,34 512,38 c 282,20 518,35 526,32 7,-3 28,-46 47,-96 19,-50 38,-91 44,-91 7,0 216,112 234,126 15,11 -122,329 -209,489 -39,72 -104,180 -144,242 l -74,112 -88,-40 c -48,-23 -100,-47 -115,-55 l -27,-14 55,-85 c 73,-114 184,-338 173,-349 -5,-5 -541,-37 -545,-33 -2,2 52,199 120,438 103,358 129,437 148,452 55,42 68,57 68,75 0,25 -21,33 -180,72 -69,17 -132,33 -140,35 -13,4 -38,-93 -140,-543 z" inkscape:connector-curvature="0"/>
+    <path id="path3041" d="M 320,2208 C 320,861 320,876 265,685 251,636 216,548 188,491 l -51,-104 74,-149 74,-149 28,32 c 44,54 142,257 181,378 20,62 46,163 58,224 21,110 22,133 25,1300 l 4,1187 652,-2 652,-3 6,-925 c 4,-803 7,-938 22,-1023 96,-561 343,-884 790,-1032 167,-55 273,-69 512,-70 173,0 221,3 274,18 126,36 204,93 240,176 19,46 60,266 50,275 -2,2 -60,16 -129,30 -69,15 -132,29 -141,32 -14,4 -18,-8 -24,-77 -6,-70 -11,-85 -36,-114 -56,-63 -194,-86 -394,-66 -191,19 -357,74 -481,159 -75,50 -199,181 -242,254 -79,134 -136,306 -169,508 -14,92 -17,232 -20,1103 l -4,997 -910,0 -909,0 0,-1242 z" inkscape:connector-curvature="0"/>
+    <path id="path3043" d="m 1610,2949 c -156,-34 -533,-84 -856,-114 l -72,-7 35,-106 c 20,-59 38,-110 42,-114 3,-4 76,0 161,7 85,8 165,15 178,15 l 22,0 -2,-197 -3,-198 -187,-3 -188,-2 0,-550 0,-550 110,0 110,0 0,80 0,80 80,0 80,0 0,-339 0,-339 -72,-6 c -40,-3 -154,-11 -253,-17 -99,-6 -182,-12 -184,-14 -7,-8 62,-270 81,-308 24,-49 52,-49 75,-2 9,20 26,38 38,41 81,19 901,152 906,146 4,-4 19,-55 34,-114 16,-60 31,-108 36,-108 9,0 232,69 236,74 6,6 -69,279 -107,389 -56,163 -176,397 -203,397 -8,0 -199,-79 -205,-85 -2,-2 19,-47 46,-101 62,-125 89,-204 73,-214 -7,-4 -65,-15 -129,-24 -64,-10 -127,-20 -139,-23 l -23,-5 0,326 0,326 205,0 205,0 0,470 0,470 -202,2 -203,3 -3,206 -2,206 137,19 c 126,17 218,21 283,12 42,-5 40,12 -36,275 -3,9 -8,16 -12,16 -4,-1 -45,-10 -92,-20 z m -490,-1189 0,-230 -80,0 -80,0 0,230 0,230 80,0 80,0 0,-230 z m 405,0 0,-225 -97,-3 -98,-3 0,231 0,231 98,-3 97,-3 0,-225 z" inkscape:connector-curvature="0"/>
+    <path id="path3045" d="m 2450,1350 0,-590 130,0 130,0 0,85 0,85 298,-2 297,-3 3,-67 3,-68 129,0 130,0 0,575 0,575 -560,0 -560,0 0,-590 z m 858,83 -3,-258 -297,-3 -298,-2 0,260 0,260 300,0 300,0 -2,-257 z" inkscape:connector-curvature="0"/>
+  </g>
+</svg>

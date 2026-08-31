@@ -486,7 +486,7 @@ select { appearance: none; cursor: pointer; }
   align-items: center;
   justify-content: center;
   gap: 2px;
-  min-height: 64px;
+  min-height: 78px;
   padding: var(--sp-xs) 6px;
   border-radius: var(--r-cell);
   background: var(--miss);
@@ -515,14 +515,18 @@ select { appearance: none; cursor: pointer; }
 .cell.guess {
   background: var(--surface);
   border: 1px solid var(--line);
-  align-items: flex-start;
-  padding-left: 10px;
-  text-align: left;
+  gap: 4px;
 }
 .cell.guess .by { font-size: 11px; font-weight: 400; color: var(--muted); }
-.cell.guess .name { display: flex; align-items: center; gap: var(--sp-xs); font-weight: 700; min-width: 0; max-width: 100%; }
-.cell.guess img { width: 36px; height: 36px; image-rendering: pixelated; flex: none; }
-.cell.guess .name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* o retrato e quem identifica o chute, entao ele manda no tamanho da linha */
+.cell.guess img { width: 60px; height: 60px; object-fit: contain; image-rendering: pixelated; flex: none; }
+/* universo sem retrato (Carros) cai no nome, e ai ele pode quebrar em duas linhas */
+.cell.guess .name { font-weight: 700; line-height: 1.2; max-width: 100%; overflow-wrap: anywhere; }
+
+/* simbolos (os elementos de chakra): cabem varios lado a lado onde o texto nao cabia */
+.cell .symbols { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px; }
+.cell .symbol { width: 26px; height: 26px; flex: none; }
+.cell .symbol.text { width: auto; height: auto; padding: 1px 7px; border-radius: 999px; background: rgb(0 0 0 / .22); font-size: 11px; }
 
 .cell .arrow { font-size: 13px; line-height: 1; opacity: .85; }
 

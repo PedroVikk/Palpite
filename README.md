@@ -197,6 +197,21 @@ dele. **Arco de estreia** cruza o capítulo com a tabela de arcos que vive em
 numérica só para a seta ▲/▼ dizer de que lado da história está o segredo (com
 `nearby: 1`, o arco vizinho fecha em amarelo).
 
+**Três colunas foram podadas de propósito.** O vocabulário cheio da wiki dava
+"Kenjutsu, Ninjutsu, Dōjutsu +6" para o Sasuke, e uma célula que lista tudo não
+diz nada: ficaram os cinco tipos que quem assistiu responde de cabeça
+(ninjutsu, taijutsu, genjutsu, kenjutsu e ninjutsu médico), e *bukijutsu* e
+*shurikenjutsu* saíram porque todo ninja atira kunai — sem eles, kenjutsu é
+espada mesmo, e são 20 personagens. *Filiações* guarda vila e organização, não
+o país nem a coalizão da guerra, que metade do elenco tem. E *Kekkei Genkai*
+junta Mangekyō e Mangekyō Eterno no Sharingan que eles são.
+
+A coluna de natureza mostra o **símbolo de chakra** no lugar do nome — o 火 do
+fogo, o 水 da água. São os SVGs da Narutopedia, baixados pelo `build:naruto`
+para `data/icons/naruto/` e servidos em `/icons`. Cabem os cinco elementos onde
+"Raio, Fogo, Vento +3" não cabia, e o nome continua no balão do mouse. Qualquer
+universo pode fazer o mesmo declarando `icons` na coluna.
+
 Dessa mesma tabela sai o recorte **Até onde você assistiu**: Clássico (81),
 Shippūden (159) ou Boruto (190). Ele é cumulativo — quem viu Shippūden viu o
 Clássico antes —, e cada opção lê a sua própria chave no item (`inClassic`,
@@ -317,8 +332,14 @@ esperar a hora de `max-age`.
 - **Cinza em itálico**: falta o dado de um dos lados, então não dá para comparar.
   Não é a mesma coisa que errar, por isso não fica vermelho.
 
+A coluna do chute é o retrato: o nome aparece ao passar o mouse, e só volta a
+ser escrito onde não há foto (Carros). As linhas ficam em ordem de chegada — o
+primeiro chute em cima —, então a linha nova sai sempre no mesmo lugar.
+
 Listas longas aparecem cortadas (`A, B, C +2`); passe o mouse para ver tudo.
-Em Clash Royale e LoL dá para buscar pelo nome em português ou em inglês.
+Onde a coluna tem símbolo (os elementos de chakra do Naruto), a célula mostra o
+símbolo em vez do nome e cabem todos, sem corte. Em Clash Royale e LoL dá para
+buscar pelo nome em português ou em inglês.
 
 ## Estrutura
 
@@ -359,7 +380,9 @@ genérico: o universo novo passa a ser testado sozinho.
 
 Tipos de coluna: `text` (igual/diferente), `slot` (igual, ou existe no outro
 slot → amarelo), `list` (conjuntos iguais → verde, interseção → amarelo) e
-`number` (com tolerância e seta).
+`number` (com `tolerance` proporcional, `nearby` cru e seta). Qualquer coluna
+pode trazer `labels` (o texto traduzido) e `icons` (um símbolo por valor, como
+os elementos de chakra do Naruto).
 
 ## Testes
 

@@ -3,6 +3,28 @@ import { formatValue, fullValue } from '../lib/format.js';
 const ARROW = { up: '▲', down: '▼' };
 
 /**
+ * Coluna que tem simbolo (os elementos de chakra do Naruto) mostra o simbolo, e
+ * o nome vai para o balao do mouse. Valor sem simbolo — "Nenhum", uma natureza
+ * que a wiki nao ilustra — cai no texto ali do lado, entao a celula nunca fica
+ * vazia. Aqui nao ha o corte de "+2" da versao em texto: simbolo e pequeno e
+ * cabem todos, que e o ponto de usa-los.
+ */
+function Symbols({ column, value }) {
+  const values = Array.isArray(value) ? value : [value];
+  return (
+    <span className="symbols">
+      {values.map(item => {
+        const label = column.labels?.[item] ?? item;
+        const icon = column.icons[item];
+        return icon
+          ? <img key={item} className="symbol" src={icon.src} alt={label} title={label} loading="lazy" />
+          : <span key={item} className="symbol text" title={label}>{label}</span>;
+      })}
+    </span>
+  );
+}
+
+/**
  * A grade de dicas. A cor da celula e a informacao principal (verde acertou,
  * amarelo chegou perto, cinza errou); o texto e o detalhe. Cada linha e uma
  * grade propria, para poder animar e destacar a vencedora sem quebrar o
@@ -13,7 +35,7 @@ export default function HintsTable({ universe, rows }) {
     return <p className="empty-hint">Nenhum chute ainda. Boa sorte!</p>;
   }
 
-  const columns = `minmax(150px, 1.6fr) repeat(${universe.columns.length}, minmax(88px, 1fr))`;
+  const columns = `minmax(120px, 1fr) repeat(${universe.columns.length}, minmax(88px, 1fr))`;
   const newest = rows[rows.length - 1];
 
   return (
@@ -26,18 +48,20 @@ export default function HintsTable({ universe, rows }) {
           ))}
         </div>
 
-        {/* chute mais recente no topo */}
-        {[...rows].reverse().map(row => (
+        {/* em ordem de chegada: o primeiro chute em cima, o seguinte embaixo —
+            e assim a linha nova aparece sempre no mesmo lugar, no fim */}
+        {rows.map(row => (
           <div
             key={row.id}
             className={`hints-row ${row === newest ? 'newest' : ''} ${row.correct ? 'correct' : ''}`}
           >
-            <div className="cell guess">
+            {/* o retrato e o chute; o nome fica no balao do mouse. Sem retrato
+                (universo que a API nao ilustra) o nome volta a ser o conteudo */}
+            <div className="cell guess" title={row.name}>
               <span className="by">{row.playerName}</span>
-              <span className="name">
-                {row.sprite && <img src={row.sprite} alt="" loading="lazy" />}
-                <span>{row.name}</span>
-              </span>
+              {row.sprite
+                ? <img src={row.sprite} alt={row.name} loading="lazy" />
+                : <span className="name">{row.name}</span>}
             </div>
 
             {universe.columns.map(column => {
@@ -45,9 +69,12 @@ export default function HintsTable({ universe, rows }) {
               const title = cell.status === 'unknown'
                 ? 'sem dado para comparar'
                 : fullValue(column, cell.value);
+              const comSimbolo = column.icons && cell.status !== 'unknown' && cell.value != null;
               return (
                 <div key={column.key} className={`cell ${cell.status}`} title={title}>
-                  <span>{formatValue(column, cell.value)}</span>
+                  {comSimbolo
+                    ? <Symbols column={column} value={cell.value} />
+                    : <span>{formatValue(column, cell.value)}</span>}
                   {ARROW[cell.hint] && <span className="arrow">{ARROW[cell.hint]}</span>}
                 </div>
               );

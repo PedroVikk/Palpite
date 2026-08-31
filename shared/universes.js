@@ -330,6 +330,43 @@ export const NARUTO_ARCS = [
 
 const NARUTO_ARC_PT = Object.fromEntries(NARUTO_ARCS.map((arc, i) => [i, arc.label]));
 
+/**
+ * O simbolo de chakra de cada natureza, que a celula mostra no lugar do nome —
+ * quem assistiu reconhece o 火 do fogo antes de ler "Fogo", e cinco simbolos
+ * cabem onde "Raio, Fogo, Vento +3" nao cabia.
+ *
+ * Os arquivos vem da Narutopedia (`File:Nature Icon <wiki>.svg`), sao baixados
+ * por `npm run build:naruto` e ficam versionados em data/icons/naruto/. Quem
+ * nao tem simbolo cai no rotulo de texto, como qualquer coluna de lista.
+ */
+export const NARUTO_NATURE_ICONS = {
+  // na ordem do ciclo elemental, que e tambem a ordem em que a celula
+  // desenha os simbolos: o build ordena a lista por esta chave
+  'Fire Release': { wiki: 'Fire', src: '/icons/naruto/fire.svg' },
+  'Wind Release': { wiki: 'Wind', src: '/icons/naruto/wind.svg' },
+  'Lightning Release': { wiki: 'Lightning', src: '/icons/naruto/lightning.svg' },
+  'Earth Release': { wiki: 'Earth', src: '/icons/naruto/earth.svg' },
+  'Water Release': { wiki: 'Water', src: '/icons/naruto/water.svg' },
+  'Yin Release': { wiki: 'Yin', src: '/icons/naruto/yin.svg' },
+  'Yang Release': { wiki: 'Yang', src: '/icons/naruto/yang.svg' },
+  'Yin–Yang Release': { wiki: 'Yin–Yang', src: '/icons/naruto/yin-yang.svg' },
+  'Wood Release': { wiki: 'Wood', src: '/icons/naruto/wood.svg' },
+  'Ice Release': { wiki: 'Ice', src: '/icons/naruto/ice.svg' },
+  'Lava Release': { wiki: 'Lava', src: '/icons/naruto/lava.svg' },
+  'Magnet Release': { wiki: 'Magnet', src: '/icons/naruto/magnet.svg' },
+  'Boil Release': { wiki: 'Boil', src: '/icons/naruto/boil.svg' },
+  'Storm Release': { wiki: 'Storm', src: '/icons/naruto/storm.svg' },
+  'Explosion Release': { wiki: 'Explosion', src: '/icons/naruto/explosion.svg' },
+  'Steel Release': { wiki: 'Steel', src: '/icons/naruto/steel.svg' },
+  'Dust Release': { wiki: 'Dust', src: '/icons/naruto/dust.svg' },
+  'Scorch Release': { wiki: 'Scorch', src: '/icons/naruto/scorch.svg' },
+  'Swift Release': { wiki: 'Swift', src: '/icons/naruto/swift.svg' },
+  'Crystal Release': { wiki: 'Crystal', src: '/icons/naruto/crystal.svg' },
+  'Dark Release': { wiki: 'Dark', src: '/icons/naruto/dark.svg' },
+  'Mud Release': { wiki: 'Mud', src: '/icons/naruto/mud.svg' },
+  'Typhoon Release': { wiki: 'Typhoon', src: '/icons/naruto/typhoon.svg' },
+};
+
 const NARUTO_NATURE_PT = {
   'Fire Release': 'Fogo', 'Wind Release': 'Vento', 'Lightning Release': 'Raio',
   'Earth Release': 'Terra', 'Water Release': 'Água', 'Yin Release': 'Yin',
@@ -361,49 +398,26 @@ const NARUTO_KEKKEI_PT = {
 
 /**
  * Tipo de jutsu, e nao o jutsu em si: a ficha da Narutopedia classifica cada
- * tecnica, e o personagem herda o conjunto das dele. Fora desta lista tudo o
- * mais que a wiki usa ("Chakra Flow", "Clone Techniques", "Hiden~Nara Clan")
- * e recorte fino demais para valer como dica.
+ * tecnica, e o personagem herda o conjunto das dele. Sao so cinco de proposito
+ * — e o que quem assistiu responde de cabeça; o vocabulario cheio da wiki
+ * enchia a celula sem separar ninguem (veja TIPOS_DE_JUTSU no build).
  */
 const NARUTO_JUTSU_PT = {
   Ninjutsu: 'Ninjutsu', Taijutsu: 'Taijutsu', Genjutsu: 'Genjutsu',
-  Fūinjutsu: 'Fūinjutsu', Kenjutsu: 'Kenjutsu', Dōjutsu: 'Dōjutsu',
-  Senjutsu: 'Senjutsu', Kinjutsu: 'Kinjutsu', Bukijutsu: 'Bukijutsu',
-  'Medical Ninjutsu': 'Ninjutsu médico',
+  Kenjutsu: 'Kenjutsu', 'Medical Ninjutsu': 'Ninjutsu médico',
 };
 
 /**
- * Filiacoes da Narutopedia. Vila oculta, clã e organizacao sao nome proprio e
- * saem como vieram — quem esta aqui e so o que tem nome em portugues.
+ * A vila pelo apelido, que e como todo mundo fala: "Konoha", nao
+ * "Konohagakure". O dataset guarda o nome de ficha para a comparacao; aqui e
+ * so o que a célula mostra.
  */
 const NARUTO_AFFILIATION_PT = {
-  'Sem filiação': 'Sem filiação',
-  'Allied Shinobi Forces': 'Forças Aliadas Shinobi',
-  'Seven Ninja Swordsmen of the Mist': 'Sete Espadachins da Névoa',
-  'Konoha Military Police Force': 'Polícia Militar de Konoha',
-  'Sound Four': 'Quarteto do Som',
-  Root: 'Raiz',
-  'Land of Fire': 'País do Fogo',
-  'Land of Wind': 'País do Vento',
-  'Land of Water': 'País da Água',
-  'Land of Earth': 'País da Terra',
-  'Land of Lightning': 'País do Raio',
-  'Land of Rain': 'País da Chuva',
-  'Land of Iron': 'País do Ferro',
-  'Land of Sound': 'País do Som',
-  'Land of Rice Fields': 'País dos Arrozais',
-  'Land of Waves': 'País das Ondas',
-  'Land of Valleys': 'País dos Vales',
-  'Land of Ancestors': 'País dos Ancestrais',
-  'Fire Temple': 'Templo do Fogo',
-  'Twelve Guardian Ninja': 'Doze Ninjas Guardiões',
-  'Ninja Academy': 'Academia Ninja',
-  'Konoha Orphanage': 'Orfanato de Konoha',
-  'Mount Myōboku': 'Monte Myōboku',
-  'Ryūchi Cave': 'Caverna Ryūchi',
-  'Shikkotsu Forest': 'Floresta Shikkotsu',
-  'Tsuchigumo Clan': 'Clã Tsuchigumo',
-  Moon: 'Lua',
+  Konohagakure: 'Konoha', Sunagakure: 'Suna', Kirigakure: 'Kiri',
+  Iwagakure: 'Iwa', Kumogakure: 'Kumo', Otogakure: 'Oto',
+  Amegakure: 'Ame', Takigakure: 'Taki', Kusagakure: 'Kusa',
+  Yugakure: 'Yu', Uzushiogakure: 'Uzushio', Hoshigakure: 'Hoshi',
+  Root: 'Raiz', Anbu: 'Anbu', Akatsuki: 'Akatsuki', Kara: 'Kara', Taka: 'Taka',
 };
 
 const NARUTO_CLASS_PT = {
@@ -539,7 +553,10 @@ export const UNIVERSES = {
       { key: 'affiliation', label: 'Filiações', kind: 'list', labels: NARUTO_AFFILIATION_PT },
       { key: 'jutsuTypes', label: 'Tipos de Jutsu', kind: 'list', labels: NARUTO_JUTSU_PT },
       { key: 'kekkeiGenkai', label: 'Kekkei Genkai', kind: 'list', labels: NARUTO_KEKKEI_PT },
-      { key: 'natureType', label: 'Tipos de natureza', kind: 'list', labels: NARUTO_NATURE_PT },
+      {
+        key: 'natureType', label: 'Tipos de natureza', kind: 'list',
+        labels: NARUTO_NATURE_PT, icons: NARUTO_NATURE_ICONS,
+      },
       { key: 'classification', label: 'Atributos', kind: 'list', labels: NARUTO_CLASS_PT },
       // o indice do arco existe so para a seta ▲/▼ dizer o lado da historia;
       // a celula mostra o nome. `nearby: 1` deixa o arco vizinho em amarelo

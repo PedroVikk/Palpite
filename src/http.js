@@ -134,6 +134,17 @@ export function createApp() {
     fallthrough: false,
   }));
 
+  /**
+   * Os simbolos que uma coluna pode mostrar no lugar do texto (os elementos de
+   * chakra do Naruto). Sao do schema, nao do dataset — mesmas regras de cache
+   * das miniaturas.
+   */
+  app.use('/icons', express.static(path.join(ROOT, 'data', 'icons'), {
+    immutable: true,
+    maxAge: '1y',
+    fallthrough: false,
+  }));
+
   if (!fs.existsSync(path.join(CLIENT_DIST, 'index.html'))) {
     // rodar so a API e legitimo em dev (o Vite serve o cliente na 5173),
     // entao isto avisa em vez de derrubar o processo
