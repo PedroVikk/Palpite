@@ -137,6 +137,14 @@ const NAVBOXES = [
 ];
 
 /**
+ * As formas Ultimate saem do balde do dono e viram grupo proprio: sao um modo
+ * de jogo a parte, que a sala liga se quiser. Quem lembra do Swampfire nao
+ * necessariamente lembra do Ultimate Swampfire, e a lista de chute fica cheia
+ * de nome repetido com "Ultimate" na frente. Vem desligado no lobby.
+ */
+const ULTIMATE = /^Ultimate /;
+
+/**
  * `1st-appearance` aponta para a pagina do episodio, e o caminho ate ela tem
  * tres pedras: o link pode vir com rotulo (`Inspector 13{{!}}Inspector #13`,
  * onde o `{{!}}` e um pipe escapado), o titulo pode ter virgula ("Ben 10,000")
@@ -230,6 +238,9 @@ const SERIES = [
 
 const seriesOf = (raw) => SERIES.find(([, pattern]) => pattern.test(unwiki(raw)))?.[0] ?? null;
 
+/** A epoca da sala e a serie, na ordem em que foram ao ar. */
+const eraOf = (series) => SERIES.findIndex(([id]) => id === series);
+
 const yearOf = (raw) => {
   const match = unwiki(raw).match(/\b(19|20)\d{2}\b/);
   return match ? Number(match[0]) : null;
@@ -245,7 +256,10 @@ console.log(`  ${titles.length} paginas com ficha de alien`);
 const groupOfTitle = new Map();
 for (const [id, template] of NAVBOXES) {
   const members = await embeddedin(template, `nav_${id}`);
-  for (const title of members) if (!groupOfTitle.has(title)) groupOfTitle.set(title, id);
+  for (const title of members) {
+    if (groupOfTitle.has(title)) continue;
+    groupOfTitle.set(title, ULTIMATE.test(title) ? 'ultimate' : id);
+  }
   console.log(`  navbox ${id.padEnd(9)} ${String(members.length).padStart(3)}`);
 }
 // fica de fora quem nao esta em navbox nenhuma: 78 aliens nao canonicos e nao
@@ -287,6 +301,30 @@ async function fetchPages(list, slug) {
 
 console.log('\nBaixando fichas e retratos...');
 const { wikitext: alienText, image: alienImage } = await fetchPages(roster0, 'alien');
+
+/**
+ * O nome que o brasileiro usa nao e o do wiki em ingles: Heatblast e Chama,
+ * Grey Matter e Massa Cinzenta, Four Arms e Quatro Bracos. Isso nao precisa ser
+ * inventado — a Ben 10 Wiki tem interwiki para a versao pt-br, e o `langlinks`
+ * devolve o titulo de la. O titulo vem com o recorte colado ("Chama (Original)",
+ * "Quatro Bracos/Original"), que sai antes de virar apelido de busca.
+ */
+console.log('\nBaixando os nomes em pt-br...');
+const ptName = new Map();
+for (const [i, batch] of chunk(roster0, 50).entries()) {
+  process.stdout.write(`\r  pt-br ${i + 1}/${Math.ceil(roster0.length / 50)}`);
+  const data = await get(`ptbr_${i}`, {
+    action: 'query', prop: 'langlinks', lllang: 'pt-br', lllimit: '500',
+    titles: batch.join('|'),
+  });
+  for (const page of Object.values(data.query?.pages ?? {})) {
+    const raw = page.langlinks?.[0]?.['*'];
+    if (!raw) continue;
+    const clean = bare(raw.split('/')[0]).trim();
+    if (clean) ptName.set(page.title, clean);
+  }
+}
+process.stdout.write(`\n  ${ptName.size}/${roster0.length} com nome em pt-br\n`);
 
 // os episodios de estreia, para saber a serie e o ano de cada alien
 const episodes = new Set();
@@ -346,16 +384,17 @@ for (const title of roster0) {
   };
 
   if (item.planet === 'Unknown') item.planet = 'Desconhecido';
+  item.era = eraOf(item.series);
 
-  const aliases = [...new Set([title, unwiki(fields.nicknames).split(/<br|,/)[0].trim()]
-    .map(alias => alias.replace(/<[^>]*>/g, '').trim())
+  const aliases = [...new Set([title, ptName.get(title), unwiki(fields.nicknames).split(/<br|,/)[0].trim()]
+    .map(alias => String(alias ?? '').replace(/<[^>]*>/g, '').trim())
     .filter(alias => alias && alias !== item.name && alias.length < 40))];
   if (aliases.length) item.aliases = aliases;
 
   // sem retrato a linha de dica fica vazia, e sem serie nem ano a pagina e uma
   // lista disfarcada de ficha ("Ultimate Forms"). Especie nao entra no teste:
   // a de varios aliens a serie nunca nomeou, e "Desconhecida" e resposta
-  item.eligible = Boolean(sprite && item.series && item.debutYear);
+  item.eligible = Boolean(sprite && item.series && item.debutYear && item.era >= 0);
   roster.push(item);
 }
 
@@ -395,6 +434,7 @@ coverage('poderes', a => a.powers[0] !== 'nenhum');
 coverage('serie', a => a.series);
 coverage('ano', a => a.debutYear != null);
 coverage('sorteavel', a => a.eligible);
+console.log(`  ${'nome pt-br'.padEnd(14)} ${String(ptName.size).padStart(4)}/${total}`);
 
 const tally = (label, pick) => {
   const counts = {};

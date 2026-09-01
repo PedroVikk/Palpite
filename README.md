@@ -48,7 +48,7 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Dragon Ball** | 58 | 43 | 6 raças | Raça, Gênero, Afiliação, Planeta, Transformações, Ki base, Ki máximo |
 | **Hunter × Hunter 2011** | 607 | 447 | 7 facções | Gênero, Nen, Estado, Afiliação, Ocupação, Cabelo, Estreia |
 | **Ordem Paranormal** | 123 | 99 | 6 campanhas + livros | Elemento, Complemento, Campanha, Facção, Onde aparece |
-| **Ben 10** | 212 | 171 | 5 relógios | Espécie, Planeta natal, Poderes, Série, Estreia |
+| **Ben 10** | 212 | 171 | 5 relógios + Ultimates | Espécie, Planeta natal, Poderes, Série, Estreia |
 
 **Sorteáveis** são os que entram na partida: viram segredo e são os únicos
 nomes que a busca de chute oferece. Quem fica de fora não existe para a sala —
@@ -137,6 +137,14 @@ não resposta — o corpo aparece na tela, o wiki é que não anotou. *Série* e
 *Estreia* saem do episódio, não do alien: a ficha dá o nome do episódio, e o
 `{{EpisodeInfoBox}}` dele dá a série e a data de exibição.
 
+As **formas Ultimate** são grupo próprio e **vêm desligadas** — a sala decide se
+quer jogar com elas. Ligadas por padrão, os 14 nomes com "Ultimate" na frente
+encheriam a busca de repetido, e quem lembra do Swampfire não necessariamente
+lembra do Ultimate Swampfire. E a busca aceita o **nome brasileiro**: Chama,
+Quatro Braços, Massa Cinzenta, Bala de Canhão, Fogo Fátuo Supremo. Esses não
+foram escritos à mão — a Ben 10 Wiki tem interwiki para a versão pt-br, e o
+`langlinks` devolve o título de lá para 151 dos 212 aliens.
+
 ### As épocas
 
 Toda obra com linha do tempo tem um segundo eixo na sala, ao lado dos grupos: as
@@ -151,6 +159,7 @@ parou no meio deixa só as que viu.
 | **Rick and Morty** | 1ª e 2ª (84) · 3ª e 4ª (10) · 5ª em diante (3) |
 | **Hunter × Hunter** | Anime (271) · Só no mangá (176) |
 | **Super-heróis** | Filmes (284) · Só nos quadrinhos (149) |
+| **Ben 10** | Ben 10 2005 (25) · Alien Force (15) · Ultimate Alien (17) · Omniverse (53) · Reboot (61) |
 
 O corte sai sempre da estreia: capítulo do mangá, episódio, o que a fonte
 souber datar. Em Hunter × Hunter e nos super-heróis o eixo não é o tempo e sim

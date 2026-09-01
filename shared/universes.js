@@ -1142,8 +1142,22 @@ export const UNIVERSES = {
       { id: 'ben23', label: 'Ben 23' },
       { id: 'kevin', label: 'Kevin 11' },
       { id: 'nemetrix', label: 'Nemetrix' },
+      { id: 'ultimate', label: 'Ultimates' },
     ],
+    // as 14 formas Ultimate vem desligadas: sao um modo a parte, e ligadas por
+    // padrao encheriam a busca de nome repetido com "Ultimate" na frente
     defaultGroups: ['ben', 'reboot', 'ben23', 'kevin', 'nemetrix'],
+    scope: {
+      label: 'Épocas',
+      key: 'era',
+      options: [
+        { id: 'classica', label: 'Ben 10 (2005)', hint: 'A série original, com o Omnitrix de dez aliens.' },
+        { id: 'alienforce', label: 'Alien Force', hint: 'Ben aos 15 anos, de 2008.' },
+        { id: 'ultimatealien', label: 'Ultimate Alien', hint: 'O Ultimatrix e as formas Ultimate, de 2010.' },
+        { id: 'omniverse', label: 'Omniverse', hint: 'De 2012: o Nemetrix do Khyber e o Ben 23.' },
+        { id: 'reboot', label: 'Reboot (2016)', hint: 'A série que recomeça do zero, de 2016.' },
+      ],
+    },
     columns: [
       { key: 'species', label: 'Espécie', kind: 'text' },
       { key: 'planet', label: 'Planeta natal', kind: 'text' },
