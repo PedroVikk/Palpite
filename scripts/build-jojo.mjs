@@ -181,6 +181,35 @@ const PARTS = {
 
 const partOf = (raw) => PARTS[String(raw ?? '').replace(/[^A-Za-z]/g, '')] ?? null;
 
+/** A ordem das partes, que e a ordem das epocas da sala. */
+const PART_ORDER = [
+  'parte1', 'parte2', 'parte3', 'parte4', 'parte5',
+  'parte6', 'parte7', 'parte8', 'parte9',
+];
+
+/**
+ * Ate a parte 5 a numeracao dos capitulos e continua (1 a 594); dai em diante
+ * cada parte recomeca do 1 e ganha uma sigla — SO de Stone Ocean, SBR de Steel
+ * Ball Run, JJL de JoJolion, TJL de The JOJOLands. E o que permite dizer em que
+ * parte um capitulo esta.
+ */
+const CONTINUOUS = [
+  [44, 'parte1'], [113, 'parte2'], [265, 'parte3'], [439, 'parte4'], [594, 'parte5'],
+];
+const PREFIX_PART = { SO: 'parte6', SBR: 'parte7', JJL: 'parte8', TJL: 'parte9' };
+
+/** "{{Ch3|SO Chapter 154}}" -> parte6; "Chapter 264" -> parte3. */
+function partOfChapter(raw) {
+  // a ficha lista a ultima aparicao e, as vezes, um flashback depois dela; a
+  // primeira e a que vale
+  const first = String(raw ?? '').split(/<br|\n/)[0];
+  const match = first.match(/([A-Z]{2,4})?\s*Chapter\s+(\d+)/);
+  if (!match) return null;
+  if (match[1]) return PREFIX_PART[match[1]] ?? null;
+  const chapter = Number(match[2]);
+  return CONTINUOUS.find(([last]) => chapter <= last)?.[1] ?? null;
+}
+
 /** Nome da parte, para desempatar os homonimos de partes diferentes. */
 const PART_LABEL = {
   parte1: 'Phantom Blood', parte2: 'Battle Tendency', parte3: 'Stardust Crusaders',
@@ -315,10 +344,13 @@ for (const title of titles) {
   const item = {
     id: roster.length + 1,
     name: unwiki(fields.title) || title,
+    // o grupo e o unico eixo alem das partes: quem usa Stand e quem nao usa.
+    // As partes 1 e 2 sao inteiras de Hamon, e essa e a divisao que a sala liga
+    group: standName ? 'stand' : 'sem-stand',
     // sem parte no wiki e o personagem de one-shot, de novel ou o proprio
-    // Araki: fica de fora do sorteio, e o grupo guarda isso
-    group: part ?? 'outros',
+    // Araki: fica de fora do sorteio
     part: part ?? 'outros',
+    era: PART_ORDER.indexOf(part),
     gender: genderOf(fields.gender),
     nation: nationOf(fields.nation),
     status: statusOf(fields.status),
@@ -336,6 +368,21 @@ for (const title of titles) {
     .map(alias => String(alias ?? '').trim())
     .filter(alias => alias && alias !== item.name && alias.length < 40))];
   if (aliases.length) item.aliases = aliases;
+
+  /**
+   * O `status` do wiki e o do fim da historia, e isso e spoiler: numa sala que
+   * parou na parte 3 o Jotaro nao pode aparecer como morto, porque ele morre na
+   * parte 6. A ultima aparicao (`mangafinal`) diz em que parte cada um sai de
+   * cena; antes dela, o personagem estava vivo.
+   */
+  const finalPart = partOfChapter(fields.mangafinal);
+  const finalIndex = PART_ORDER.indexOf(finalPart);
+  if (item.status && item.status !== 'vivo' && finalIndex > item.era && item.era >= 0) {
+    item.byScope = {};
+    for (let i = item.era; i < finalIndex; i++) {
+      item.byScope[PART_ORDER[i]] = { status: 'vivo' };
+    }
+  }
 
   item.eligible = Boolean(sprite && part && item.gender && item.status);
   roster.push(item);
@@ -379,6 +426,8 @@ const tally = (label, pick) => {
 };
 console.log('');
 tally('Sorteaveis por parte', c => c.part);
+tally('Sorteaveis por grupo', c => c.group);
+console.log('Com status por epoca:', roster.filter(c => c.eligible && c.byScope).length);
 tally('Stand', c => c.stand);
 tally('Nacao', c => c.nation);
 tally('Estado', c => c.status);

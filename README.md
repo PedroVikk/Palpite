@@ -49,7 +49,7 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Hunter × Hunter 2011** | 607 | 447 | 7 facções | Gênero, Nen, Estado, Afiliação, Ocupação, Cabelo, Estreia |
 | **Ordem Paranormal** | 123 | 99 | 6 campanhas + livros | Elemento, Complemento, Campanha, Facção, Onde aparece |
 | **Ben 10** | 212 | 171 | 5 relógios + Ultimates | Espécie, Planeta natal, Poderes, Série, Estreia |
-| **JoJo's Bizarre Adventure** | 343 | 229 | 9 partes | Parte, Gênero, Stand, Nacionalidade, Estado |
+| **JoJo's Bizarre Adventure** | 343 | 229 | Com e sem Stand | Parte, Gênero, Stand, Nacionalidade, Estado |
 
 **Sorteáveis** são os que entram na partida: viram segredo e são os únicos
 nomes que a busca de chute oferece. Quem fica de fora não existe para a sala —
@@ -146,13 +146,14 @@ Quatro Braços, Massa Cinzenta, Bala de Canhão, Fogo Fátuo Supremo. Esses não
 foram escritos à mão — a Ben 10 Wiki tem interwiki para a versão pt-br, e o
 `langlinks` devolve o título de lá para 151 dos 212 aliens.
 
-Em **JoJo** o grupo é a parte, e ela sai de um lugar inesperado: o campo
+Em **JoJo** as partes são as épocas, e elas saem de um lugar inesperado: o campo
 `colors` da ficha, que é o tema visual com que o wiki pinta cada parte. É o
-único campo que dá a parte sem depender de ler o texto. A coluna *Stand* não é o
+único campo que dá a parte sem depender de ler o texto. Sobra para o grupo a
+outra divisão que a obra faz sozinha: quem luta com Stand e quem não — as partes
+1 e 2 são inteiras de Hamon. A coluna *Stand* não é o
 nome do Stand — esse é quase único por personagem e nunca fecharia verde — e sim
 o **tipo** dele, que mora na ficha do próprio Stand: curta distância, longa
-distância, automático, colônia. *Não tem* é a resposta de 75 dos sorteáveis, e
-não é lacuna: as partes 1 e 2 são inteiras de Hamon, antes de o Stand existir. O
+distância, automático, colônia. *Não tem* é a resposta de 74 dos sorteáveis. O
 nome do Stand virou apelido de busca — quem lembra de "Star Platinum" antes de
 "Jotaro" acha do mesmo jeito.
 
@@ -161,6 +162,16 @@ subpágina ("Jotaro Kujo/Infobox") que a página principal transclui: as duas
 apareciam na lista e o Jotaro entrava duas vezes. E o Josuke da parte 4 e o da
 parte 8 são pessoas diferentes com o mesmo nome — como a busca mostra só o nome,
 o repetido carrega a parte junto.
+
+*Estado* é a coluna que precisou do recorte. O `status` do wiki é o do fim da
+história, e isso é spoiler: numa sala que parou na parte 3 o Jotaro não pode
+aparecer como morto, porque ele morre na parte 6. Quem data a saída de cena é a
+última aparição (`mangafinal`), e ela vem numerada por parte — até a 5 os
+capítulos são contínuos (1 a 594), e daí em diante cada parte recomeça do 1 com
+uma sigla (SO, SBR, JJL, TJL). Antes dessa parte, o personagem está vivo, e é o
+que o `byScope` guarda. São só seis personagens: em JoJo cada parte troca o
+elenco inteiro, então quase todo mundo morre na própria parte. Os seis são o
+Jotaro, o Dio, o Speedwagon, o Polnareff, a Erina e o Straizo.
 
 Ficaram de fora *Cabelo* (45 fichas não preenchem a cor, e exigi-la zerava The
 JOJOLands inteira) e *Estreia*. Essa segunda pelo motivo que também tirou as
@@ -182,6 +193,7 @@ parou no meio deixa só as que viu.
 | **Hunter × Hunter** | Anime (271) · Só no mangá (176) |
 | **Super-heróis** | Filmes (284) · Só nos quadrinhos (149) |
 | **Ben 10** | Ben 10 2005 (25) · Alien Force (15) · Ultimate Alien (17) · Omniverse (53) · Reboot (61) |
+| **JoJo** | As nove partes, de Phantom Blood (21) a The JOJOLands (5) |
 
 O corte sai sempre da estreia: capítulo do mangá, episódio, o que a fonte
 souber datar. Em Hunter × Hunter e nos super-heróis o eixo não é o tempo e sim
@@ -545,7 +557,7 @@ npm test
 
 Sobe o servidor de verdade, conecta jogadores falsos e joga partidas completas
 nos dois modos e **nos vinte e um universos**, verificando turnos, dicas, timeout,
-pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 262
+pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 260
 verificações.
 
 ## Atualizar os dados

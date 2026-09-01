@@ -1199,26 +1199,32 @@ export const UNIVERSES = {
     label: "JoJo's Bizarre Adventure",
     secretLabel: 'o personagem secreto',
     dataFile: 'jojo.json',
-    groupLabel: 'Partes',
+    groupLabel: 'Quem entra',
+    // as partes sao as epocas, entao o grupo e a outra divisao que a obra faz
+    // sozinha: quem luta com Stand e quem nao. As partes 1 e 2 sao inteiras de
+    // Hamon, antes de o Stand existir
     groups: [
-      { id: 'parte1', label: '1 · Phantom Blood' },
-      { id: 'parte2', label: '2 · Battle Tendency' },
-      { id: 'parte3', label: '3 · Stardust Crusaders' },
-      { id: 'parte4', label: '4 · Diamond is Unbreakable' },
-      { id: 'parte5', label: '5 · Vento Aureo' },
-      { id: 'parte6', label: '6 · Stone Ocean' },
-      { id: 'parte7', label: '7 · Steel Ball Run' },
-      { id: 'parte8', label: '8 · JoJolion' },
-      { id: 'parte9', label: '9 · The JOJOLands' },
+      { id: 'stand', label: 'Usuários de Stand' },
+      { id: 'sem-stand', label: 'Sem Stand' },
     ],
-    defaultGroups: [
-      'parte1', 'parte2', 'parte3', 'parte4', 'parte5',
-      'parte6', 'parte7', 'parte8', 'parte9',
-    ],
-    // aqui as partes ja sao os grupos, como as geracoes do Pokemon — quem parou
-    // na parte 4 desliga as outras, e nao ha um segundo eixo a declarar.
-    // Tambem nao ha coluna numerica: a numeracao dos capitulos recomeca do 1 em
-    // Steel Ball Run, e a seta ▲ mentiria entre uma parte e outra
+    defaultGroups: ['stand', 'sem-stand'],
+    scope: {
+      label: 'Partes',
+      key: 'era',
+      options: [
+        { id: 'parte1', label: '1 · Phantom Blood', hint: 'Capítulos 1 a 44.' },
+        { id: 'parte2', label: '2 · Battle Tendency', hint: 'Capítulos 45 a 113.' },
+        { id: 'parte3', label: '3 · Stardust Crusaders', hint: 'Capítulos 114 a 265.' },
+        { id: 'parte4', label: '4 · Diamond is Unbreakable', hint: 'Capítulos 266 a 439.' },
+        { id: 'parte5', label: '5 · Vento Aureo', hint: 'Capítulos 440 a 594.' },
+        { id: 'parte6', label: '6 · Stone Ocean', hint: 'A numeração recomeça do 1 aqui.' },
+        { id: 'parte7', label: '7 · Steel Ball Run', hint: 'O universo reiniciado.' },
+        { id: 'parte8', label: '8 · JoJolion', hint: 'Depois do terremoto de Morioh.' },
+        { id: 'parte9', label: '9 · The JOJOLands', hint: 'Em publicação.' },
+      ],
+    },
+    // sem coluna numerica de proposito: a numeracao dos capitulos recomeca do 1
+    // em Steel Ball Run, e a seta ▲ mentiria entre uma parte e outra
     columns: [
       { key: 'part', label: 'Parte', kind: 'text', labels: JOJO_PART_PT },
       { key: 'gender', label: 'Gênero', kind: 'text', labels: { M: 'Masculino', F: 'Feminino' } },
