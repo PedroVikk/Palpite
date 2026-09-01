@@ -19,7 +19,7 @@ export default function HomeScreen({
       <header className="brand">
         <div className="mark">?</div>
         <h1>Palpite</h1>
-        <p>Dezoito universos, de Pokémon a carros: adivinhe o secreto em turnos, com seus amigos.</p>
+        <p>Dezenove universos, de Pokémon a carros: adivinhe o secreto em turnos, com seus amigos.</p>
       </header>
 
       {/* caiu no meio da partida e a aba perdeu a identidade: um clique devolve
