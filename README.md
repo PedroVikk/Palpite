@@ -1,6 +1,6 @@
 # Palpite
 
-Um jogo de adivinhação multiplayer no estilo Pokédle, com **vinte universos**.
+Um jogo de adivinhação multiplayer no estilo Pokédle, com **vinte e um universos**.
 Um secreto por rodada, todo mundo na mesma sala, **um chute por vez**. Cada
 chute vira uma linha de dicas visível para todos — verde acerta, amarelo chega
 perto, seta indica se o secreto é maior ou menor.
@@ -49,6 +49,7 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Hunter × Hunter 2011** | 607 | 447 | 7 facções | Gênero, Nen, Estado, Afiliação, Ocupação, Cabelo, Estreia |
 | **Ordem Paranormal** | 123 | 99 | 6 campanhas + livros | Elemento, Complemento, Campanha, Facção, Onde aparece |
 | **Ben 10** | 212 | 171 | 5 relógios + Ultimates | Espécie, Planeta natal, Poderes, Série, Estreia |
+| **JoJo's Bizarre Adventure** | 343 | 229 | 9 partes | Parte, Gênero, Stand, Nacionalidade, Estado |
 
 **Sorteáveis** são os que entram na partida: viram segredo e são os únicos
 nomes que a busca de chute oferece. Quem fica de fora não existe para a sala —
@@ -145,6 +146,27 @@ Quatro Braços, Massa Cinzenta, Bala de Canhão, Fogo Fátuo Supremo. Esses não
 foram escritos à mão — a Ben 10 Wiki tem interwiki para a versão pt-br, e o
 `langlinks` devolve o título de lá para 151 dos 212 aliens.
 
+Em **JoJo** o grupo é a parte, e ela sai de um lugar inesperado: o campo
+`colors` da ficha, que é o tema visual com que o wiki pinta cada parte. É o
+único campo que dá a parte sem depender de ler o texto. A coluna *Stand* não é o
+nome do Stand — esse é quase único por personagem e nunca fecharia verde — e sim
+o **tipo** dele, que mora na ficha do próprio Stand: curta distância, longa
+distância, automático, colônia. *Não tem* é a resposta de 75 dos sorteáveis, e
+não é lacuna: as partes 1 e 2 são inteiras de Hamon, antes de o Stand existir. O
+nome do Stand virou apelido de busca — quem lembra de "Star Platinum" antes de
+"Jotaro" acha do mesmo jeito.
+
+Duas armadilhas do wiki custaram caro. A ficha de vários personagens mora numa
+subpágina ("Jotaro Kujo/Infobox") que a página principal transclui: as duas
+apareciam na lista e o Jotaro entrava duas vezes. E o Josuke da parte 4 e o da
+parte 8 são pessoas diferentes com o mesmo nome — como a busca mostra só o nome,
+o repetido carrega a parte junto.
+
+Ficaram de fora *Cabelo* (45 fichas não preenchem a cor, e exigi-la zerava The
+JOJOLands inteira) e *Estreia*. Essa segunda pelo motivo que também tirou as
+setas do universo: a numeração dos capítulos recomeça do 1 em Steel Ball Run, em
+JoJolion e em The JOJOLands, então "capítulo 5" pode ser 2004 ou 1987.
+
 ### As épocas
 
 Toda obra com linha do tempo tem um segundo eixo na sala, ao lado dos grupos: as
@@ -189,9 +211,11 @@ Em **Carros**, cada item é um modelo (as versões de motor viram um só "Toyota
 Corolla"), e o secreto precisa de 3+ anos de linha e ficha completa — elétricos
 podem ser chutados, mas não sorteados, porque não têm cilindros nem cilindrada.
 Atenção a *Estreia*: a base do EPA começa em 1984, então para modelos mais
-antigos é o primeiro ano **na base**, não o lançamento real. **My Little Pony** e
-**Ordem Paranormal** são os dois universos sem coluna numérica — a PonyAPI não
-traz número nenhum e a ficha de criatura também não —, então lá não aparecem as
+antigos é o primeiro ano **na base**, não o lançamento real. **My Little Pony**, **Ordem
+Paranormal** e **JoJo** são os três universos sem coluna numérica, e por motivos
+diferentes: a PonyAPI não traz número nenhum, a ficha de criatura da Ordem
+também não, e em JoJo a numeração dos capítulos **recomeça do 1** em Steel Ball
+Run — a seta ▲ mentiria entre uma parte e outra. Nesses três não aparecem as
 setas ▲/▼.
 
 ### De onde vêm os dados
@@ -223,8 +247,9 @@ setas ▲/▼.
 | [Hunterpedia (MediaWiki)](https://hunterxhunter.fandom.com/) | não |
 | [Ordem Paranormal Wiki (MediaWiki)](https://ordemparanormal.fandom.com/) | não |
 | [Ben 10 Wiki (MediaWiki)](https://ben10.fandom.com/) | não |
+| [JoJo's Bizarre Encyclopedia (MediaWiki)](https://jojo.fandom.com/) | não |
 
-Sete fontes pedidas **não** deram para usar direto e foram substituídas:
+Oito fontes pedidas **não** deram para usar direto e foram substituídas:
 
 - **developer.riotgames.com** exige chave que expira a cada 24h e serve dados de
   partidas, não a ficha dos campeões. O **Data Dragon** da própria Riot é aberto,
@@ -258,6 +283,10 @@ Sete fontes pedidas **não** deram para usar direto e foram substituídas:
   a de Hunter × Hunter. Ben 10 vem da **Ben 10 Wiki**, e ganha com a troca: são
   317 fichas de alien, e a lista de quem carrega cada relógio sai das navbox do
   próprio wiki.
+- **jojos-bizarre-api.netlify.app** responde 200 em `/api/characters`, mas com
+  `text/html`: é um site, não um endpoint. JoJo vem da **JoJo's Bizarre
+  Encyclopedia**, que tem as duas fichas de que o jogo precisa — a do
+  personagem e a do Stand.
 
 ### O elenco do Naruto
 
@@ -515,8 +544,8 @@ npm test
 ```
 
 Sobe o servidor de verdade, conecta jogadores falsos e joga partidas completas
-nos dois modos e **nos vinte universos**, verificando turnos, dicas, timeout,
-pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 228
+nos dois modos e **nos vinte e um universos**, verificando turnos, dicas, timeout,
+pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 262
 verificações.
 
 ## Atualizar os dados
@@ -531,7 +560,7 @@ Ou um de cada vez: `build:pokedex`, `build:bleach`, `build:clash`,
 `build:naruto`, `build:yugioh`, `build:lol`, `build:valorant`,
 `build:rickmorty`, `build:heroes`, `build:potter`, `build:lotr`, `build:f1`,
 `build:cars`, `build:mlp`, `build:onepiece`, `build:dragonball`, `build:hxh`,
-`build:ordem`, `build:ben10`.
+`build:ordem`, `build:ben10`, `build:jojo`.
 As respostas ficam em `.cache/`, então rodar de novo é instantâneo.
 
 Depois de regerar um dataset, `npm run mirror:sprites` baixa as miniaturas que
@@ -539,7 +568,7 @@ entraram — veja [Se as APIs caírem](#se-as-apis-caírem).
 
 ## Se as APIs caírem
 
-O jogo não fala com API nenhuma em tempo de execução: os vinte datasets vivem
+O jogo não fala com API nenhuma em tempo de execução: os vinte e um datasets vivem
 em `data/*.json`, versionados junto do código, e o `src/catalog.js` lê tudo do
 disco na subida. Com todas as fontes fora do ar, as partidas continuam iguais.
 
@@ -552,7 +581,7 @@ npm run mirror:sprites
 
 Baixa cada `sprite`, reduz para 128px (o tamanho em que ela aparece na busca de
 chute e na tabela de dicas) e grava em `data/sprites/<universo>/<id>.webp`: são
-9.106 arquivos, 29,2 MB no total — os originais crus dariam ~1,5 GB. Rodar de
+9.449 arquivos, 30,7 MB no total — os originais crus dariam ~1,5 GB. Rodar de
 novo pega só o que falta, `--only=<universo>` limita a um universo e `--force`
 refaz tudo. Hoje o espelho cobre 100% dos itens que têm imagem.
 

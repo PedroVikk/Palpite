@@ -450,6 +450,31 @@ const BEN10_SERIES_PT = {
   ultimatealien: 'Ultimate Alien', omniverse: 'Omniverse', reboot: 'Reboot (2016)',
 };
 
+const JOJO_PART_PT = {
+  parte1: 'Phantom Blood', parte2: 'Battle Tendency', parte3: 'Stardust Crusaders',
+  parte4: 'Diamond is Unbreakable', parte5: 'Vento Aureo', parte6: 'Stone Ocean',
+  parte7: 'Steel Ball Run', parte8: 'JoJolion', parte9: 'The JOJOLands',
+};
+
+/**
+ * O tipo do Stand sai da ficha do proprio Stand. "Não tem" e metade do elenco:
+ * as partes 1 e 2 sao inteiras de Hamon, antes de o Stand existir.
+ */
+const JOJO_STAND_PT = {
+  perto: 'Curta distância', longe: 'Longa distância', automatico: 'Automático',
+  colonia: 'Colônia', ligado: 'Preso a algo', integrado: 'Integrado',
+  outro: 'Outro tipo', nenhum: 'Não tem',
+};
+
+const JOJO_NATION_PT = {
+  japao: 'Japão', eua: 'EUA', italia: 'Itália', 'reino-unido': 'Reino Unido',
+  egito: 'Egito', alemanha: 'Alemanha', outra: 'Outra', 'nao-dita': 'Não dita',
+};
+
+const JOJO_STATUS_PT = {
+  vivo: 'Vivo', morto: 'Morto', aposentado: 'Aposentado', desconhecido: 'Desconhecido',
+};
+
 /**
  * A coluna de campanha mostra o mesmo balde que o lobby liga e desliga, entao
  * o rotulo aqui e o do grupo — o dataset guarda so o id.
@@ -1166,6 +1191,40 @@ export const UNIVERSES = {
       // ano e coluna a parte da serie porque separa dentro dela: entre os 53
       // aliens de Omniverse, 2012 e 2014 sao duas metades diferentes do elenco
       { key: 'debutYear', label: 'Estreia', kind: 'number', nearby: 1 },
+    ],
+  },
+
+  jojo: {
+    id: 'jojo',
+    label: "JoJo's Bizarre Adventure",
+    secretLabel: 'o personagem secreto',
+    dataFile: 'jojo.json',
+    groupLabel: 'Partes',
+    groups: [
+      { id: 'parte1', label: '1 · Phantom Blood' },
+      { id: 'parte2', label: '2 · Battle Tendency' },
+      { id: 'parte3', label: '3 · Stardust Crusaders' },
+      { id: 'parte4', label: '4 · Diamond is Unbreakable' },
+      { id: 'parte5', label: '5 · Vento Aureo' },
+      { id: 'parte6', label: '6 · Stone Ocean' },
+      { id: 'parte7', label: '7 · Steel Ball Run' },
+      { id: 'parte8', label: '8 · JoJolion' },
+      { id: 'parte9', label: '9 · The JOJOLands' },
+    ],
+    defaultGroups: [
+      'parte1', 'parte2', 'parte3', 'parte4', 'parte5',
+      'parte6', 'parte7', 'parte8', 'parte9',
+    ],
+    // aqui as partes ja sao os grupos, como as geracoes do Pokemon — quem parou
+    // na parte 4 desliga as outras, e nao ha um segundo eixo a declarar.
+    // Tambem nao ha coluna numerica: a numeracao dos capitulos recomeca do 1 em
+    // Steel Ball Run, e a seta ▲ mentiria entre uma parte e outra
+    columns: [
+      { key: 'part', label: 'Parte', kind: 'text', labels: JOJO_PART_PT },
+      { key: 'gender', label: 'Gênero', kind: 'text', labels: { M: 'Masculino', F: 'Feminino' } },
+      { key: 'stand', label: 'Stand', kind: 'text', labels: JOJO_STAND_PT },
+      { key: 'nation', label: 'Nacionalidade', kind: 'text', labels: JOJO_NATION_PT },
+      { key: 'status', label: 'Estado', kind: 'text', labels: JOJO_STATUS_PT },
     ],
   },
 };
