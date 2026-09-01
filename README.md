@@ -1,6 +1,6 @@
 # Palpite
 
-Um jogo de adivinhação multiplayer no estilo Pokédle, com **dezoito universos**.
+Um jogo de adivinhação multiplayer no estilo Pokédle, com **dezenove universos**.
 Um secreto por rodada, todo mundo na mesma sala, **um chute por vez**. Cada
 chute vira uma linha de dicas visível para todos — verde acerta, amarelo chega
 perto, seta indica se o secreto é maior ou menor.
@@ -47,6 +47,7 @@ npx cloudflared tunnel --url http://localhost:3000
 | **One Piece** | 786 | 375 | 7 facções | Tripulação, Papel, Fruta, Origem, Status, Recompensa, Altura, Idade |
 | **Dragon Ball** | 58 | 43 | 6 raças | Raça, Gênero, Afiliação, Planeta, Transformações, Ki base, Ki máximo |
 | **Hunter × Hunter 2011** | 607 | 447 | 7 facções | Gênero, Nen, Estado, Afiliação, Ocupação, Cabelo, Estreia |
+| **Ordem Paranormal** | 123 | 99 | 6 campanhas + livros | Elemento, Complemento, Campanha, Facção, Onde aparece |
 
 **Sorteáveis** são os que entram na partida: viram segredo e são os únicos
 nomes que a busca de chute oferece. Quem fica de fora não existe para a sala —
@@ -107,6 +108,19 @@ nen, nunca disseram qual) e a ficha sem o campo, que é quem nunca foi mostrado
 usando nen — as três valem como dica e fecham verde contra a igual. *Ocupação*
 agrupa o texto livre da wiki em treze papéis, senão cada personagem teria um
 valor único e a coluna nunca ficaria verde.
+
+Em **Ordem Paranormal** o segredo é a criatura, não o personagem, e a ficha da
+wiki já vem escrita na forma como o fã fala dela: `elementos = Morte,Medo` é
+"criatura de Morte com complemento de Medo". Daí saem as duas primeiras colunas
+— *Elemento* é o primeiro da lista, *Complemento* é o resto, e a Degolificada
+tem os cinco. *Facção* precisou de poda: `associação` diz "Ocultismo" em 105 das
+123 fichas (é a categoria, não a dica) e o que sobra mistura organização com
+endereço, então ficam as cinco que têm dono reconhecível — Panacea, Alheios,
+Santo Berço, Escriptas e Infecticídio — e o resto vira *Outra*, que também é
+resposta. Os grupos são as campanhas, e **Livros e pacotes** é onde ficam as 41
+criaturas que nenhuma mesa mostrou: quem só assistiu às campanhas desliga esse
+botão. As 22 sem elemento nenhum são bicho da Realidade — o javali da ilha, a
+cobra da mina —, e por isso podem ser chutadas mas não sorteadas.
 
 ### As épocas
 
@@ -182,8 +196,9 @@ não aparecem as setas ▲/▼.
 | [One Piece Wiki (MediaWiki)](https://onepiece.fandom.com/) | não |
 | [Dragon Ball API](https://dragonball-api.com/) | não |
 | [Hunterpedia (MediaWiki)](https://hunterxhunter.fandom.com/) | não |
+| [Ordem Paranormal Wiki (MediaWiki)](https://ordemparanormal.fandom.com/) | não |
 
-Cinco fontes pedidas **não** deram para usar direto e foram substituídas:
+Seis fontes pedidas **não** deram para usar direto e foram substituídas:
 
 - **developer.riotgames.com** exige chave que expira a cada 24h e serve dados de
   partidas, não a ficha dos campeões. O **Data Dragon** da própria Riot é aberto,
@@ -206,6 +221,12 @@ Cinco fontes pedidas **não** deram para usar direto e foram substituídas:
   responde `402 DEPLOYMENT_DISABLED` — está fora do ar. Hunter × Hunter vem da
   API do MediaWiki da **Hunterpedia**: `list=embeddedin` acha as 610 páginas que
   transcluem a ficha de personagem, e o resto é limpar wikitexto.
+- **Ordem Paranormal** não tem API nenhuma. Os repositórios que aparecem na
+  busca são ficha de personagem para rodar local, e o sistema de FoundryVTT, que
+  tem o schema certo (elementos, defesa, vulnerabilidades), traz **uma** criatura
+  de exemplo — o conteúdo do Livro de Regras não é redistribuído. A **Ordem
+  Paranormal Wiki** resolve melhor do que uma API resolveria: é em pt-BR, e a
+  ficha já grava `elementos = Morte,Medo`, que é a dica pronta.
 
 ### O elenco do Naruto
 
@@ -463,7 +484,7 @@ npm test
 ```
 
 Sobe o servidor de verdade, conecta jogadores falsos e joga partidas completas
-nos dois modos e **nos dezoito universos**, verificando turnos, dicas, timeout,
+nos dois modos e **nos dezenove universos**, verificando turnos, dicas, timeout,
 pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 228
 verificações.
 
@@ -478,7 +499,8 @@ npm run build:data
 Ou um de cada vez: `build:pokedex`, `build:bleach`, `build:clash`,
 `build:naruto`, `build:yugioh`, `build:lol`, `build:valorant`,
 `build:rickmorty`, `build:heroes`, `build:potter`, `build:lotr`, `build:f1`,
-`build:cars`, `build:mlp`, `build:onepiece`, `build:dragonball`, `build:hxh`.
+`build:cars`, `build:mlp`, `build:onepiece`, `build:dragonball`, `build:hxh`,
+`build:ordem`.
 As respostas ficam em `.cache/`, então rodar de novo é instantâneo.
 
 Depois de regerar um dataset, `npm run mirror:sprites` baixa as miniaturas que
@@ -486,7 +508,7 @@ entraram — veja [Se as APIs caírem](#se-as-apis-caírem).
 
 ## Se as APIs caírem
 
-O jogo não fala com API nenhuma em tempo de execução: os dezoito datasets vivem
+O jogo não fala com API nenhuma em tempo de execução: os dezenove datasets vivem
 em `data/*.json`, versionados junto do código, e o `src/catalog.js` lê tudo do
 disco na subida. Com todas as fontes fora do ar, as partidas continuam iguais.
 
@@ -499,7 +521,7 @@ npm run mirror:sprites
 
 Baixa cada `sprite`, reduz para 128px (o tamanho em que ela aparece na busca de
 chute e na tabela de dicas) e grava em `data/sprites/<universo>/<id>.webp`: são
-9.080 arquivos, 27,9 MB no total — os originais crus dariam ~1,5 GB. Rodar de
+8.894 arquivos, 28,3 MB no total — os originais crus dariam ~1,5 GB. Rodar de
 novo pega só o que falta, `--only=<universo>` limita a um universo e `--force`
 refaz tudo. Hoje o espelho cobre 100% dos itens que têm imagem.
 

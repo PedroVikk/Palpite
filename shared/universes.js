@@ -429,6 +429,16 @@ const NARUTO_CLASS_PT = {
   'Cooking-nin': 'Ninja cozinheiro',
 };
 
+/**
+ * A coluna de campanha mostra o mesmo balde que o lobby liga e desliga, entao
+ * o rotulo aqui e o do grupo — o dataset guarda so o id.
+ */
+const ORDEM_CAMPAIGN_PT = {
+  osnf: 'O Segredo na Floresta', opd: 'Desconjuração', opc: 'Calamidade',
+  osni: 'O Segredo na Ilha', sdol: 'Sinais do Outro Lado', hex: 'Hexatombe',
+  livros: 'Livros e pacotes',
+};
+
 export const UNIVERSES = {
   pokemon: {
     id: 'pokemon',
@@ -1062,6 +1072,37 @@ export const UNIVERSES = {
       { key: 'job', label: 'Ocupação', kind: 'text', labels: HXH_JOB_PT },
       { key: 'hair', label: 'Cabelo', kind: 'text', labels: HAIR_PT },
       { key: 'debutChapter', label: 'Estreia', kind: 'number', prefix: 'Cap. ', tolerance: 0.1 },
+    ],
+  },
+
+  ordem: {
+    id: 'ordem',
+    label: 'Ordem Paranormal',
+    secretLabel: 'a criatura secreta',
+    dataFile: 'ordem.json',
+    groupLabel: 'Campanhas',
+    // as campanhas curtas entram na vizinha (a mesa de A Ordem Paranormal abre
+    // O Segredo na Floresta; Quarentena e Natal Macabro sao noites de Tipora),
+    // e "Livros e pacotes" e onde ficam as criaturas que nenhuma mesa mostrou
+    groups: [
+      { id: 'osnf', label: 'O Segredo na Floresta' },
+      { id: 'opd', label: 'Desconjuração' },
+      { id: 'opc', label: 'Calamidade' },
+      { id: 'osni', label: 'O Segredo na Ilha' },
+      { id: 'sdol', label: 'Sinais do Outro Lado' },
+      { id: 'hex', label: 'Hexatombe' },
+      { id: 'livros', label: 'Livros e pacotes' },
+    ],
+    defaultGroups: ['osnf', 'opd', 'opc', 'osni', 'sdol', 'hex', 'livros'],
+    // "criatura de Morte com complemento de Medo" e como o fa fala da criatura,
+    // e como a ficha do wiki grava: o primeiro elemento e o Elemento, o resto e
+    // Complemento. Sao as duas colunas que decidem a partida
+    columns: [
+      { key: 'element', label: 'Elemento', kind: 'text' },
+      { key: 'complements', label: 'Complemento', kind: 'list' },
+      { key: 'campaign', label: 'Campanha', kind: 'text', labels: ORDEM_CAMPAIGN_PT },
+      { key: 'faction', label: 'Facção', kind: 'list' },
+      { key: 'media', label: 'Onde aparece', kind: 'list' },
     ],
   },
 };
