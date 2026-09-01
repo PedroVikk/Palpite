@@ -1,6 +1,6 @@
 # Palpite
 
-Um jogo de adivinhação multiplayer no estilo Pokédle, com **dezenove universos**.
+Um jogo de adivinhação multiplayer no estilo Pokédle, com **vinte universos**.
 Um secreto por rodada, todo mundo na mesma sala, **um chute por vez**. Cada
 chute vira uma linha de dicas visível para todos — verde acerta, amarelo chega
 perto, seta indica se o secreto é maior ou menor.
@@ -48,6 +48,7 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Dragon Ball** | 58 | 43 | 6 raças | Raça, Gênero, Afiliação, Planeta, Transformações, Ki base, Ki máximo |
 | **Hunter × Hunter 2011** | 607 | 447 | 7 facções | Gênero, Nen, Estado, Afiliação, Ocupação, Cabelo, Estreia |
 | **Ordem Paranormal** | 123 | 99 | 6 campanhas + livros | Elemento, Complemento, Campanha, Facção, Onde aparece |
+| **Ben 10** | 212 | 171 | 5 relógios | Espécie, Planeta natal, Poderes, Série, Estreia |
 
 **Sorteáveis** são os que entram na partida: viram segredo e são os únicos
 nomes que a busca de chute oferece. Quem fica de fora não existe para a sala —
@@ -122,6 +123,20 @@ criaturas que nenhuma mesa mostrou: quem só assistiu às campanhas desliga esse
 botão. As 22 sem elemento nenhum são bicho da Realidade — o javali da ilha, a
 cobra da mina —, e por isso podem ser chutadas mas não sorteadas.
 
+Em **Ben 10** o grupo é o relógio, não a série: os aliens do Omnitrix do Ben, os
+do Reboot, os predadores do Nemetrix do Khyber, os do Ben 23 e os do Kevin 11.
+Quem diz isso não é a ficha do alien e sim as navbox do wiki, e é também o que
+recorta o elenco — os 78 aliens de jogo, brinquedo e material promocional não
+estão em navbox nenhuma e ficam de fora, junto dos dez da Dynamite, que são os
+mesmos aliens redesenhados para o quadrinho. *Poderes* é a coluna que precisou
+de mais poda: a ficha do Pyronite lista 35, e "Enhanced Strength" aparece em 156
+dos 298 aliens — força, resistência e salto são de todo mundo e não dizem nada.
+Ficaram 24 famílias que identificam o alien, no máximo cinco por linha. Ficou de
+fora *Tipo de corpo*: 54 fichas não preenchem o campo, e ali o vazio é lacuna,
+não resposta — o corpo aparece na tela, o wiki é que não anotou. *Série* e
+*Estreia* saem do episódio, não do alien: a ficha dá o nome do episódio, e o
+`{{EpisodeInfoBox}}` dele dá a série e a data de exibição.
+
 ### As épocas
 
 Toda obra com linha do tempo tem um segundo eixo na sala, ao lado dos grupos: as
@@ -165,9 +180,10 @@ Em **Carros**, cada item é um modelo (as versões de motor viram um só "Toyota
 Corolla"), e o secreto precisa de 3+ anos de linha e ficha completa — elétricos
 podem ser chutados, mas não sorteados, porque não têm cilindros nem cilindrada.
 Atenção a *Estreia*: a base do EPA começa em 1984, então para modelos mais
-antigos é o primeiro ano **na base**, não o lançamento real. **My Little Pony**
-é o único universo sem coluna numérica (a API não traz número nenhum), então lá
-não aparecem as setas ▲/▼.
+antigos é o primeiro ano **na base**, não o lançamento real. **My Little Pony** e
+**Ordem Paranormal** são os dois universos sem coluna numérica — a PonyAPI não
+traz número nenhum e a ficha de criatura também não —, então lá não aparecem as
+setas ▲/▼.
 
 ### De onde vêm os dados
 
@@ -197,8 +213,9 @@ não aparecem as setas ▲/▼.
 | [Dragon Ball API](https://dragonball-api.com/) | não |
 | [Hunterpedia (MediaWiki)](https://hunterxhunter.fandom.com/) | não |
 | [Ordem Paranormal Wiki (MediaWiki)](https://ordemparanormal.fandom.com/) | não |
+| [Ben 10 Wiki (MediaWiki)](https://ben10.fandom.com/) | não |
 
-Seis fontes pedidas **não** deram para usar direto e foram substituídas:
+Sete fontes pedidas **não** deram para usar direto e foram substituídas:
 
 - **developer.riotgames.com** exige chave que expira a cada 24h e serve dados de
   partidas, não a ficha dos campeões. O **Data Dragon** da própria Riot é aberto,
@@ -227,6 +244,11 @@ Seis fontes pedidas **não** deram para usar direto e foram substituídas:
   de exemplo — o conteúdo do Livro de Regras não é redistribuído. A **Ordem
   Paranormal Wiki** resolve melhor do que uma API resolveria: é em pt-BR, e a
   ficha já grava `elementos = Morte,Medo`, que é a dica pronta.
+- **ben10api.vercel.app**, a única API de Ben 10 das buscas, devolve 404 em
+  todas as rotas (`/api/aliens`, `/aliens`, `/api/v1/aliens`) — saiu do ar como
+  a de Hunter × Hunter. Ben 10 vem da **Ben 10 Wiki**, e ganha com a troca: são
+  317 fichas de alien, e a lista de quem carrega cada relógio sai das navbox do
+  próprio wiki.
 
 ### O elenco do Naruto
 
@@ -484,7 +506,7 @@ npm test
 ```
 
 Sobe o servidor de verdade, conecta jogadores falsos e joga partidas completas
-nos dois modos e **nos dezenove universos**, verificando turnos, dicas, timeout,
+nos dois modos e **nos vinte universos**, verificando turnos, dicas, timeout,
 pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 228
 verificações.
 
@@ -500,7 +522,7 @@ Ou um de cada vez: `build:pokedex`, `build:bleach`, `build:clash`,
 `build:naruto`, `build:yugioh`, `build:lol`, `build:valorant`,
 `build:rickmorty`, `build:heroes`, `build:potter`, `build:lotr`, `build:f1`,
 `build:cars`, `build:mlp`, `build:onepiece`, `build:dragonball`, `build:hxh`,
-`build:ordem`.
+`build:ordem`, `build:ben10`.
 As respostas ficam em `.cache/`, então rodar de novo é instantâneo.
 
 Depois de regerar um dataset, `npm run mirror:sprites` baixa as miniaturas que
@@ -508,7 +530,7 @@ entraram — veja [Se as APIs caírem](#se-as-apis-caírem).
 
 ## Se as APIs caírem
 
-O jogo não fala com API nenhuma em tempo de execução: os dezenove datasets vivem
+O jogo não fala com API nenhuma em tempo de execução: os vinte datasets vivem
 em `data/*.json`, versionados junto do código, e o `src/catalog.js` lê tudo do
 disco na subida. Com todas as fontes fora do ar, as partidas continuam iguais.
 
@@ -521,7 +543,7 @@ npm run mirror:sprites
 
 Baixa cada `sprite`, reduz para 128px (o tamanho em que ela aparece na busca de
 chute e na tabela de dicas) e grava em `data/sprites/<universo>/<id>.webp`: são
-8.894 arquivos, 28,3 MB no total — os originais crus dariam ~1,5 GB. Rodar de
+9.106 arquivos, 29,2 MB no total — os originais crus dariam ~1,5 GB. Rodar de
 novo pega só o que falta, `--only=<universo>` limita a um universo e `--force`
 refaz tudo. Hoje o espelho cobre 100% dos itens que têm imagem.
 

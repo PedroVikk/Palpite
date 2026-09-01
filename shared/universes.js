@@ -430,6 +430,27 @@ const NARUTO_CLASS_PT = {
 };
 
 /**
+ * As familias de poder do Ben 10. A ficha do wiki lista trinta e cinco poderes
+ * para um Pyronite; o que vira dica sao estas, e forca, resistencia e salto,
+ * que quase todo alien tem, ficam fora de proposito.
+ */
+const BEN10_POWER_PT = {
+  fogo: 'Fogo', gelo: 'Gelo', eletricidade: 'Eletricidade', agua: 'Água',
+  planta: 'Planta', terra: 'Terra', cristal: 'Cristal', magnetismo: 'Magnetismo',
+  voo: 'Voo', velocidade: 'Velocidade', intangibilidade: 'Intangibilidade',
+  invisibilidade: 'Invisibilidade', elasticidade: 'Elasticidade',
+  metamorfose: 'Metamorfose', tamanho: 'Tamanho', regeneracao: 'Regeneração',
+  tecnologia: 'Tecnologia', som: 'Som', veneno: 'Ácido e veneno',
+  energia: 'Energia', teia: 'Teia', esfera: 'Bola', escavacao: 'Escavação',
+  realidade: 'Realidade', nenhum: 'Nenhum',
+};
+
+const BEN10_SERIES_PT = {
+  classica: 'Ben 10 (2005)', alienforce: 'Alien Force',
+  ultimatealien: 'Ultimate Alien', omniverse: 'Omniverse', reboot: 'Reboot (2016)',
+};
+
+/**
  * A coluna de campanha mostra o mesmo balde que o lobby liga e desliga, entao
  * o rotulo aqui e o do grupo — o dataset guarda so o id.
  */
@@ -954,8 +975,8 @@ export const UNIVERSES = {
       { id: 'outros', label: 'Outras espécies' },
     ],
     defaultGroups: ['terrestre', 'unicornio', 'pegaso', 'alicornio', 'humano', 'outros'],
-    // a PonyAPI nao traz nenhum numero, entao este e o unico universo sem
-    // coluna numerica — aqui nao ha setas ▲/▼
+    // a PonyAPI nao traz nenhum numero, entao aqui nao ha coluna numerica nem
+    // setas ▲/▼ — o mesmo vale para Ordem Paranormal
     columns: [
       { key: 'kinds', label: 'Espécie', kind: 'list', labels: MLP_KIND_PT },
       { key: 'gender', label: 'Gênero', kind: 'text', labels: MLP_GENDER_PT },
@@ -1103,6 +1124,34 @@ export const UNIVERSES = {
       { key: 'campaign', label: 'Campanha', kind: 'text', labels: ORDEM_CAMPAIGN_PT },
       { key: 'faction', label: 'Facção', kind: 'list' },
       { key: 'media', label: 'Onde aparece', kind: 'list' },
+    ],
+  },
+
+  ben10: {
+    id: 'ben10',
+    label: 'Ben 10',
+    secretLabel: 'o alien secreto',
+    dataFile: 'ben10.json',
+    groupLabel: 'Relógios',
+    // o grupo e o relogio, que e como a serie separa os aliens: os do Omnitrix
+    // do Ben, os do Reboot, os predadores do Nemetrix do Khyber, os do Ben 23
+    // e os do Kevin. Nao canonico e de brinquedo nao entra no dataset
+    groups: [
+      { id: 'ben', label: 'Omnitrix do Ben' },
+      { id: 'reboot', label: 'Omnitrix do Reboot' },
+      { id: 'ben23', label: 'Ben 23' },
+      { id: 'kevin', label: 'Kevin 11' },
+      { id: 'nemetrix', label: 'Nemetrix' },
+    ],
+    defaultGroups: ['ben', 'reboot', 'ben23', 'kevin', 'nemetrix'],
+    columns: [
+      { key: 'species', label: 'Espécie', kind: 'text' },
+      { key: 'planet', label: 'Planeta natal', kind: 'text' },
+      { key: 'powers', label: 'Poderes', kind: 'list', labels: BEN10_POWER_PT },
+      { key: 'series', label: 'Série', kind: 'text', labels: BEN10_SERIES_PT },
+      // ano e coluna a parte da serie porque separa dentro dela: entre os 53
+      // aliens de Omniverse, 2012 e 2014 sao duas metades diferentes do elenco
+      { key: 'debutYear', label: 'Estreia', kind: 'number', nearby: 1 },
     ],
   },
 };

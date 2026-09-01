@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Palpite - adivinhe o secreto em turnos com os amigos, em 19 universos",
+  "description": "Palpite - adivinhe o secreto em turnos com os amigos, em 20 universos",
   "scripts": {
     "start": "node src/server.js",
     "build": "npm --prefix client ci --include=dev && npm --prefix client run build",
@@ -12,7 +12,7 @@
     "test": "node scripts/smoke-test.mjs",
     "build:pokedex": "node scripts/build-pokedex.mjs",
     "build:bleach": "node scripts/build-bleach.mjs",
-    "build:data": "npm run build:pokedex && npm run build:bleach && npm run build:naruto && npm run build:clash && npm run build:yugioh && npm run build:lol && npm run build:valorant && npm run build:rickmorty && npm run build:heroes && npm run build:potter && npm run build:lotr && npm run build:f1 && npm run build:cars && npm run build:mlp && npm run build:onepiece && npm run build:dragonball && npm run build:hxh && npm run build:ordem",
+    "build:data": "npm run build:pokedex && npm run build:bleach && npm run build:naruto && npm run build:clash && npm run build:yugioh && npm run build:lol && npm run build:valorant && npm run build:rickmorty && npm run build:heroes && npm run build:potter && npm run build:lotr && npm run build:f1 && npm run build:cars && npm run build:mlp && npm run build:onepiece && npm run build:dragonball && npm run build:hxh && npm run build:ordem && npm run build:ben10",
     "mirror:sprites": "node scripts/mirror-sprites.mjs",
     "build:naruto": "node scripts/build-naruto.mjs",
     "build:clash": "node --max-old-space-size=2048 scripts/build-clash.mjs",
@@ -29,7 +29,8 @@
     "build:onepiece": "node scripts/build-onepiece.mjs",
     "build:dragonball": "node scripts/build-dragonball.mjs",
     "build:hxh": "node scripts/build-hxh.mjs",
-    "build:ordem": "node scripts/build-ordem.mjs"
+    "build:ordem": "node scripts/build-ordem.mjs",
+    "build:ben10": "node scripts/build-ben10.mjs"
   },
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
