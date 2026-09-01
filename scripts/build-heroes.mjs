@@ -70,6 +70,45 @@ console.log('Baixando a base de super-herois...\n');
  * documentam a HQ de origem, e sem olhar a categoria a Garota-Esquilo entraria
  * como personagem de cinema.
  */
+/**
+ * O que os tres wikis nao pegam, conferido a mao.
+ *
+ * Sao dois casos. O primeiro e a franquia de fora: a base tem Star Wars, Alien,
+ * Hellboy e companhia, e nenhum wiki de filme da Marvel ou da DC sabe deles. O
+ * segundo e o filme antigo ou a serie que nao entrou nos tres wikis — a
+ * Trilogia do Cavaleiro das Trevas, o Lanterna Verde de 2011, o Watchmen, os
+ * X-Men de antes do reboot, o Arrowverse.
+ *
+ * Cada nome aqui foi conferido um a um; na duvida (aparicao de dois segundos,
+ * so animacao, so videogame) ficou de fora.
+ */
+const NA_TELA_A_MAO = [
+  // Star Wars, Star Trek e outras franquias que nasceram na tela
+  'Boba Fett', 'Darth Maul', 'Darth Vader', 'Greedo', 'Han Solo', 'Jar Jar Binks',
+  'Luke Skywalker', 'Rey', 'Stormtrooper', 'Yoda', 'Indiana Jones',
+  'James T. Kirk', 'Spock', 'James Bond', 'Master Chief', 'Paul Blart', 'Sauron',
+  // quadrinho de outra editora que virou filme ou serie
+  'Hellboy', 'Abe Sapien', 'Spawn', 'Judge Dredd', 'Alien', 'Predator',
+  'Buffy', 'T-1000', 'Mr Incredible', 'Elastigirl', 'Dash', 'Violet Parr', 'Jack-Jack',
+  'Goku', 'Vegeta', 'Naruto Uzumaki', 'One Punch Man',
+  // Batman de Nolan, Burton e Schumacher
+  'Bane', 'Penguin', 'Two-Face', 'Scarecrow', "Ra's Al Ghul", 'Mister Freeze',
+  'Nightwing', 'Robin',
+  // Lanterna Verde (2011) e Watchmen (2009)
+  'Hal Jordan', 'Sinestro', 'Kilowog', 'Abin Sur', 'Rorschach', 'The Comedian',
+  // X-Men e o resto da Fox
+  'Banshee', 'Bishop', 'Blink', 'Cable', 'Domino', 'Havok', 'Sunspot',
+  'Cannonball', 'Wolfsbane', 'Warpath', 'Angel', 'Archangel', 'Legion',
+  // Homem-Aranha fora do MCU
+  'Kraven the Hunter', 'Rhino', 'Green Goblin II', 'Molten Man', 'Hydro-Man',
+  // MCU que o wiki listou so pelo nome civil
+  'Ant-Man II', 'Yellowjacket II',
+  // Arrowverse, Titans, Supergirl, Stargirl
+  'Supergirl', 'Green Arrow', 'Beast Boy', 'Raven', 'Starfire', 'Superboy',
+  'Gorilla Grodd', 'Firestorm', 'Elongated Man', 'Professor Zoom', 'Zoom',
+  'Stargirl', 'Black Lightning', 'Cheetah III', 'Krypto', 'Hawkgirl', 'Guy Gardner',
+];
+
 const WIKIS_DE_FILME = ['marvelcinematicuniverse', 'dcextendeduniverse', 'xmenmovies'];
 
 /**
@@ -103,6 +142,11 @@ async function naTela(nomes) {
   const faltando = nomes.filter(nome => mapa[nome] === undefined);
   if (!faltando.length) return mapa;
   for (const nome of faltando) mapa[nome] = false;
+
+  const conhecidos = new Set(nomes);
+  const orfaos = NA_TELA_A_MAO.filter(nome => !conhecidos.has(nome));
+  if (orfaos.length) console.log(`  a lista a mao cita ${orfaos.length} nome(s) que nao existem na base: ${orfaos.join(', ')}`);
+  for (const nome of NA_TELA_A_MAO) if (conhecidos.has(nome)) mapa[nome] = true;
 
   for (const wiki of WIKIS_DE_FILME) {
     for (let i = 0; i < faltando.length; i += 20) {

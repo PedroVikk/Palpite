@@ -763,13 +763,12 @@ export const UNIVERSES = {
     ],
     defaultGroups: ['marvel', 'dc', 'outros'],
     // a base so conhece a HQ; quem chegou a tela sai dos wikis dos filmes da
-    // Marvel e da DC, entao "Filmes" e o cinema dessas duas — herói de outra
-    // editora que virou filme (Hellboy, Spawn) fica nos quadrinhos
+    // Marvel e da DC, mais a lista a mao do build para o que eles nao cobrem
     scope: {
       label: 'Épocas',
       key: 'era',
       options: [
-        { id: 'filmes', label: 'Filmes', hint: 'Quem apareceu nos filmes e séries em imagem real da Marvel e da DC.' },
+        { id: 'filmes', label: 'Filmes', hint: 'Quem já apareceu em algum filme ou série.' },
         { id: 'quadrinhos', label: 'Só nos quadrinhos', hint: 'Quem nunca saiu da página.' },
       ],
     },

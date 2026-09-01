@@ -121,7 +121,7 @@ parou no meio deixa só as que viu.
 | **One Piece** | East Blue (42) · Paraíso (132) · Novo Mundo (201) |
 | **Rick and Morty** | 1ª e 2ª (84) · 3ª e 4ª (10) · 5ª em diante (3) |
 | **Hunter × Hunter** | Anime (271) · Só no mangá (176) |
-| **Super-heróis** | Filmes (199) · Só nos quadrinhos (234) |
+| **Super-heróis** | Filmes (284) · Só nos quadrinhos (149) |
 
 O corte sai sempre da estreia: capítulo do mangá, episódio, o que a fonte
 souber datar. Em Hunter × Hunter e nos super-heróis o eixo não é o tempo e sim
@@ -131,9 +131,14 @@ Nos **super-heróis** a base é só de quadrinhos, então quem chegou ao cinema 
 dos wikis dos próprios filmes: tem página lá **e** está numa categoria de
 elenco de algum título ("Avengers: Endgame Characters"). Sem olhar a categoria a
 Garota-Esquilo entraria como personagem de cinema — esses wikis também
-catalogam a HQ de origem, o jogo e o brinquedo. Como as fontes são a Marvel e a
-DC, herói de outra editora que virou filme (Hellboy, Spawn) fica nos
-quadrinhos.
+catalogam a HQ de origem, o jogo e o brinquedo.
+
+Os três wikis são de Marvel e DC, e a base é maior que isso: Star Wars, Alien,
+Hellboy, Spawn, os Incríveis. Esses, mais o que ficou fora dos wikis (a
+trilogia do Nolan, o Lanterna Verde de 2011, o Watchmen, os X-Men da Fox, o
+Arrowverse), estão numa lista conferida à mão no `build:heroes` — 85 nomes, e
+na dúvida (aparição de dois segundos, só animação, só videogame) ficaram de
+fora.
 
 No schema é um `scope` com uma lista de fases em ordem, e o item guarda em
 `era` o índice da sua. Os universos sem linha do tempo (Pokémon, Clash, LoL,
