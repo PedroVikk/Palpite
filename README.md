@@ -121,15 +121,24 @@ parou no meio deixa só as que viu.
 | **One Piece** | East Blue (42) · Paraíso (132) · Novo Mundo (201) |
 | **Rick and Morty** | 1ª e 2ª (84) · 3ª e 4ª (10) · 5ª em diante (3) |
 | **Hunter × Hunter** | Anime (271) · Só no mangá (176) |
+| **Super-heróis** | Filmes (199) · Só nos quadrinhos (234) |
 
 O corte sai sempre da estreia: capítulo do mangá, episódio, o que a fonte
-souber datar. Em Hunter × Hunter o eixo não é o tempo e sim a mídia — o mangá
-passou muito do que foi animado, e quase todo o arco de Kakin nunca chegou à
-tela —, mas o mecanismo é o mesmo.
+souber datar. Em Hunter × Hunter e nos super-heróis o eixo não é o tempo e sim
+a mídia, mas o mecanismo é o mesmo.
+
+Nos **super-heróis** a base é só de quadrinhos, então quem chegou ao cinema vem
+dos wikis dos próprios filmes: tem página lá **e** está numa categoria de
+elenco de algum título ("Avengers: Endgame Characters"). Sem olhar a categoria a
+Garota-Esquilo entraria como personagem de cinema — esses wikis também
+catalogam a HQ de origem, o jogo e o brinquedo. Como as fontes são a Marvel e a
+DC, herói de outra editora que virou filme (Hellboy, Spawn) fica nos
+quadrinhos.
 
 No schema é um `scope` com uma lista de fases em ordem, e o item guarda em
 `era` o índice da sua. Os universos sem linha do tempo (Pokémon, Clash, LoL,
-Valorant, Carros, Fórmula 1, Yu-Gi-Oh!, Senhor dos Anéis) não têm o eixo: ou a
+Valorant, Carros, Fórmula 1, Yu-Gi-Oh!, Senhor dos Anéis, Harry Potter, Dragon
+Ball, My Little Pony) não têm o eixo: ou a
 obra não tem fases, ou elas já são os grupos — a geração do Pokémon e a década
 da Fórmula 1 são exatamente isso.
 

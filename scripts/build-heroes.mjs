@@ -6,6 +6,10 @@
  * SuperHero API). O superheroapi.com exige token por usuario e a API oficial
  * da Marvel (developer.marvel.com) exige chave publica + hash privado, entao
  * este espelho e o caminho sem cadastro. Marvel e DC saem como grupos.
+ *
+ * A base so conhece a HQ, entao quem chegou ao cinema vem de outro lugar: os
+ * wikis dos proprios filmes (veja WIKIS_DE_FILME). E o que separa as duas
+ * epocas da sala — "Filmes" e "Só nos quadrinhos".
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -14,6 +18,7 @@ const SOURCE = 'https://akabab.github.io/superhero-api/api/all.json';
 const ROOT = path.resolve(process.cwd());
 const OUT = path.join(ROOT, 'data', 'heroes.json');
 const CACHE_DIR = path.join(ROOT, '.cache', 'heroes');
+const UA = { 'User-Agent': 'palpite-build/1.0 (+https://github.com/PedroVikk)' };
 
 await fs.mkdir(CACHE_DIR, { recursive: true });
 
@@ -57,8 +62,84 @@ function publisherGroup(publisher) {
 
 console.log('Baixando a base de super-herois...\n');
 
+
+/**
+ * Wikis dedicados as adaptacoes em imagem real. Um personagem que tem pagina
+ * la e esta numa categoria de elenco de algum titulo ("Avengers: Endgame
+ * Characters") apareceu na tela; quem so tem pagina, nao — esses wikis tambem
+ * documentam a HQ de origem, e sem olhar a categoria a Garota-Esquilo entraria
+ * como personagem de cinema.
+ */
+const WIKIS_DE_FILME = ['marvelcinematicuniverse', 'dcextendeduniverse', 'xmenmovies'];
+
+/**
+ * Categoria de elenco que NAO e da tela. Os wikis catalogam tambem a HQ, o
+ * jogo e o brinquedo, e todas essas categorias terminam em "Characters".
+ */
+const FORA_DA_TELA = /^(Comic|Book|Novel|Video Game|Card Game|Toy|Non-Canon|Motion Comic|Prelude|Mentioned|Unseen|Cut) /i;
+const deElenco = (titulo) => titulo.endsWith(' Characters') && !FORA_DA_TELA.test(titulo);
+
+/** O MediaWiki responde com o titulo final; isto volta ao nome que entrou. */
+function desfazerSaltos(json) {
+  const daNormalizacao = new Map((json.query?.normalized ?? []).map(n => [n.to, n.from]));
+  const doRedirect = new Map((json.query?.redirects ?? []).map(r => [r.to, r.from]));
+  return (titulo) => {
+    const antes = doRedirect.get(titulo) ?? titulo;
+    return daNormalizacao.get(antes) ?? antes;
+  };
+}
+
+/**
+ * Quem apareceu em algum filme ou serie em imagem real. O veredito de cada
+ * nome fica no cache: sao ~90 requests na primeira vez e zero nas seguintes.
+ */
+async function naTela(nomes) {
+  const file = path.join(CACHE_DIR, 'na_tela.json');
+  let mapa = {};
+  try {
+    mapa = JSON.parse(await fs.readFile(file, 'utf8'));
+  } catch {}
+
+  const faltando = nomes.filter(nome => mapa[nome] === undefined);
+  if (!faltando.length) return mapa;
+  for (const nome of faltando) mapa[nome] = false;
+
+  for (const wiki of WIKIS_DE_FILME) {
+    for (let i = 0; i < faltando.length; i += 20) {
+      process.stdout.write(`\r  ${wiki}: ${i}/${faltando.length}`);
+      const lote = faltando.slice(i, i + 20);
+      let cont = {};
+      do {
+        const params = new URLSearchParams({
+          action: 'query', prop: 'categories', titles: lote.join('|'),
+          redirects: '1', cllimit: 'max', format: 'json', ...cont,
+        });
+        const res = await fetch(`https://${wiki}.fandom.com/api.php?${params}`, {
+          headers: UA, signal: AbortSignal.timeout(20_000),
+        });
+        if (!res.ok) throw new Error(`${wiki}: HTTP ${res.status}`);
+        const json = await res.json();
+        const original = desfazerSaltos(json);
+        for (const page of Object.values(json.query?.pages ?? {})) {
+          const elenco = (page.categories ?? [])
+            .some(cat => deElenco(cat.title.replace(/^Category:/, '')));
+          if (elenco) mapa[original(page.title)] = true;
+        }
+        cont = json.continue ?? {};
+      } while (Object.keys(cont).length);
+    }
+    process.stdout.write(`\r  ${wiki}: ${faltando.length}/${faltando.length}\n`);
+  }
+
+  await fs.writeFile(file, JSON.stringify(mapa));
+  return mapa;
+}
+
 const raw = await getJSON();
 console.log(`  ${raw.length} personagens`);
+
+console.log('\nProcurando quem chegou ao cinema...');
+const naTelaPor = await naTela([...new Set(raw.map(h => String(h.name).trim()))]);
 
 const roster = raw.map((h, index) => {
   const stats = h.powerstats ?? {};
@@ -81,6 +162,8 @@ const roster = raw.map((h, index) => {
     strength: stats.strength ?? null,
     speed: stats.speed ?? null,
     height: metric(look.height, 'cm'),
+    // indice da epoca, na ordem do `scope` do schema: 0 = chegou a tela
+    era: naTelaPor[String(h.name).trim()] ? 0 : 1,
     sprite: h.images?.sm ?? h.images?.md ?? null,
     artwork: h.images?.lg ?? h.images?.md ?? null,
   };
@@ -106,6 +189,9 @@ coverage('raca', c => c.race !== 'Unknown');
 coverage('altura', c => c.height != null);
 coverage('forca', c => c.strength != null);
 coverage('sorteavel', c => c.eligible);
+
+console.log(`\nNos filmes: ${roster.filter(c => c.eligible && c.era === 0).length}`
+  + ` de ${roster.filter(c => c.eligible).length} sorteáveis`);
 
 const porGrupo = {};
 for (const c of roster) if (c.eligible) porGrupo[c.group] = (porGrupo[c.group] ?? 0) + 1;
