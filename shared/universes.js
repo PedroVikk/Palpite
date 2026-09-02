@@ -1233,6 +1233,38 @@ export const UNIVERSES = {
       { key: 'status', label: 'Estado', kind: 'text', labels: JOJO_STATUS_PT },
     ],
   },
+
+  famosos: {
+    id: 'famosos',
+    label: 'Famosos',
+    secretLabel: 'a pessoa famosa secreta',
+    dataFile: 'famosos.json',
+    groupLabel: 'Categorias',
+    groups: [
+      { id: 'musico', label: 'Músico' },
+      { id: 'ator', label: 'Ator' },
+      { id: 'atleta', label: 'Atleta' },
+      { id: 'influencer', label: 'Influencer' },
+      { id: 'gamer', label: 'Gamer' },
+    ],
+    defaultGroups: ['musico', 'ator', 'atleta', 'influencer', 'gamer'],
+    // com cinco categorias na mesma tabela, so entra coluna que exista para as
+    // cinco. Posicao, genero musical e jogo principal seriam otimas dicas e
+    // ficariam cinza em 80% da grade. Cabelo e altura caem no mesmo teste: a
+    // Wikidata sabe a cor do cabelo de 0,2% dos futebolistas, e a altura de
+    // 3,6% dos cantores contra 54,6% deles. Seguidores ficou de fora porque o
+    // numero envelhece na fonte — o do Neymar e de janeiro de 2022
+    columns: [
+      // `list`: quem e as duas coisas fecha amarelo contra as duas. O Will
+      // Smith e ator e musico, e a celula tem de dizer isso
+      { key: 'categories', label: 'Categoria', kind: 'list' },
+      { key: 'gender', label: 'Gênero', kind: 'text' },
+      { key: 'country', label: 'País', kind: 'text' },
+      // 5 anos de tolerancia: quem chuta a decada certa merece o amarelo
+      { key: 'birthYear', label: 'Nascimento', kind: 'number', nearby: 5 },
+      { key: 'status', label: 'Estado', kind: 'text' },
+    ],
+  },
 };
 
 export const DEFAULT_UNIVERSE = 'pokemon';

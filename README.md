@@ -1,6 +1,6 @@
 # Palpite
 
-Um jogo de adivinhação multiplayer no estilo Pokédle, com **vinte e um universos**.
+Um jogo de adivinhação multiplayer no estilo Pokédle, com **vinte e dois universos**.
 Um secreto por rodada, todo mundo na mesma sala, **um chute por vez**. Cada
 chute vira uma linha de dicas visível para todos — verde acerta, amarelo chega
 perto, seta indica se o secreto é maior ou menor.
@@ -50,6 +50,7 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Ordem Paranormal** | 123 | 99 | 6 campanhas + livros | Elemento, Complemento, Campanha, Facção, Onde aparece |
 | **Ben 10** | 212 | 171 | 5 relógios + Ultimates | Espécie, Planeta natal, Poderes, Série, Estreia |
 | **JoJo's Bizarre Adventure** | 343 | 229 | Com e sem Stand | Parte, Gênero, Stand, Nacionalidade, Estado |
+| **Famosos** | 2164 | 1955 | 5 categorias | Categoria, Gênero, País, Nascimento, Estado |
 
 **Sorteáveis** são os que entram na partida: viram segredo e são os únicos
 nomes que a busca de chute oferece. Quem fica de fora não existe para a sala —
@@ -177,6 +178,54 @@ Ficaram de fora *Cabelo* (45 fichas não preenchem a cor, e exigi-la zerava The
 JOJOLands inteira) e *Estreia*. Essa segunda pelo motivo que também tirou as
 setas do universo: a numeração dos capítulos recomeça do 1 em Steel Ball Run, em
 JoJolion e em The JOJOLands, então "capítulo 5" pode ser 2004 ou 1987.
+
+Em **Famosos** o elenco não sai de uma obra, e por isso é o que mais precisou de
+poda. A ocupação da Wikidata levanta o candidato — cantor, futebolista, youtuber,
+jogador profissional —, mas quem decide a categoria é a **descrição**, a linha
+que o wiki escreve embaixo do nome. Sem ela, ordenar por fama traz gente famosa
+por outra coisa: o Albert Camus e o Niels Bohr entram como atletas (os dois
+jogaram bola), a Madre Teresa entra como música, o Reagan e o Papa Francisco como
+atores, o Brian May e o Jamie Oliver como influencers — todos porque alguém
+anotou a ocupação de um dia. A descrição separa os cinco na hora: "filósofo e
+jornalista franco-argelino", "Santa da Igreja Católica", "futebolista
+brasileiro", "jogador de League of Legends sul-coreano".
+
+E ela diz mais do que a categoria: diz **qual é a principal**, porque escreve a
+principal primeiro. "ex-pugilista profissional americano" é o Mike Tyson atleta,
+e não o influencer que o inglês sugere ao emendar "media personality"; "músico e
+astrofísico britânico" é o Brian May músico. Por isso o grupo é a primeira
+categoria que a descrição menciona, e a célula *Categoria* é `list` com todas —
+o Will Smith é ator e músico, e fecha amarelo contra os dois. O português tem
+prioridade sobre o inglês pelo mesmo motivo: o de lá diz "president … and actor"
+e punha o Reagan entre os atores, o de cá diz "40.º Presidente dos Estados
+Unidos" e não deixa dúvida.
+
+**O piso de fama é baixo de propósito.** Sorteável precisa de três Wikipédias, e
+não das dezenas que atletas e atores atingem sem esforço, porque a Wikipédia
+sub-representa quem ficou famoso na internet: é entre três e cinco idiomas que
+entram o Whindersson, a Virginia, o Nobru, o Rezende e o PC Siqueira. Quem fica
+abaixo continua chutável, só não vira segredo. Ainda assim **Gamer é a categoria
+mais magra** — 277 sorteáveis contra 440 de Atleta —, e essa é a fronteira do que
+a Wikidata sabe: engordar a categoria pede a Liquipedia, que tem a ficha do
+jogador com time, país e função, e não foi usada aqui.
+
+Duas armadilhas custaram caro. `esport` casa dentro de "dirigente **esport**ivo" e
+de "de**sport**ivo", e isso fez do Joseph Blatter e do João Havelange jogadores de
+e-sports — o termo agora exige o `s`. E o QLever, o espelho por onde as consultas
+passam, devolve *zero linhas sem erro nenhum* quando a query junta `VALUES` com
+`GROUP BY`: por isso o build faz uma consulta por ocupação e junta em JS.
+
+**As colunas são as que sobrevivem às cinco categorias.** Posição, gênero musical
+e jogo principal seriam ótimas dicas e ficariam cinzas em 80% da grade. *Cor do
+cabelo* caiu no mesmo teste, e feio: 17 mil pessoas no mundo inteiro têm o campo
+preenchido na Wikidata, 0,2% dos futebolistas — e como o chute já aparece como
+retrato, a coluna diria em texto o que a imagem ao lado mostra. *Altura* é
+excelente para atleta (54,6%) e morta para cantor (3,6%). *Seguidores* ficou de
+fora porque o número envelhece na fonte: o do Instagram do Neymar está lá desde
+janeiro de 2022, e nenhum dos gamers e influencers tem o campo. Sobra *Nascimento*
+como única coluna numérica, com cinco anos de tolerância — quem acerta a década
+leva o amarelo.
+
 
 ### As épocas
 
@@ -556,7 +605,7 @@ npm test
 ```
 
 Sobe o servidor de verdade, conecta jogadores falsos e joga partidas completas
-nos dois modos e **nos vinte e um universos**, verificando turnos, dicas, timeout,
+nos dois modos e **nos vinte e dois universos**, verificando turnos, dicas, timeout,
 pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 260
 verificações.
 
@@ -580,7 +629,7 @@ entraram — veja [Se as APIs caírem](#se-as-apis-caírem).
 
 ## Se as APIs caírem
 
-O jogo não fala com API nenhuma em tempo de execução: os vinte e um datasets vivem
+O jogo não fala com API nenhuma em tempo de execução: os vinte e dois datasets vivem
 em `data/*.json`, versionados junto do código, e o `src/catalog.js` lê tudo do
 disco na subida. Com todas as fontes fora do ar, as partidas continuam iguais.
 
