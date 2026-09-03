@@ -11,6 +11,7 @@
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const API = 'https://f1api.dev/api';
 const ROOT = path.resolve(process.cwd());
@@ -41,6 +42,15 @@ async function getJSON(name, url) {
     }
   }
 }
+
+/**
+ * O nome do arquivo de cache de um lote sai do *conteudo* dele, nunca da
+ * posicao. Com `retratos_0`, `retratos_50` e afins, mudar o recorte do
+ * universo faz o lote 50 guardar um conjunto e devolver outro na rodada
+ * seguinte — o build nao reclama, so monta a ficha do piloto errado.
+ */
+const loteSlug = (prefixo, ids) =>
+  `${prefixo}-${createHash('sha1').update(ids.join('|')).digest('hex').slice(0, 12)}`;
 
 async function mapLimit(items, limit, worker) {
   const out = new Array(items.length);
@@ -197,7 +207,7 @@ const retratos = new Map();
 
 for (let i = 0; i < artigos.length; i += 50) {
   const grupo = artigos.slice(i, i + 50);
-  const page = await getJSON(`retratos_${i}`, `${WIKIPEDIA}?${new URLSearchParams({
+  const page = await getJSON(loteSlug('retratos', grupo), `${WIKIPEDIA}?${new URLSearchParams({
     format: 'json', formatversion: '2', action: 'query', prop: 'pageimages',
     piprop: 'thumbnail', pithumbsize: '400', redirects: '1', titles: grupo.join('|'),
   })}`);

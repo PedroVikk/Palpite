@@ -19,6 +19,7 @@
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const DDRAGON = 'https://ddragon.leagueoflegends.com';
 const WIKI = 'https://leagueoflegends.fandom.com/api.php';
@@ -50,6 +51,15 @@ async function fetchText(name, url) {
 const getJSON = async (name, url) => JSON.parse(await fetchText(`${name}.json`, url));
 const wiki = (name, params) =>
   getJSON(name, `${WIKI}?${new URLSearchParams({ format: 'json', formatversion: '2', ...params })}`);
+
+/**
+ * O nome do arquivo de cache de um lote sai do *conteudo* dele, nunca da
+ * posicao. Com `bios_0`, `bios_50` e afins, um campeao novo no modulo do
+ * wiki empurra a lista e faz o lote 50 guardar um conjunto e devolver outro na
+ * rodada seguinte — o build nao reclama, so monta a ficha do campeao errado.
+ */
+const loteSlug = (prefixo, ids) =>
+  `${prefixo}-${createHash('sha1').update(ids.join('|')).digest('hex').slice(0, 12)}`;
 
 // -------------------------------------------------------------- wikitexto
 
@@ -206,7 +216,7 @@ const wikiKeys = [...byApiName.values()].map(c => c.wikiKey);
 const bios = new Map();
 for (let i = 0; i < wikiKeys.length; i += 50) {
   const slice = wikiKeys.slice(i, i + 50);
-  const page = await wiki(`bios_${i}`, {
+  const page = await wiki(loteSlug('bios', slice), {
     action: 'query', prop: 'revisions', rvprop: 'content', rvslots: 'main',
     redirects: '1', titles: slice.join('|'),
   });

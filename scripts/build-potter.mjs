@@ -14,6 +14,7 @@
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const API = 'https://hp-api.onrender.com/api/characters';
 const WIKI = 'https://harrypotter.fandom.com/api.php';
@@ -45,6 +46,15 @@ async function fetchJSON(slug, url) {
 const getJSON = () => fetchJSON('characters', API);
 const wiki = (slug, params) =>
   fetchJSON(slug, `${WIKI}?${new URLSearchParams({ format: 'json', formatversion: '2', action: 'query', ...params })}`);
+
+/**
+ * O nome do arquivo de cache de um lote sai do *conteudo* dele, nunca da
+ * posicao. Com `wiki_0`, `wiki_50` e afins, mudar o recorte do universo faz
+ * o lote 50 guardar um conjunto de titulos e devolver outro na rodada
+ * seguinte — o build nao reclama, so monta a ficha do personagem errado.
+ */
+const loteSlug = (prefixo, ids) =>
+  `${prefixo}-${createHash('sha1').update(ids.join('|')).digest('hex').slice(0, 12)}`;
 
 const clean = (value) => {
   const text = String(value ?? '').trim();
@@ -179,7 +189,7 @@ const retratos = new Map();
 
 for (let i = 0; i < titulos.length; i += 50) {
   const grupo = titulos.slice(i, i + 50);
-  const page = await wiki(`wiki_${i}`, {
+  const page = await wiki(loteSlug('wiki', grupo), {
     prop: 'revisions|pageimages', rvprop: 'content', rvslots: 'main',
     piprop: 'thumbnail', pithumbsize: '400', redirects: '1', titles: grupo.join('|'),
   });
