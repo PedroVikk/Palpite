@@ -581,10 +581,16 @@ try {
     elencos.set(universe.id, data);
     const noRecorte = data
       .filter(item => !hoje.group || item.group === hoje.group)
-      .filter(scopeFilter(universe, hoje.scope ? [hoje.scope] : null));
+      .filter(scopeFilter(universe, hoje.scope));
 
-    const doSchema = (!hoje.group || universe.groups.some(g => g.id === hoje.group))
-      && (!hoje.scope || scopeOptions(universe).some(o => o.id === hoje.scope));
+    // a epoca sorteada vem como faixa: ela e todas as mais novas. A epoca fixa
+    // do schema e a excecao — nao acumula, e uma so
+    const epocas = scopeOptions(universe).map(o => o.id);
+    const faixa = !hoje.scope ? true
+      : hoje.scope.every(id => epocas.includes(id))
+        && (universe.daily?.rotate !== 'scope'
+          || epocas.slice(epocas.indexOf(hoje.scope[0])).join() === hoje.scope.join());
+    const doSchema = (!hoje.group || universe.groups.some(g => g.id === hoje.group)) && faixa;
     check(`${universe.label}: recorte do dia e do schema`, res.ok && doSchema);
     check(`${universe.label}: o dia tem candidatos de sobra`,
       hoje.poolSize === noRecorte.length && hoje.poolSize >= 15);
@@ -597,7 +603,7 @@ try {
     if (universe.daily?.scope) {
       check(`${universe.label}: a epoca fixa do schema e a do dia`,
         scopeOptions(universe).some(o => o.id === universe.daily.scope)
-        && hoje.scope === universe.daily.scope && hoje.poolSize < data.length);
+        && hoje.scope?.join() === universe.daily.scope && hoje.poolSize < data.length);
     }
     if (universe.daily?.rotate === 'group') {
       check(`${universe.label}: trancado por categoria, nao por epoca`, hoje.scope === null);
@@ -617,7 +623,7 @@ try {
   const [curtoId, curto] = [...recortes].sort((a, b) => a[1].poolSize - b[1].poolSize)[0];
   const doDia = elencos.get(curtoId)
     .filter(item => !curto.group || item.group === curto.group)
-    .filter(scopeFilter(UNIVERSES[curtoId], curto.scope ? [curto.scope] : null));
+    .filter(scopeFilter(UNIVERSES[curtoId], curto.scope));
   let acertos = 0;
   for (const item of doDia) {
     const { correct } = await (await fetch(`${URL}/api/daily/${curtoId}/guess/${item.id}`)).json();
@@ -629,7 +635,9 @@ try {
   // a trava vale tambem no servidor: aba velha nao ganha dica de fora. Os dois
   // eixos sao testados no primeiro universo que hoje estiver trancado por eles
   const comCategoria = [...recortes].find(([, dia]) => dia.group);
-  const comEpoca = [...recortes].find(([, dia]) => dia.scope);
+  // epoca que deixa alguem de fora: a faixa sorteada pode ser a historia inteira
+  const comEpoca = [...recortes].find(([id, dia]) =>
+    dia.scope && elencos.get(id).some(item => !scopeFilter(UNIVERSES[id], dia.scope)(item)));
   check('algum universo esta trancado por categoria hoje', Boolean(comCategoria));
   check('algum universo esta trancado por epoca hoje', Boolean(comEpoca));
 
@@ -644,7 +652,7 @@ try {
 
   if (comEpoca) {
     const [id, dia] = comEpoca;
-    const foraDaEpoca = elencos.get(id).find(item => !scopeFilter(UNIVERSES[id], [dia.scope])(item));
+    const foraDaEpoca = elencos.get(id).find(item => !scopeFilter(UNIVERSES[id], dia.scope)(item));
     check(`chute fora da epoca e recusado (${UNIVERSES[id].label})`,
       (await fetch(`${URL}/api/daily/${id}/guess/${foraDaEpoca.id}`)).status === 409);
   }

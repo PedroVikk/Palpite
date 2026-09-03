@@ -54,9 +54,14 @@ const eligibleOf = (universeId) => datasetOf(universeId).list.filter(item => ite
  * entra no sorteio, e eixo que sobra com uma fatia so fica solto (null): o
  * recorte seria o mesmo todo dia.
  *
- * `daily.scope` e o caso a parte: uma epoca fixa, que nao roda. E o anime do
- * Hunter x Hunter e os filmes dos herois — nao sao recorte do dia, sao o
- * pedaco do universo que o desafio reconhece.
+ * A epoca sorteada nunca vem sozinha: leva junto todas as mais novas. Uma
+ * epoca so seria so quem estreou nela, e sortear o Shippuden deixaria de fora
+ * justamente o Naruto e o Sasuke, que sao do Classico — assim o dia rende mais
+ * gente, e a fatia mais curta e sempre a ponta mais nova da historia.
+ *
+ * `daily.scope` e o caso a parte: uma epoca fixa, que nao roda nem acumula. E
+ * o anime do Hunter x Hunter e os filmes dos herois — nao e recorte do dia, e
+ * o pedaco do universo que o desafio reconhece.
  */
 export function sliceOf(universeId, date = today()) {
   const universe = UNIVERSES[universeId];
@@ -64,17 +69,19 @@ export function sliceOf(universeId, date = today()) {
   if (!daily) return { scope: null, group: null };
 
   const eligible = eligibleOf(universeId);
-  let scope = daily.scope ?? null;
+  let scope = daily.scope ? [daily.scope] : null;
   if (!scope && daily.rotate === 'scope') {
-    const epocas = scopeOptions(universe)
-      .filter(option => eligible.filter(scopeFilter(universe, [option.id])).length >= MIN_POOL);
+    const options = scopeOptions(universe);
+    const faixas = options
+      .map((_, i) => options.slice(i).map(option => option.id))
+      .filter(ids => eligible.filter(scopeFilter(universe, ids)).length >= MIN_POOL);
     // chaves proprias: epoca, categoria e segredo sao sorteios independentes
-    scope = epocas.length >= 2 ? pickFrom(epocas, `${date}:${universeId}:epoca`).id : null;
+    scope = faixas.length >= 2 ? pickFrom(faixas, `${date}:${universeId}:epoca`) : null;
   }
 
   let group = null;
   if (daily.rotate === 'group') {
-    const naEpoca = scope ? eligible.filter(scopeFilter(universe, [scope])) : eligible;
+    const naEpoca = scope ? eligible.filter(scopeFilter(universe, scope)) : eligible;
     const counts = new Map();
     for (const item of naEpoca) counts.set(item.group, (counts.get(item.group) ?? 0) + 1);
     const categorias = (universe.groups ?? []).filter(g => (counts.get(g.id) ?? 0) >= MIN_POOL);
@@ -90,7 +97,7 @@ export function inSlice(universeId, item, date = today()) {
   if (!universe || !item) return false;
   const { scope, group } = sliceOf(universeId, date);
   if (group && item.group !== group) return false;
-  return scope ? scopeFilter(universe, [scope])(item) : true;
+  return scope ? scopeFilter(universe, scope)(item) : true;
 }
 
 /** Candidatos do dia: os sorteaveis que sobram depois do recorte. */
