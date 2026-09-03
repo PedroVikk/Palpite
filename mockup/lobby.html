@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Palpite — sala de espera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================  tokens  === */
+:root{
+  --bg:#050816;
+  --surface:#0C1226;
+  --surface-2:#111931;
+
+  --line:#FFFFFF14;
+  --line-2:#FFFFFF26;
+
+  --text:#E9EDFA;
+  --text-dim:#B6BFD6;
+  --muted:#7E88A5;
+
+  --coral:#FF4E5B;
+  --coral-hi:#FF6E78;
+  --coral-lo:#DE3946;
+  --coral-glow:#FF4E5B4D;
+
+  --purple:#7C5CFF;
+  --purple-hi:#9B85FF;
+  --purple-lo:#6141F0;
+  --purple-glow:#7C5CFF4D;
+
+  --green:#22C07A;
+  --amber:#F0A92B;
+
+  --r-lg:16px;
+  --r-md:12px;
+  --r-sm:10px;
+  --r-xs:8px;
+  --pill:999px;
+
+  --shadow:0 18px 40px -24px #000000E6;
+  --shadow-lift:0 28px 56px -24px #000000F5;
+
+  --page:1240px;
+  --font:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+}
+
+*{box-sizing:border-box}
+html{-webkit-font-smoothing:antialiased}
+body{
+  margin:0;min-height:100vh;
+  font-family:var(--font);font-size:15px;line-height:1.5;
+  color:var(--text);background:var(--bg);letter-spacing:-0.01em;
+}
+h1,h2,h3,h4{margin:0;line-height:1.15;letter-spacing:-0.025em}
+p{margin:0}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input{font:inherit;color:inherit}
+ul{margin:0;padding:0;list-style:none}
+svg{display:block}
+
+/* ======================================================== ambiente  ==== */
+.ambient{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.ambient .glow{position:absolute;border-radius:50%;filter:blur(140px)}
+.ambient .g1{width:820px;height:560px;left:-260px;top:-280px;background:#FF4E5B24}
+.ambient .g2{width:760px;height:520px;right:-240px;top:-180px;background:#7C5CFF2E}
+.ambient .grid{
+  position:absolute;inset:0;
+  background-image:linear-gradient(#FFFFFF05 1px,transparent 1px),linear-gradient(90deg,#FFFFFF05 1px,transparent 1px);
+  background-size:64px 64px;
+  -webkit-mask-image:radial-gradient(1000px 620px at 50% 0%,#000,transparent 76%);
+  mask-image:radial-gradient(1000px 620px at 50% 0%,#000,transparent 76%);
+}
+.ambient .ball{position:absolute;color:#fff;opacity:.025}
+.ambient .b1{width:400px;left:-100px;bottom:4%}
+.ambient .b2{width:250px;right:6%;top:30%}
+
+/* ========================================================== topbar ==== */
+.topbar{
+  position:sticky;top:0;z-index:40;
+  background:#050816D9;backdrop-filter:blur(14px);border-bottom:1px solid var(--line);
+}
+.topbar .inner{
+  max-width:var(--page);margin:0 auto;padding:0 32px;height:62px;
+  display:flex;align-items:center;gap:12px;
+}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-0.035em;margin-right:10px}
+.logo .glyph{
+  width:29px;height:29px;border-radius:50%;flex:none;display:grid;place-items:center;
+  font-size:15px;font-weight:800;color:#fff;
+  background:radial-gradient(circle at 50% 30%,#FF6E78,#DE3946);
+  box-shadow:0 0 0 1px #FF4E5B66,0 8px 20px -8px var(--coral-glow),inset 0 1px 0 #FFFFFF59;
+}
+.pill{
+  display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 13px;border-radius:var(--pill);
+  border:1px solid var(--line);background:#FFFFFF08;
+  font-size:13px;font-weight:600;color:var(--text-dim);white-space:nowrap;
+}
+.pill.wait{background:#F0A92B14;border-color:#F0A92B38;color:var(--amber)}
+.pill.wait i{width:6px;height:6px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 3px #F0A92B26}
+.topbar .spacer{flex:1}
+.profile{
+  display:flex;align-items:center;gap:9px;padding:4px 12px 4px 4px;border-radius:var(--pill);
+  border:1px solid var(--line);background:#FFFFFF06;transition:.15s;
+}
+.profile:hover{border-color:var(--line-2);background:#FFFFFF0F}
+.profile .who{font-size:13px;font-weight:600}
+.avatar{
+  width:26px;height:26px;border-radius:50%;flex:none;display:grid;place-items:center;
+  font-size:10px;font-weight:700;color:#fff;background:linear-gradient(145deg,#9B85FF,#DE3946);
+}
+
+/* ========================================================== layout === */
+.wrap{
+  position:relative;z-index:1;max-width:var(--page);margin:0 auto;padding:26px 32px 60px;
+  display:grid;grid-template-columns:352px minmax(0,1fr);gap:20px;align-items:start;
+}
+.col{display:flex;flex-direction:column;gap:16px}
+.col.left{position:sticky;top:82px}
+
+.card{border-radius:var(--r-lg);border:1px solid var(--line);background:var(--surface);padding:20px}
+.card h3{
+  display:flex;align-items:center;gap:8px;
+  font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  margin-bottom:14px;
+}
+.card h3 .n{
+  margin-left:auto;font-size:12px;letter-spacing:0;text-transform:none;
+  color:var(--text-dim);font-weight:600;
+}
+
+/* ====================================================== código sala == */
+.codecard{
+  position:relative;overflow:hidden;text-align:center;
+  border-radius:var(--r-lg);border:1px solid var(--line-2);
+  background:radial-gradient(400px 200px at 50% -10%,#FF4E5B1F,transparent 70%),linear-gradient(180deg,#111A33,#0A1023);
+  padding:24px 20px 20px;box-shadow:var(--shadow);
+}
+.codecard::after{
+  content:"";position:absolute;left:24px;right:24px;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,#FF4E5B73,#7C5CFF59,transparent);
+}
+.codecard .k{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.codecard .v{
+  font-size:46px;font-weight:800;letter-spacing:.2em;text-indent:.2em;
+  margin:6px 0 14px;line-height:1.05;
+}
+.codecard .row{display:flex;gap:8px}
+
+/* ======================================================= jogadores === */
+.players{display:flex;flex-direction:column;gap:8px}
+.players li{
+  display:flex;align-items:center;gap:11px;padding:10px 12px;
+  border-radius:var(--r-sm);border:1px solid var(--line);background:#FFFFFF06;
+}
+.players li.me{border-color:#7C5CFF3D;background:#7C5CFF0F}
+.players li.gone{opacity:.45}
+.players .avatar{width:28px;height:28px;font-size:10px}
+.players .nm{font-size:14px;font-weight:650;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.players .nm small{color:var(--muted);font-weight:500}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none;box-shadow:0 0 0 3px #22C07A26}
+.dot.off{background:#3A465E;box-shadow:none}
+.tag{
+  display:inline-flex;align-items:center;padding:3px 9px;border-radius:var(--pill);
+  font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;border:1px solid transparent;
+}
+.tag.host{background:#FF4E5B1F;color:var(--coral-hi);border-color:#FF4E5B38}
+.tag.ghost{background:#FFFFFF0A;color:var(--muted);border-color:var(--line)}
+.empty-seat{
+  display:flex;align-items:center;gap:11px;padding:10px 12px;
+  border-radius:var(--r-sm);border:1px dashed var(--line-2);color:var(--muted);font-size:13px;
+}
+.empty-seat .slot{
+  width:28px;height:28px;border-radius:50%;border:1px dashed var(--line-2);
+  display:grid;place-items:center;font-size:13px;
+}
+
+/* ===================================================== configurações = */
+.field{margin-bottom:20px}
+.field:last-child{margin-bottom:0}
+.f-label{
+  display:flex;align-items:center;gap:7px;font-size:13px;font-weight:650;
+  color:var(--text-dim);margin-bottom:9px;
+}
+.f-label .i{color:var(--muted);display:flex}
+.f-help{font-size:12.5px;color:var(--muted);margin-top:9px}
+.f-help b{color:var(--text-dim);font-weight:650}
+
+/* modo: dois cartões em vez de um select — o estado escolhido fica visível */
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mode{
+  display:flex;align-items:flex-start;gap:11px;padding:13px 14px;text-align:left;
+  border-radius:var(--r-md);border:1px solid var(--line);background:#FFFFFF06;transition:.15s;
+}
+.mode:hover{border-color:var(--line-2)}
+.mode .ico{
+  width:34px;height:34px;border-radius:10px;flex:none;display:grid;place-items:center;
+  background:#FFFFFF0A;border:1px solid var(--line);color:var(--muted);
+}
+.mode b{display:block;font-size:14px;font-weight:650}
+.mode small{display:block;font-size:12px;color:var(--muted);line-height:1.45;margin-top:2px}
+.mode.on{border-color:var(--purple);background:#7C5CFF14;box-shadow:0 0 0 3px var(--purple-glow)}
+.mode.on .ico{background:#7C5CFF24;border-color:#7C5CFF4D;color:var(--purple-hi)}
+
+/* seletor de universo */
+.universe{position:relative}
+.universe-trigger{
+  width:100%;display:flex;align-items:center;gap:11px;height:52px;padding:0 14px;
+  border-radius:var(--r-sm);border:1px solid var(--line-2);background:#FFFFFF08;text-align:left;
+  transition:.15s;
+}
+.universe-trigger:hover{border-color:#7C5CFF66;background:#FFFFFF0D}
+.universe-trigger[aria-expanded="true"]{border-color:var(--purple);box-shadow:0 0 0 3px var(--purple-glow)}
+.universe-trigger .txt{flex:1;min-width:0}
+.universe-trigger .name{display:block;font-size:14.5px;font-weight:650}
+.universe-trigger .desc{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.universe-trigger .chev{color:var(--muted);flex:none;transition:transform .18s}
+.universe-trigger[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.mono{
+  width:32px;height:32px;border-radius:9px;flex:none;display:grid;place-items:center;
+  font-size:11px;font-weight:800;letter-spacing:-0.03em;color:#fff;box-shadow:inset 0 1px 0 #FFFFFF33;
+}
+.universe-panel{
+  position:absolute;z-index:60;top:calc(100% + 8px);left:0;right:0;
+  border-radius:var(--r-md);border:1px solid var(--line-2);
+  background:#0A0F22F5;backdrop-filter:blur(18px);box-shadow:var(--shadow-lift);overflow:hidden;
+}
+.universe-panel[hidden]{display:none}
+.usearch{display:flex;align-items:center;gap:9px;padding:11px 13px;border-bottom:1px solid var(--line)}
+.usearch svg{color:var(--muted);flex:none}
+.usearch input{flex:1;min-width:0;background:none;border:0;outline:none;font-size:14px}
+.usearch input::placeholder{color:var(--muted)}
+.usearch kbd{
+  font-family:var(--font);font-size:10px;font-weight:600;color:var(--muted);
+  border:1px solid var(--line-2);border-radius:5px;padding:2px 6px;background:#FFFFFF08;
+}
+.ulist{max-height:290px;overflow-y:auto;padding:6px;scrollbar-width:thin;scrollbar-color:#FFFFFF1F transparent}
+.ulist::-webkit-scrollbar{width:10px}
+.ulist::-webkit-scrollbar-thumb{background:#FFFFFF1F;border:3px solid transparent;background-clip:content-box;border-radius:99px}
+.ulist li{
+  display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:var(--r-xs);
+  cursor:pointer;border:1px solid transparent;transition:.12s;
+}
+.ulist li:hover{background:#FFFFFF0A}
+.ulist li[aria-selected="true"]{background:linear-gradient(90deg,#7C5CFF1F,#FF4E5B12);border-color:#7C5CFF5C}
+.ulist .txt{flex:1;min-width:0}
+.ulist .name{display:block;font-size:13.5px;font-weight:600}
+.ulist .desc{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ulist .check{color:var(--purple-hi);opacity:0;flex:none}
+.ulist li[aria-selected="true"] .check{opacity:1}
+.ulist .none{padding:24px;text-align:center;color:var(--muted);font-size:13px}
+.ufoot{
+  display:flex;align-items:center;gap:8px;padding:11px 14px;border-top:1px solid var(--line);
+  font-size:13px;color:var(--muted);cursor:pointer;width:100%;transition:.15s;
+}
+.ufoot:hover{color:var(--purple-hi);background:#7C5CFF0F}
+
+/* chips de geração/época */
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:var(--pill);
+  border:1px solid var(--line-2);background:#FFFFFF08;
+  font-size:13.5px;font-weight:600;color:var(--text-dim);transition:.15s;
+}
+.chip:hover{border-color:#7C5CFF66;color:var(--text)}
+.chip .tick{display:none}
+.chip.on{background:#7C5CFF1F;border-color:var(--purple);color:var(--purple-hi)}
+.chip.on .tick{display:block}
+
+/* interruptor */
+.switch-row{
+  display:flex;align-items:center;gap:14px;width:100%;text-align:left;
+  padding:15px 16px;border-radius:var(--r-md);border:1px solid var(--line);background:#FFFFFF06;transition:.15s;
+}
+.switch-row:hover{border-color:var(--line-2)}
+.switch-row.on{border-color:#7C5CFF3D;background:#7C5CFF0F}
+.switch-row .ico{
+  width:38px;height:38px;border-radius:11px;flex:none;display:grid;place-items:center;
+  background:#FFFFFF0A;border:1px solid var(--line);color:var(--muted);
+}
+.switch-row.on .ico{background:#7C5CFF1F;border-color:#7C5CFF38;color:var(--purple-hi)}
+.switch-row .txt{flex:1}
+.switch-row .txt b{display:block;font-size:14.5px;font-weight:650}
+.switch-row .txt small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.switch{width:46px;height:26px;border-radius:var(--pill);background:#2A3350;padding:3px;flex:none;transition:background .18s}
+.switch i{display:block;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .18s}
+.switch-row.on .switch{background:var(--purple)}
+.switch-row.on .switch i{transform:translateX(20px)}
+
+/* números da partida */
+.steppers{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.stepper{padding:13px 14px;border-radius:var(--r-md);border:1px solid var(--line);background:#FFFFFF06}
+.stepper .k{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.stepper .ctl{display:flex;align-items:center;gap:10px;margin-top:8px}
+.stepper .v{flex:1;text-align:center;font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-0.03em}
+.stepper button{
+  width:30px;height:30px;border-radius:var(--r-xs);flex:none;display:grid;place-items:center;
+  border:1px solid var(--line-2);background:#FFFFFF08;color:var(--text-dim);transition:.15s;
+}
+.stepper button:hover:not(:disabled){background:#FFFFFF14;color:var(--text);border-color:#7C5CFF66}
+.stepper button:disabled{opacity:.3;cursor:not-allowed}
+.stepper small{display:block;font-size:11.5px;color:var(--muted);margin-top:6px}
+.stepper.off{opacity:.4}
+.stepper.off .k,.stepper.off .v{text-decoration:none}
+
+/* ========================================================== botões === */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  height:42px;padding:0 18px;border-radius:var(--r-sm);
+  font-weight:600;font-size:14px;white-space:nowrap;border:1px solid transparent;
+  transition:background .15s,border-color .15s,box-shadow .15s,transform .06s,color .15s,opacity .15s;
+}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+.btn.primary{
+  background:linear-gradient(165deg,var(--coral-hi),var(--coral-lo));color:#fff;
+  box-shadow:0 12px 28px -14px var(--coral-glow),inset 0 1px 0 #FFFFFF40;
+}
+.btn.primary:hover:not(:disabled){box-shadow:0 16px 34px -12px #FF4E5B8C,inset 0 1px 0 #FFFFFF59}
+.btn.ghost{background:#FFFFFF08;border-color:var(--line);color:var(--text-dim)}
+.btn.ghost:hover:not(:disabled){background:#FFFFFF12;border-color:var(--line-2);color:var(--text)}
+.btn.violet{background:#7C5CFF1A;border-color:#7C5CFF3D;color:var(--purple-hi)}
+.btn.violet:hover:not(:disabled){background:#7C5CFF29;border-color:#7C5CFF66}
+.btn.big{height:54px;font-size:15.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;width:100%}
+.btn.block{width:100%}
+.btn.sm{height:34px;padding:0 13px;font-size:13px;border-radius:var(--r-xs)}
+
+.start{
+  display:flex;flex-direction:column;gap:10px;align-items:center;
+  padding:18px 20px;border-radius:var(--r-lg);
+  border:1px solid #FF4E5B2E;background:linear-gradient(180deg,#16182F,#0B1124);
+}
+.start .note{font-size:12.5px;color:var(--muted);text-align:center}
+.exit{display:flex;justify-content:center}
+.exit button{
+  font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:7px;
+  padding:8px 12px;border-radius:var(--r-sm);
+}
+.exit button:hover{color:var(--coral-hi);background:#FF4E5B0F}
+
+/* ================================================= barra do mockup ==== */
+.mockbar{
+  position:fixed;z-index:95;right:20px;bottom:20px;
+  display:flex;align-items:center;gap:6px;padding:6px;
+  border-radius:var(--pill);border:1px solid var(--line-2);
+  background:#0A0F22E6;backdrop-filter:blur(14px);box-shadow:var(--shadow-lift);
+}
+.mockbar span{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:0 10px}
+.mockbar a{padding:7px 13px;border-radius:var(--pill);font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;transition:.15s}
+.mockbar a:hover{color:var(--text);background:#FFFFFF0A}
+.mockbar a.on{background:#FFFFFF12;color:var(--text)}
+
+/* ====================================================== responsivo === */
+@media (max-width:980px){
+  .wrap{grid-template-columns:1fr}
+  .col.left{position:static}
+  .modes{grid-template-columns:1fr}
+  .steppers{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="ambient" aria-hidden="true">
+  <div class="glow g1"></div><div class="glow g2"></div>
+  <div class="grid"></div>
+  <svg class="ball b1" viewBox="0 0 100 100" fill="currentColor"><path d="M50 2a48 48 0 1 0 0 96 48 48 0 0 0 0-96Zm0 10a38 38 0 0 1 37.6 33H62a12 12 0 0 0-24 0H12.4A38 38 0 0 1 50 12Zm0 26a12 12 0 1 1 0 24 12 12 0 0 1 0-24Zm-37.6 17H38a12 12 0 0 0 24 0h25.6A38 38 0 0 1 12.4 55Z"/></svg>
+  <svg class="ball b2" viewBox="0 0 100 100" fill="currentColor"><path d="M50 2a48 48 0 1 0 0 96 48 48 0 0 0 0-96Zm0 10a38 38 0 0 1 37.6 33H62a12 12 0 0 0-24 0H12.4A38 38 0 0 1 50 12Zm0 26a12 12 0 1 1 0 24 12 12 0 0 1 0-24Zm-37.6 17H38a12 12 0 0 0 24 0h25.6A38 38 0 0 1 12.4 55Z"/></svg>
+</div>
+
+<header class="topbar">
+  <div class="inner">
+    <div class="logo"><span class="glyph">?</span>Palpite</div>
+    <span class="pill wait"><i></i>Sala de espera</span>
+    <span class="pill">5 de 8 jogadores</span>
+    <span class="spacer"></span>
+    <button class="profile"><span class="avatar">PK</span><span class="who">PedroKaraio</span></button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ================================================== coluna esquerda -->
+  <aside class="col left">
+
+    <section class="codecard">
+      <div class="k">Código da sala</div>
+      <div class="v">6VNQ</div>
+      <div class="row">
+        <button class="btn ghost block">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copiar convite
+        </button>
+        <button class="btn violet" aria-label="Compartilhar">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+        Jogadores
+        <span class="n">5 de 8</span>
+      </h3>
+      <ul class="players">
+        <li class="me">
+          <i class="dot"></i>
+          <span class="avatar">PK</span>
+          <span class="nm">PedroKaraio <small>(você)</small></span>
+          <span class="tag host">Host</span>
+        </li>
+        <li>
+          <i class="dot"></i>
+          <span class="avatar" style="background:linear-gradient(145deg,#2ED694,#0E7A4C)">MI</span>
+          <span class="nm">Mistyzinha</span>
+        </li>
+        <li>
+          <i class="dot"></i>
+          <span class="avatar" style="background:linear-gradient(145deg,#F0A92B,#B36F06)">BR</span>
+          <span class="nm">Brockão</span>
+        </li>
+        <li>
+          <i class="dot"></i>
+          <span class="avatar" style="background:linear-gradient(145deg,#6FA8FF,#2C4FB8)">GA</span>
+          <span class="nm">Garyzinho</span>
+        </li>
+        <li class="gone">
+          <i class="dot off"></i>
+          <span class="avatar" style="background:linear-gradient(145deg,#93A5C4,#3D4C6B)">AS</span>
+          <span class="nm">Ashzera</span>
+          <span class="tag ghost">Caiu</span>
+        </li>
+        <li class="empty-seat">
+          <span class="slot">+</span>
+          Esperando mais gente entrar…
+        </li>
+      </ul>
+    </section>
+  </aside>
+
+  <!-- ================================================== configurações -->
+  <main class="col">
+    <section class="card">
+      <h3>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+        Configurações
+        <span class="n">só o host edita</span>
+      </h3>
+
+      <div class="field">
+        <div class="f-label">Modo de jogo</div>
+        <div class="modes" id="modes">
+          <button class="mode on" data-mode="hunt">
+            <span class="ico">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            </span>
+            <span>
+              <b>Caça ao segredo</b>
+              <small>Ninguém sabe o segredo. Todo mundo adivinha junto.</small>
+            </span>
+          </button>
+          <button class="mode" data-mode="duel">
+            <span class="ico">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2M5 21l6-6M3 18l3 3"/></svg>
+            </span>
+            <span>
+              <b>Duelo</b>
+              <small>Um jogador sorteado esconde, o resto adivinha.</small>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="f-label">Universo</div>
+        <div class="universe" id="uni">
+          <button class="universe-trigger" id="uniTrigger" aria-expanded="false" aria-haspopup="listbox">
+            <span class="mono" id="uniMono" style="background:linear-gradient(145deg,#FF6E78,#C0303C)">PK</span>
+            <span class="txt">
+              <span class="name" id="uniName">Pokémon</span>
+              <span class="desc" id="uniDesc">1025 criaturas, 9 gerações</span>
+            </span>
+            <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="universe-panel" id="uniPanel" hidden>
+            <div class="usearch">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <input id="uniSearch" type="text" placeholder="Escolha o universo…" autocomplete="off" spellcheck="false">
+              <kbd>ESC</kbd>
+            </div>
+            <ul class="ulist" id="uniList" role="listbox"></ul>
+            <button class="ufoot">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              Sugerir um universo
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="f-label" id="groupLabel">Gerações</div>
+        <div class="chips" id="groups"></div>
+        <p class="f-help"><b id="pool">386</b> opções sorteáveis com essa seleção.</p>
+      </div>
+
+      <div class="field">
+        <div class="f-label">Regras da partida</div>
+        <button class="switch-row on" id="untilRight">
+          <span class="ico">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+          </span>
+          <span class="txt">
+            <b>Até acertar</b>
+            <small id="untilHelp">A rodada só fecha quando alguém acerta, sem teto de chutes.</small>
+          </span>
+          <span class="switch"><i></i></span>
+        </button>
+
+        <div class="steppers" style="margin-top:12px">
+          <div class="stepper" data-min="1" data-max="20">
+            <div class="k">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+              Rodadas
+            </div>
+            <div class="ctl">
+              <button class="minus" aria-label="Menos">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>
+              </button>
+              <span class="v">5</span>
+              <button class="plus" aria-label="Mais">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </div>
+            <small>Total da partida</small>
+          </div>
+
+          <div class="stepper" data-min="5" data-max="180" data-step="5" data-suffix="s">
+            <div class="k">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              Tempo por turno
+            </div>
+            <div class="ctl">
+              <button class="minus" aria-label="Menos">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>
+              </button>
+              <span class="v">45s</span>
+              <button class="plus" aria-label="Mais">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </div>
+            <small>Para mandar o chute</small>
+          </div>
+
+          <div class="stepper off" id="guessStepper" data-min="1" data-max="20">
+            <div class="k">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
+              Chutes por jogador
+            </div>
+            <div class="ctl">
+              <button class="minus" aria-label="Menos">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg>
+              </button>
+              <span class="v">∞</span>
+              <button class="plus" aria-label="Mais">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+            </div>
+            <small id="guessHelp">“Até acertar” ignora o teto</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="start">
+      <button class="btn primary big" id="startBtn">Começar partida</button>
+      <p class="note" id="startNote">Todo mundo cai direto na primeira rodada.</p>
+    </section>
+
+    <div class="exit">
+      <button>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        Sair da sala
+      </button>
+    </div>
+  </main>
+</div>
+
+<div class="mockbar">
+  <span>Mockup</span>
+  <a href="home.html">Início</a>
+  <a class="on" href="lobby.html">Sala</a>
+  <a href="game.html">Partida</a>
+  <a href="gameover.html">Fim</a>
+</div>
+
+<script>
+/* Universo: id do monograma, nome, descrição, cores, rótulo do grupo e grupos. */
+const UNIVERSES = [
+  ['PK','Pokémon','1025 criaturas, 9 gerações','#FF6E78','#C0303C','Gerações',
+   ['Gen 1','Gen 2','Gen 3','Gen 4','Gen 5','Gen 6','Gen 7','Gen 8','Gen 9'], 386],
+  ['BL','Bleach','Shinigami, Quincy e Arrancar','#93A5C4','#3D4C6B','Facções',
+   ['Shinigami','Humanos','Quincy','Arrancar'], 214],
+  ['NA','Naruto','Shinobi de Konoha a Boruto','#FF9F45','#C25A0E','Vilas',
+   ['Konoha','Suna','Kiri','Kumo','Iwa','Akatsuki'], 298],
+  ['CR','Clash Royale','Cartas, raridades e elixir','#6FB6FF','#2A5FC4','Raridades',
+   ['Comum','Rara','Épica','Lendária','Campeão'], 120],
+  ['YG','Yu-Gi-Oh!','Monstros, magias e armadilhas','#C08BFF','#6C3BB8','Tipos',
+   ['Monstro','Magia','Armadilha'], 940],
+  ['LO','League of Legends','Campeões de Runeterra','#D8B04A','#8A6A20','Funções',
+   ['Top','Jungle','Mid','ADC','Suporte'], 168],
+  ['VA','Valorant · Agentes','Duelistas, sentinelas e mais','#FF7A6B','#B8332A','Funções',
+   ['Duelista','Iniciador','Controlador','Sentinela'], 27],
+  ['VW','Valorant · Armas','O arsenal inteiro do jogo','#9AA7BD','#4A566E','Categorias',
+   ['Pistola','SMG','Fuzil','Sniper','Pesada','Corpo a corpo'], 19],
+  ['RM','Rick and Morty','Personagens do multiverso','#7FE3B0','#1E8B5E','Espécies',
+   ['Humano','Alienígena','Robô','Outro'], 190],
+  ['SH','Super-heróis','Marvel e DC lado a lado','#6FA8FF','#2C4FB8','Editoras',
+   ['Marvel','DC','Outras'], 731],
+  ['HP','Harry Potter','Bruxos, casas e varinhas','#C9A227','#7A5E0B','Casas',
+   ['Grifinória','Sonserina','Corvinal','Lufa-Lufa','Sem casa'], 142],
+  ['SA','Senhor dos Anéis','Povos da Terra-média','#B79A6A','#6B5433','Povos',
+   ['Hobbits','Homens','Elfos','Anões','Orcs','Maiar'], 96],
+  ['F1','Fórmula 1','Pilotos, equipes e títulos','#FF5C5C','#A81E1E','Décadas',
+   ['1950s','1960s','1970s','1980s','1990s','2000s','2010s','2020s'], 356],
+  ['CA','Carros','Marcas, motores e potência','#8FA3BF','#3C4B63','Categorias',
+   ['Hatch','Sedã','SUV','Picape','Esportivo'], 640],
+  ['ML','My Little Pony','Pôneis de Equestria','#FFA6D5','#B03D77','Raças',
+   ['Terrestre','Pégaso','Unicórnio','Alicórnio'], 118],
+  ['OP','One Piece','Piratas, marinha e akuma no mi','#FF8A5B','#C24A16','Afiliações',
+   ['Piratas','Marinha','Revolucionários','Civis'], 412],
+  ['DB','Dragon Ball','Guerreiros e transformações','#FFB84D','#C07A00','Sagas',
+   ['Dragon Ball','Z','GT','Super'], 174],
+  ['HX','Hunter x Hunter','Nen, tipos e associações','#7BE0D8','#1F8E86','Tipos de Nen',
+   ['Intensificação','Emissão','Manipulação','Transformação','Materialização','Especialização'], 128],
+  ['OR','Ordem Paranormal','Agentes e os quatro elementos','#B36BFF','#5E23A8','Elementos',
+   ['Sangue','Morte','Energia','Conhecimento','Medo'], 86],
+  ['B1','Ben 10','Os aliens do Omnitrix','#9BE84F','#4E8A12','Séries',
+   ['Clássico','Força Alienígena','Supremacia','Omniverse'], 92],
+];
+
+const trigger = document.getElementById('uniTrigger');
+const panel = document.getElementById('uniPanel');
+const list = document.getElementById('uniList');
+const search = document.getElementById('uniSearch');
+const groupsBox = document.getElementById('groups');
+const groupLabel = document.getElementById('groupLabel');
+const pool = document.getElementById('pool');
+let selected = 0;
+
+const TICK = '<svg class="tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+function renderList(filter){
+  const q = (filter || '').trim().toLowerCase();
+  const rows = UNIVERSES.map((u, i) => ({ u, i }))
+    .filter(({ u }) => !q || u[1].toLowerCase().includes(q) || u[2].toLowerCase().includes(q));
+
+  if (!rows.length){
+    list.innerHTML = '<li class="none">Nenhum universo com esse nome.</li>';
+    return;
+  }
+  list.innerHTML = rows.map(({ u, i }) => `
+    <li role="option" data-i="${i}" aria-selected="${i === selected}">
+      <span class="mono" style="background:linear-gradient(145deg,${u[3]},${u[4]})">${u[0]}</span>
+      <span class="txt"><span class="name">${u[1]}</span><span class="desc">${u[2]}</span></span>
+      <svg class="check" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+    </li>`).join('');
+}
+
+/* trocar de universo troca o rótulo e os grupos: o recorte é do universo,
+   não do formulário — deixar "Gerações" no Bleach seria mentira */
+function renderGroups(){
+  const u = UNIVERSES[selected];
+  groupLabel.textContent = u[5];
+  groupsBox.innerHTML = u[6]
+    .map((g, i) => `<button class="chip ${i === 0 ? 'on' : ''}">${g}${TICK}</button>`).join('');
+  updatePool();
+}
+
+function updatePool(){
+  const u = UNIVERSES[selected];
+  const on = groupsBox.querySelectorAll('.chip.on').length;
+  const total = u[6].length;
+  pool.textContent = on ? Math.round(u[7] * on / total) : u[7];
+}
+
+function pick(i){
+  selected = i;
+  const u = UNIVERSES[i];
+  const mono = document.getElementById('uniMono');
+  mono.style.background = `linear-gradient(145deg,${u[3]},${u[4]})`;
+  mono.textContent = u[0];
+  document.getElementById('uniName').textContent = u[1];
+  document.getElementById('uniDesc').textContent = u[2];
+  renderGroups();
+  close();
+}
+
+function open(){
+  panel.hidden = false;
+  trigger.setAttribute('aria-expanded', 'true');
+  search.value = '';
+  renderList('');
+  search.focus();
+}
+function close(){
+  panel.hidden = true;
+  trigger.setAttribute('aria-expanded', 'false');
+}
+
+trigger.addEventListener('click', () => panel.hidden ? open() : close());
+search.addEventListener('input', () => renderList(search.value));
+list.addEventListener('click', (e) => {
+  const li = e.target.closest('li[data-i]');
+  if (li) pick(Number(li.dataset.i));
+});
+document.addEventListener('click', (e) => { if (!document.getElementById('uni').contains(e.target)) close(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+
+groupsBox.addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  chip.classList.toggle('on');
+  // sem nenhum marcado não há de onde sortear: o último marcado não desliga
+  if (!groupsBox.querySelector('.chip.on')) chip.classList.add('on');
+  updatePool();
+});
+
+renderList('');
+renderGroups();
+
+/* -------------------------------------------------------------- regras */
+const untilRight = document.getElementById('untilRight');
+const guessStepper = document.getElementById('guessStepper');
+const guessValue = guessStepper.querySelector('.v');
+const guessHelp = document.getElementById('guessHelp');
+let guesses = 6;
+
+function paintGuesses(){
+  const on = untilRight.classList.contains('on');
+  guessStepper.classList.toggle('off', on);
+  guessValue.textContent = on ? '∞' : guesses;
+  guessHelp.textContent = on ? '“Até acertar” ignora o teto' : 'Máximo por rodada';
+}
+untilRight.addEventListener('click', () => { untilRight.classList.toggle('on'); paintGuesses(); });
+
+/* mexer no teto desliga o "até acertar": a intenção do clique manda */
+document.querySelectorAll('.stepper').forEach(st => {
+  const val = st.querySelector('.v');
+  const min = Number(st.dataset.min), max = Number(st.dataset.max);
+  const step = Number(st.dataset.step || 1), suffix = st.dataset.suffix || '';
+
+  st.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    const dir = btn.classList.contains('plus') ? 1 : -1;
+
+    if (st === guessStepper){
+      if (untilRight.classList.contains('on')) untilRight.classList.remove('on');
+      guesses = Math.min(max, Math.max(min, guesses + dir));
+      paintGuesses();
+      return;
+    }
+    const cur = Number(val.textContent.replace(/\D/g, ''));
+    val.textContent = Math.min(max, Math.max(min, cur + dir * step)) + suffix;
+  });
+});
+
+/* -------------------------------------------------------------- modos */
+const startBtn = document.getElementById('startBtn');
+const startNote = document.getElementById('startNote');
+const untilHelp = document.getElementById('untilHelp');
+
+document.getElementById('modes').addEventListener('click', (e) => {
+  const card = e.target.closest('.mode');
+  if (!card) return;
+  document.querySelectorAll('.mode').forEach(m => m.classList.toggle('on', m === card));
+
+  // o duelo precisa de teto para quem esconde pontuar — "até acertar" some
+  const duel = card.dataset.mode === 'duel';
+  untilRight.disabled = duel;
+  untilRight.style.opacity = duel ? '.45' : '';
+  untilHelp.textContent = duel
+    ? 'O duelo precisa de teto de chutes para quem esconde pontuar.'
+    : 'A rodada só fecha quando alguém acerta, sem teto de chutes.';
+  if (duel && untilRight.classList.contains('on')) untilRight.classList.remove('on');
+  paintGuesses();
+  startNote.textContent = duel
+    ? 'Um jogador é sorteado a cada rodada para esconder o segredo.'
+    : 'Todo mundo cai direto na primeira rodada.';
+});
+
+paintGuesses();
+</script>
+</body>
+</html>

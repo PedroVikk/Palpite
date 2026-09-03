@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Palpite — fim de partida</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================  tokens  === */
+:root{
+  --bg:#050816;
+  --surface:#0C1226;
+  --surface-2:#111931;
+
+  --line:#FFFFFF14;
+  --line-2:#FFFFFF26;
+
+  --text:#E9EDFA;
+  --text-dim:#B6BFD6;
+  --muted:#7E88A5;
+
+  --coral:#FF4E5B;
+  --coral-hi:#FF6E78;
+  --coral-lo:#DE3946;
+  --coral-glow:#FF4E5B4D;
+
+  --purple:#7C5CFF;
+  --purple-hi:#9B85FF;
+  --purple-glow:#7C5CFF4D;
+
+  --green:#22C07A;
+  --green-dk:#1FA46B;
+  --gold:#F0B84A;
+  --gold-dk:#C08A1E;
+
+  --r-lg:16px;
+  --r-md:12px;
+  --r-sm:10px;
+  --r-xs:8px;
+  --pill:999px;
+
+  --shadow:0 18px 40px -24px #000000E6;
+  --shadow-lift:0 28px 56px -24px #000000F5;
+
+  --page:1080px;
+  --font:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+}
+
+*{box-sizing:border-box}
+html{-webkit-font-smoothing:antialiased}
+body{
+  margin:0;min-height:100vh;
+  font-family:var(--font);font-size:15px;line-height:1.5;
+  color:var(--text);background:var(--bg);letter-spacing:-0.01em;
+}
+h1,h2,h3{margin:0;line-height:1.15;letter-spacing:-0.025em}
+p{margin:0}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+ul{margin:0;padding:0;list-style:none}
+svg{display:block}
+
+/* ======================================================== ambiente  ==== */
+.ambient{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.ambient .glow{position:absolute;border-radius:50%;filter:blur(140px)}
+.ambient .g1{width:900px;height:600px;left:50%;top:-360px;transform:translateX(-50%);background:#F0B84A1F}
+.ambient .g2{width:760px;height:520px;left:-260px;top:20%;background:#FF4E5B24}
+.ambient .g3{width:760px;height:520px;right:-260px;top:10%;background:#7C5CFF2B}
+.ambient .grid{
+  position:absolute;inset:0;
+  background-image:linear-gradient(#FFFFFF05 1px,transparent 1px),linear-gradient(90deg,#FFFFFF05 1px,transparent 1px);
+  background-size:64px 64px;
+  -webkit-mask-image:radial-gradient(900px 560px at 50% 0%,#000,transparent 74%);
+  mask-image:radial-gradient(900px 560px at 50% 0%,#000,transparent 74%);
+}
+.ambient .ball{position:absolute;color:#fff;opacity:.025}
+.ambient .b1{width:400px;left:-110px;bottom:2%}
+.ambient .b2{width:260px;right:4%;top:26%}
+
+/* ========================================================== topbar ==== */
+.topbar{
+  position:sticky;top:0;z-index:40;
+  background:#050816D9;backdrop-filter:blur(14px);border-bottom:1px solid var(--line);
+}
+.topbar .inner{
+  max-width:var(--page);margin:0 auto;padding:0 28px;height:62px;
+  display:flex;align-items:center;gap:12px;
+}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;letter-spacing:-0.035em;margin-right:10px}
+.logo .glyph{
+  width:29px;height:29px;border-radius:50%;flex:none;display:grid;place-items:center;
+  font-size:15px;font-weight:800;color:#fff;
+  background:radial-gradient(circle at 50% 30%,#FF6E78,#DE3946);
+  box-shadow:0 0 0 1px #FF4E5B66,0 8px 20px -8px var(--coral-glow),inset 0 1px 0 #FFFFFF59;
+}
+.pill{
+  display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 13px;border-radius:var(--pill);
+  border:1px solid var(--line);background:#FFFFFF08;
+  font-size:13px;font-weight:600;color:var(--text-dim);white-space:nowrap;
+}
+.pill .mono{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;font-size:8px;font-weight:800;color:#fff}
+.pill.code{letter-spacing:.2em;text-indent:.2em;font-weight:700;color:var(--muted)}
+.topbar .spacer{flex:1}
+.profile{
+  display:flex;align-items:center;gap:9px;padding:4px 12px 4px 4px;border-radius:var(--pill);
+  border:1px solid var(--line);background:#FFFFFF06;transition:.15s;
+}
+.profile:hover{border-color:var(--line-2);background:#FFFFFF0F}
+.profile .who{font-size:13px;font-weight:600}
+.avatar{
+  width:26px;height:26px;border-radius:50%;flex:none;display:grid;place-items:center;
+  font-size:10px;font-weight:700;color:#fff;background:linear-gradient(145deg,#9B85FF,#DE3946);
+}
+
+/* =========================================================== página === */
+.page{position:relative;z-index:1;max-width:var(--page);margin:0 auto;padding:34px 28px 70px;display:flex;flex-direction:column;gap:18px}
+
+.crest{
+  align-self:center;
+  display:inline-flex;align-items:center;gap:9px;
+  padding:8px 20px;border-radius:var(--pill);
+  border:1px solid #F0B84A47;background:#F0B84A14;color:var(--gold);
+  font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+}
+
+/* ======================================================= o segredo ==== */
+.reveal{
+  position:relative;overflow:hidden;
+  display:grid;grid-template-columns:auto 1fr;gap:26px;align-items:center;
+  padding:24px 28px;border-radius:var(--r-lg);
+  border:1px solid var(--line-2);
+  background:
+    radial-gradient(420px 240px at 12% 50%,#7C5CFF24,transparent 70%),
+    linear-gradient(180deg,#121A34,#0A1023);
+  box-shadow:var(--shadow-lift);
+}
+.reveal::after{
+  content:"";position:absolute;left:26px;right:26px;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,#F0B84A66,#7C5CFF4D,transparent);
+}
+.portrait{
+  position:relative;width:148px;height:148px;flex:none;border-radius:var(--r-md);
+  display:grid;place-items:center;
+  background:radial-gradient(90px 90px at 50% 50%,#7C5CFF2E,transparent 72%),#080D1D;
+  border:1px solid var(--line);
+}
+.portrait img{width:120px;height:120px;image-rendering:pixelated}
+.reveal .k{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.reveal h1{font-size:40px;font-weight:800;margin:4px 0 14px}
+.reveal .facts{display:flex;flex-wrap:wrap;gap:8px}
+.fact{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:6px 13px;border-radius:var(--pill);
+  border:1px solid #22C07A38;background:#22C07A14;color:#3FD693;
+  font-size:13px;font-weight:600;
+}
+.fact.dim{border-color:var(--line);background:#FFFFFF08;color:var(--text-dim)}
+.reveal .who{margin-top:14px;font-size:13.5px;color:var(--muted)}
+.reveal .who b{color:var(--text-dim);font-weight:650}
+
+/* ========================================================== resultado = */
+.result{text-align:center;padding:4px 0 2px}
+.trophy{
+  width:76px;height:76px;margin:0 auto 14px;border-radius:50%;
+  display:grid;place-items:center;color:var(--gold);
+  border:2px solid #F0B84A5C;background:#F0B84A0F;
+  box-shadow:0 0 34px -6px #F0B84A47;
+}
+.result h2{font-size:30px;font-weight:800}
+.result p{font-size:14.5px;color:var(--muted);margin-top:7px}
+
+/* =========================================================== pódio ==== */
+.podium{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:end;margin-top:6px}
+.step{
+  position:relative;
+  display:flex;flex-direction:column;align-items:center;gap:9px;
+  padding:18px 14px 16px;border-radius:var(--r-lg);
+  border:1px solid var(--line);background:var(--surface);
+}
+.step .av{
+  width:52px;height:52px;border-radius:50%;display:grid;place-items:center;
+  font-size:16px;font-weight:800;color:#fff;
+}
+.step .nm{font-size:15px;font-weight:700;text-align:center}
+.step .nm small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+.step .pts{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-0.03em}
+.step .place{
+  position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+  min-width:26px;height:22px;padding:0 9px;border-radius:var(--pill);
+  display:grid;place-items:center;font-size:11px;font-weight:800;
+  background:var(--surface-2);border:1px solid var(--line-2);color:var(--muted);
+}
+.step.first{
+  border-color:#F0B84A4D;
+  background:linear-gradient(180deg,#211B0E,#0C1226 62%);
+  padding-top:26px;padding-bottom:22px;
+  box-shadow:0 22px 44px -28px #F0B84A66;
+}
+.step.first .place{background:linear-gradient(160deg,var(--gold),var(--gold-dk));border-color:#F0B84A;color:#231603}
+.step.first .pts{color:var(--gold)}
+.step.first .av{box-shadow:0 0 0 3px #F0B84A38}
+
+/* ======================================================== classificação */
+.card{border-radius:var(--r-lg);border:1px solid var(--line);background:var(--surface);padding:18px 20px}
+.card h3{
+  display:flex;align-items:center;gap:8px;
+  font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  margin-bottom:12px;
+}
+.card h3 .n{margin-left:auto;font-size:12px;letter-spacing:0;text-transform:none;color:var(--muted);font-weight:500}
+
+.rank li{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 12px;border-radius:var(--r-sm);
+  border:1px solid transparent;
+}
+.rank li + li{margin-top:4px}
+.rank li.me{border-color:#7C5CFF3D;background:#7C5CFF0F}
+.rank li.gone{opacity:.5}
+.rank .pos{
+  width:24px;text-align:center;font-size:13px;font-weight:700;color:var(--muted);
+  font-variant-numeric:tabular-nums;flex:none;
+}
+.rank .avatar{width:30px;height:30px;font-size:11px}
+.rank .nm{flex:1;min-width:0;font-size:14.5px;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank .nm small{color:var(--muted);font-weight:500}
+.rank .bar{width:130px;height:6px;border-radius:99px;background:#FFFFFF0F;overflow:hidden;flex:none}
+.rank .bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#7C5CFF,#FF6E78)}
+.rank li.top .bar i{background:linear-gradient(90deg,var(--gold-dk),var(--gold))}
+.rank .pts{width:70px;text-align:right;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;flex:none}
+.rank .pts small{font-size:11px;font-weight:600;color:var(--muted);margin-left:3px}
+.rank li.top .pts{color:var(--gold)}
+
+/* ========================================================== resumo ==== */
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.tile{padding:14px 15px;border-radius:var(--r-md);border:1px solid var(--line);background:#FFFFFF06}
+.tile .k{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--muted)}
+.tile .v{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:5px;letter-spacing:-0.03em}
+.tile .v small{font-size:12px;font-weight:500;color:var(--muted)}
+
+/* ========================================================== botões ==== */
+.actions{display:flex;gap:12px;justify-content:center;margin-top:4px}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  height:48px;padding:0 26px;border-radius:var(--r-sm);
+  font-weight:650;font-size:14.5px;white-space:nowrap;border:1px solid transparent;
+  transition:background .15s,border-color .15s,box-shadow .15s,transform .06s,color .15s;
+}
+.btn:active{transform:translateY(1px)}
+.btn.primary{
+  background:linear-gradient(165deg,var(--coral-hi),var(--coral-lo));color:#fff;
+  font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+  box-shadow:0 14px 30px -14px var(--coral-glow),inset 0 1px 0 #FFFFFF40;
+}
+.btn.primary:hover{box-shadow:0 18px 36px -12px #FF4E5B8C,inset 0 1px 0 #FFFFFF59}
+.btn.ghost{background:#FFFFFF08;border-color:var(--line);color:var(--text-dim)}
+.btn.ghost:hover{background:#FFFFFF12;border-color:var(--line-2);color:var(--text)}
+.wait-note{text-align:center;font-size:13px;color:var(--muted)}
+
+/* ================================================= barra do mockup ==== */
+.mockbar{
+  position:fixed;z-index:95;right:20px;bottom:20px;
+  display:flex;align-items:center;gap:6px;padding:6px;
+  border-radius:var(--pill);border:1px solid var(--line-2);
+  background:#0A0F22E6;backdrop-filter:blur(14px);box-shadow:var(--shadow-lift);
+}
+.mockbar span{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:0 10px}
+.mockbar a{padding:7px 13px;border-radius:var(--pill);font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;transition:.15s}
+.mockbar a:hover{color:var(--text);background:#FFFFFF0A}
+.mockbar a.on{background:#FFFFFF12;color:var(--text)}
+
+/* ====================================================== responsivo ==== */
+@media (max-width:820px){
+  .reveal{grid-template-columns:1fr;justify-items:center;text-align:center}
+  .reveal .facts{justify-content:center}
+  .summary{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:560px){
+  .podium{grid-template-columns:1fr}
+  .step.first{order:-1}
+  .rank .bar{display:none}
+  .actions{flex-direction:column}
+  .btn{width:100%}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="ambient" aria-hidden="true">
+  <div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
+  <div class="grid"></div>
+  <svg class="ball b1" viewBox="0 0 100 100" fill="currentColor"><path d="M50 2a48 48 0 1 0 0 96 48 48 0 0 0 0-96Zm0 10a38 38 0 0 1 37.6 33H62a12 12 0 0 0-24 0H12.4A38 38 0 0 1 50 12Zm0 26a12 12 0 1 1 0 24 12 12 0 0 1 0-24Zm-37.6 17H38a12 12 0 0 0 24 0h25.6A38 38 0 0 1 12.4 55Z"/></svg>
+  <svg class="ball b2" viewBox="0 0 100 100" fill="currentColor"><path d="M50 2a48 48 0 1 0 0 96 48 48 0 0 0 0-96Zm0 10a38 38 0 0 1 37.6 33H62a12 12 0 0 0-24 0H12.4A38 38 0 0 1 50 12Zm0 26a12 12 0 1 1 0 24 12 12 0 0 1 0-24Zm-37.6 17H38a12 12 0 0 0 24 0h25.6A38 38 0 0 1 12.4 55Z"/></svg>
+</div>
+
+<header class="topbar">
+  <div class="inner">
+    <div class="logo"><span class="glyph">?</span>Palpite</div>
+    <span class="pill">
+      <span class="mono" style="background:linear-gradient(145deg,#FF6E78,#C0303C)">PK</span>
+      Pokémon · Caça ao segredo
+    </span>
+    <span class="pill">5 rodadas</span>
+    <span class="pill code">6VNQ</span>
+    <span class="spacer"></span>
+    <button class="profile"><span class="avatar">PK</span><span class="who">PedroKaraio</span></button>
+  </div>
+</header>
+
+<main class="page">
+
+  <span class="crest">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v5a7 7 0 0 1-14 0V3Z"/><path d="M5 5H3v1a4 4 0 0 0 3 3.9M19 5h2v1a4 4 0 0 1-3 3.9M9 21h6M12 15v6"/></svg>
+    Fim de partida
+  </span>
+
+  <!-- o segredo primeiro: é o que todo mundo quer ver quando a partida fecha -->
+  <section class="reveal">
+    <div class="portrait">
+      <img src="data:image/webp;base64,UklGRl4FAABXRUJQVlA4WAoAAAAQAAAAXwAAXwAAQUxQSKkAAAABDzD/ERECbm3bjaqHDylh2iAbQiqhDak0lYJJnUKMlm7wru4M36YR/Z8A+69H6TBRHkKyIhwMQo4wmmz/uDQOq1uprVCBwBIgxNHM9Y0qFbeVDuwBoHuQXQbQ15UrDmBnMnMPjDBxhZmvUiGBZNKTA+lIImsSyYqYVqTHaPlLHIatWXJBAovDgtSz5DppJU3GiAPe75ZhklsRk4NiCdbsLAo2wLSN9I8GAFZQOCCOBAAAEBYAnQEqYABgAD5tNJVHpCMiISc2CkiADYlADgRbE2FQoG3o56r0I7wjvM3+Mr8j750ZvsqRVUROWXASpFHD6CX0X5wfqT2BP1j9Kr15/sl7Gv6ssZQDmXf4sRG+fSGL/JbRuWX3T46H9FS/EhQHcrkRIb7A5+x1qqKkERJMbp1h/L5XI/Ge3i/scJI/7HPKWxqQT7nwwTZROn8IAPqtbLTOb5ehoBD/0r38/Jk8zvU1TkMapzfnfrAA/v4G0Ej/Kp5T6OUSdd0DPuOnR8m/pd3bN3K6bPpAd/Yv1lxWlifEvnkHom1r+1r0ExPRfqV/zI59OHQ9/UKdTUFF8hVfPnNiINYE+J8iKY05Le6oePQlU6nmf4J6r+/2B/8RegbO/9D3jok1eXXuADQqhkOPi/VKH7/LPTvHSG0L4g/uAhDHhIrgExf1n8nRd5DvcZFb5N+0bJMNHiBkfCIrUwvgHCC1D+Atkf3e1+L9hH7G/NuX+bSzGgQ+gdBZriqPmOoMta0xz1CvtEIOX0HMdd3xKPUPakTkTatNtLiv+LfNjH4m11KHie9UC75+oDHXO/lBstcVT0mf6aR45rHxIsk//6f1c2wuM7pKQHVY3JJan5M+inOb9rxNyebRziSnp8Nu31j3YuRieXvvhgMA13FeaqAwwLM3IKIQSEOA7Z/jrJpXK9zw3/Kt0SO7ETRCYXAFUghvs61ss1ocg2m+bPIOEuPDsnfhXOAL/SomZVsp7XMC0odmer3Gw6+iX1OefHjg9SDp6k9xHtonQexVLqv4O2Oy3C1sca6XiJJ/lioG3I2GlWfX1V3QxazaZWDT3J/PSkmaWxpuUMwuWLrWoYwRaBdcy3WHCzVRl+fKraqGEX1XI4KJc146ljfbh7urouxNuJ1o5xN4s56o3guGqV/d2ecXbLKUuLMhvH+AyYxZgEyUxT/SOSTlZivddCyNr0XJLbBsos1jaZLJoidYtJuY3V6PIbHzMdEGdX9U4AXBlQId00Opz+Fu3hC8XmPkQXKOa48k4vQtKBHK274Jj7JJZ841T6mdR+c90IvrSOvAa8Lsd+IuefTfvWXpL1x5dsK/tZcXcoPPY+e77WY9ZPNVxRI84NPU5AfUI6uNjqGYUq3ptef8CXxjbczTLz/YTEEfaTygpR8A22CEd8txlp193rZTPwa11z93sACtpVBBdu+gfzaQ4Yns/2fzPX6AlgZLTEF+c9m7v3O+hglAIQY6W+KZ2OFr/xxtHOEaHVmfFXKQAJBWbmbqkmi5dfLYMty6OfhV2Jkmk6cYycZyTegguGf27n8Kt8ndz8TOwz9ozTEl0siTqjPJClt32VfJUWRpJ3m4eAJKT72vIjrOu8q21Fx5PSP4uG2qfc8zOQqAw9jzXT2NpSoozu/YeIfsVP1FcR4Y6WOkReVW1rXyJA1TEW8Pimo0lHrDsXGxn85FkeKU7reRmrBL+fGQ0I7XbfW/Swh1iQTiA87L41FGDLtFVp3JYcNnCr7vQoQB9vq6/UN/2O/6JPyXsM//q/Wn7ki49XEDmkcgTgEHYgAAAAA=" alt="Gengar">
+    </div>
+    <div>
+      <div class="k">O segredo da última rodada era</div>
+      <h1>Gengar</h1>
+      <div class="facts">
+        <span class="fact">Fantasma</span>
+        <span class="fact">Venenoso</span>
+        <span class="fact">Gen 1</span>
+        <span class="fact">Roxo, Azul</span>
+        <span class="fact">3ª forma</span>
+        <span class="fact dim">1,5 m</span>
+        <span class="fact dim">40,5 kg</span>
+      </div>
+      <p class="who"><b>Mistyzinha</b> fechou no 4º chute — ninguém mais tinha chegado perto.</p>
+    </div>
+  </section>
+
+  <section class="result">
+    <div class="trophy">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14v5a7 7 0 0 1-14 0V3Z"/><path d="M5 5H3v1a4 4 0 0 0 3 3.9M19 5h2v1a4 4 0 0 1-3 3.9M9 21h6M12 15v6"/></svg>
+    </div>
+    <h2>Mistyzinha venceu com 38 pontos</h2>
+    <p>Cinco rodadas, 41 chutes no total. Você ficou em segundo por 4 pontos.</p>
+  </section>
+
+  <section class="podium">
+    <div class="step">
+      <span class="place">2º</span>
+      <span class="av" style="background:linear-gradient(145deg,#9B85FF,#DE3946)">PK</span>
+      <span class="nm">PedroKaraio<small>(você)</small></span>
+      <span class="pts">34</span>
+    </div>
+    <div class="step first">
+      <span class="place">1º</span>
+      <span class="av" style="background:linear-gradient(145deg,#2ED694,#0E7A4C)">MI</span>
+      <span class="nm">Mistyzinha<small>campeã</small></span>
+      <span class="pts">38</span>
+    </div>
+    <div class="step">
+      <span class="place">3º</span>
+      <span class="av" style="background:linear-gradient(145deg,#F0A92B,#B36F06)">BR</span>
+      <span class="nm">Brockão<small>&nbsp;</small></span>
+      <span class="pts">27</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M7 20V10M12 20V4M17 20v-7"/></svg>
+      Classificação final
+      <span class="n">5 jogadores</span>
+    </h3>
+    <ul class="rank">
+      <li class="top">
+        <span class="pos">1</span>
+        <span class="avatar" style="background:linear-gradient(145deg,#2ED694,#0E7A4C)">MI</span>
+        <span class="nm">Mistyzinha</span>
+        <span class="bar"><i style="width:100%"></i></span>
+        <span class="pts">38<small>pts</small></span>
+      </li>
+      <li class="me">
+        <span class="pos">2</span>
+        <span class="avatar">PK</span>
+        <span class="nm">PedroKaraio <small>(você)</small></span>
+        <span class="bar"><i style="width:89%"></i></span>
+        <span class="pts">34<small>pts</small></span>
+      </li>
+      <li>
+        <span class="pos">3</span>
+        <span class="avatar" style="background:linear-gradient(145deg,#F0A92B,#B36F06)">BR</span>
+        <span class="nm">Brockão</span>
+        <span class="bar"><i style="width:71%"></i></span>
+        <span class="pts">27<small>pts</small></span>
+      </li>
+      <li>
+        <span class="pos">4</span>
+        <span class="avatar" style="background:linear-gradient(145deg,#6FA8FF,#2C4FB8)">GA</span>
+        <span class="nm">Garyzinho</span>
+        <span class="bar"><i style="width:47%"></i></span>
+        <span class="pts">18<small>pts</small></span>
+      </li>
+      <li class="gone">
+        <span class="pos">5</span>
+        <span class="avatar" style="background:linear-gradient(145deg,#93A5C4,#3D4C6B)">AS</span>
+        <span class="nm">Ashzera <small>· saiu na 3ª rodada</small></span>
+        <span class="bar"><i style="width:16%"></i></span>
+        <span class="pts">6<small>pts</small></span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="summary">
+    <div class="tile">
+      <div class="k">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+        Rodadas
+      </div>
+      <div class="v">5</div>
+    </div>
+    <div class="tile">
+      <div class="k">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
+        Chutes no total
+      </div>
+      <div class="v">41</div>
+    </div>
+    <div class="tile">
+      <div class="k">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        Acerto mais rápido
+      </div>
+      <div class="v">2 <small>chutes · Brockão</small></div>
+    </div>
+    <div class="tile">
+      <div class="k">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        Duração
+      </div>
+      <div class="v">12<small>min</small></div>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button class="btn ghost">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+      Sair da sala
+    </button>
+    <button class="btn primary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg>
+      Jogar de novo
+    </button>
+  </div>
+  <p class="wait-note">A sala continua de pé com o mesmo código — quem saiu ainda consegue voltar.</p>
+</main>
+
+<div class="mockbar">
+  <span>Mockup</span>
+  <a href="home.html">Início</a>
+  <a href="lobby.html">Sala</a>
+  <a href="game.html">Partida</a>
+  <a class="on" href="gameover.html">Fim</a>
+</div>
+
+</body>
+</html>

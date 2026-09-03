@@ -1,0 +1,1097 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Palpite — mockup visual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================  tokens  === */
+:root{
+  --bg:#050816;
+  --bg-2:#080D1D;
+  --surface:#0C1226;
+  --surface-2:#111931;
+  --surface-3:#18213E;
+
+  --line:#FFFFFF14;
+  --line-2:#FFFFFF26;
+
+  --text:#E9EDFA;
+  --text-dim:#B6BFD6;
+  --muted:#7E88A5;
+
+  /* coral = marca. roxo = ação secundária, seleção, foco. */
+  --coral:#FF4E5B;
+  --coral-hi:#FF6E78;
+  --coral-lo:#DE3946;
+  --coral-glow:#FF4E5B4D;
+
+  --purple:#7C5CFF;
+  --purple-hi:#9B85FF;
+  --purple-lo:#6141F0;
+  --purple-glow:#7C5CFF4D;
+
+  --green:#22C07A;
+  --amber:#F0A92B;
+
+  --r-lg:16px;
+  --r-md:12px;
+  --r-sm:10px;
+  --r-xs:8px;
+  --pill:999px;
+
+  --shadow:0 18px 40px -24px #000000E6;
+  --shadow-lift:0 30px 60px -24px #000000F5;
+
+  --page:1240px;
+  --font:'Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+}
+
+*{box-sizing:border-box}
+html{-webkit-font-smoothing:antialiased}
+body{
+  margin:0;min-height:100vh;
+  font-family:var(--font);font-size:15px;line-height:1.5;
+  color:var(--text);background:var(--bg);
+  letter-spacing:-0.01em;
+}
+h1,h2,h3,h4{margin:0;line-height:1.15;letter-spacing:-0.025em}
+p{margin:0}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input{font:inherit;color:inherit}
+ul,ol{margin:0;padding:0;list-style:none}
+svg{display:block}
+
+/* ======================================================== ambiente  ==== */
+/* Fundo: dois brilhos de marca, uma grade fraquíssima e silhuetas.
+   Tudo abaixo de 6% de opacidade — dá profundidade, nunca disputa leitura. */
+.ambient{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.ambient .glow{position:absolute;border-radius:50%;filter:blur(130px)}
+.ambient .g1{width:860px;height:640px;left:-240px;top:-320px;background:#FF4E5B2B}
+.ambient .g2{width:780px;height:580px;right:-220px;top:-180px;background:#7C5CFF33}
+.ambient .g3{width:960px;height:520px;left:30%;top:58%;background:#7C5CFF17}
+.ambient .grid{
+  position:absolute;inset:0;
+  background-image:linear-gradient(#FFFFFF05 1px,transparent 1px),linear-gradient(90deg,#FFFFFF05 1px,transparent 1px);
+  background-size:64px 64px;
+  -webkit-mask-image:radial-gradient(1000px 640px at 50% 0%,#000,transparent 78%);
+  mask-image:radial-gradient(1000px 640px at 50% 0%,#000,transparent 78%);
+}
+.ambient .sil{position:absolute;color:#fff;opacity:.03}
+.ambient .s1{width:420px;left:-70px;top:180px;transform:rotate(-12deg)}
+.ambient .s2{width:300px;right:-40px;top:62%;transform:rotate(14deg)}
+.ambient .s3{width:200px;right:26%;top:-40px;transform:rotate(8deg)}
+.ambient .s4{width:260px;left:22%;bottom:-70px;transform:rotate(-6deg)}
+
+/* =========================================================== topo  ===== */
+.topnav{
+  position:sticky;top:0;z-index:40;
+  background:#050816D9;backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.topnav .inner{
+  max-width:var(--page);margin:0 auto;padding:0 28px;height:66px;
+  display:flex;align-items:center;gap:24px;
+}
+.logo{display:flex;align-items:center;gap:11px;font-weight:800;font-size:19px;letter-spacing:-0.035em}
+/* a marca é o "?" no anel coral — o mesmo símbolo do jogo, em escala de UI */
+.logo .glyph{
+  width:32px;height:32px;border-radius:50%;flex:none;
+  display:grid;place-items:center;
+  font-size:16px;font-weight:800;color:#fff;
+  background:radial-gradient(circle at 50% 30%,#FF6E78,#DE3946);
+  box-shadow:0 0 0 1px #FF4E5B66,0 8px 22px -8px var(--coral-glow),inset 0 1px 0 #FFFFFF59;
+}
+.nav-links{display:flex;align-items:center;gap:3px;margin-left:8px}
+.nav-links a{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 13px;border-radius:var(--r-sm);
+  color:var(--muted);text-decoration:none;font-weight:500;font-size:14px;
+  transition:background .15s,color .15s;
+}
+.nav-links a:hover{background:#FFFFFF0A;color:var(--text)}
+.nav-links a.active{background:#FF4E5B17;color:var(--coral-hi)}
+
+.nav-status{
+  display:flex;align-items:center;gap:10px;margin-left:auto;
+  padding:7px 14px;border-radius:var(--pill);
+  border:1px solid var(--line);background:#FFFFFF06;
+  font-size:13px;color:var(--muted);
+}
+.nav-status b{color:var(--text);font-weight:600}
+.nav-status>span{white-space:nowrap}
+.nav-status .sep{width:1px;height:14px;background:var(--line-2)}
+.live{display:inline-flex;align-items:center;gap:7px;color:var(--green);font-weight:600}
+.live i{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px #22C07A26}
+
+.icon-btn{
+  position:relative;width:36px;height:36px;border-radius:var(--r-sm);
+  display:grid;place-items:center;color:var(--muted);
+  border:1px solid transparent;
+  transition:background .15s,color .15s,border-color .15s;
+}
+.icon-btn:hover{background:#FFFFFF0A;color:var(--text);border-color:var(--line)}
+.icon-btn .badge{
+  position:absolute;top:7px;right:7px;width:7px;height:7px;border-radius:50%;
+  background:var(--coral);box-shadow:0 0 0 2px var(--bg);
+}
+.profile{
+  display:flex;align-items:center;gap:10px;
+  padding:5px 14px 5px 5px;border-radius:var(--pill);
+  border:1px solid var(--line);background:#FFFFFF06;
+  transition:border-color .15s,background .15s;
+}
+.profile:hover{border-color:var(--line-2);background:#FFFFFF0F}
+.profile .who{font-size:13px;font-weight:600}
+.avatar{
+  width:28px;height:28px;border-radius:50%;flex:none;
+  display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;
+  background:linear-gradient(145deg,#9B85FF,#DE3946);
+}
+.divider-v{width:1px;height:24px;background:var(--line)}
+
+/* ========================================================== página ==== */
+.page{position:relative;z-index:1;max-width:var(--page);margin:0 auto;padding:34px 28px 80px}
+.section{margin-top:42px}
+.section-head{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.section-head h2{font-size:17px;font-weight:700}
+.section-head .hint{font-size:13px;color:var(--muted)}
+.section-head .spacer{flex:1}
+
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--coral-hi);
+}
+
+.tag{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 10px;border-radius:var(--pill);
+  font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  border:1px solid transparent;
+}
+.tag.coral{background:#FF4E5B1F;color:var(--coral-hi);border-color:#FF4E5B38}
+.tag.purple{background:#7C5CFF1F;color:var(--purple-hi);border-color:#7C5CFF38}
+.tag.green{background:#22C07A1C;color:var(--green);border-color:#22C07A38}
+.tag.amber{background:#F0A92B1C;color:var(--amber);border-color:#F0A92B38}
+.tag.ghost{background:#FFFFFF08;color:var(--muted);border-color:var(--line)}
+
+/* ========================================================== botões ==== */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:9px;
+  height:42px;padding:0 18px;border-radius:var(--r-sm);
+  font-weight:600;font-size:14px;white-space:nowrap;
+  border:1px solid transparent;
+  transition:background .15s,border-color .15s,box-shadow .15s,transform .06s,color .15s,opacity .15s;
+}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.38;cursor:not-allowed}
+.btn.primary{
+  background:linear-gradient(165deg,var(--coral-hi),var(--coral-lo));color:#fff;
+  box-shadow:0 12px 28px -14px var(--coral-glow),inset 0 1px 0 #FFFFFF40;
+}
+.btn.primary:hover:not(:disabled){box-shadow:0 16px 34px -12px #FF4E5B8C,inset 0 1px 0 #FFFFFF59}
+.btn.violet{
+  background:linear-gradient(165deg,var(--purple-hi),var(--purple-lo));color:#fff;
+  box-shadow:0 12px 28px -14px var(--purple-glow),inset 0 1px 0 #FFFFFF40;
+}
+.btn.violet:hover:not(:disabled){box-shadow:0 16px 34px -12px #7C5CFF8C,inset 0 1px 0 #FFFFFF59}
+.btn.secondary{background:#7C5CFF1A;color:var(--purple-hi);border-color:#7C5CFF3D}
+.btn.secondary:hover:not(:disabled){background:#7C5CFF29;border-color:#7C5CFF66}
+.btn.ghost{background:#FFFFFF08;border-color:var(--line);color:var(--text-dim)}
+.btn.ghost:hover:not(:disabled){background:#FFFFFF12;border-color:var(--line-2);color:var(--text)}
+.btn.quiet{color:var(--muted);padding:0 12px}
+.btn.quiet:hover:not(:disabled){color:var(--text)}
+.btn.lg{height:48px;padding:0 24px;font-size:15px}
+.btn.sm{height:34px;padding:0 13px;font-size:13px;border-radius:var(--r-xs)}
+.btn.block{width:100%}
+
+/* =========================================================== herói ==== */
+.hero{
+  position:relative;
+  display:grid;grid-template-columns:1fr 372px;gap:38px;
+  padding:32px;border-radius:var(--r-lg);
+  border:1px solid var(--line);
+  background:
+    radial-gradient(640px 340px at 0% 0%,#FF4E5B1C,transparent 64%),
+    radial-gradient(560px 320px at 100% 100%,#7C5CFF1A,transparent 68%),
+    linear-gradient(180deg,#0E152B,#0A0F22);
+  box-shadow:var(--shadow);
+}
+.hero::after{
+  content:"";position:absolute;left:26px;right:26px;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,#FF4E5B73,#7C5CFF59,transparent);
+}
+.hero h1{font-size:38px;font-weight:800;margin:14px 0 10px}
+.hero .lead{color:var(--text-dim);font-size:16px;max-width:44ch}
+.hero-stats{display:flex;gap:10px;margin-top:22px}
+.stat{flex:1;padding:12px 14px;border-radius:var(--r-md);border:1px solid var(--line);background:#FFFFFF06}
+.stat .k{
+  display:flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
+}
+.stat .v{font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:4px;display:flex;align-items:baseline;gap:6px}
+.stat .v small{font-size:12px;font-weight:500;color:var(--muted)}
+.stat.streak .v{color:var(--amber)}
+.hero-actions{display:flex;align-items:center;gap:12px;margin-top:24px;flex-wrap:wrap}
+
+/* miniatura do jogo: a home mostra o que se joga, não só descreve */
+.mystery{
+  position:relative;
+  border-radius:var(--r-lg);border:1px solid var(--line-2);
+  background:linear-gradient(180deg,#141C38,#0A1022);
+  padding:18px;display:flex;flex-direction:column;gap:14px;
+  box-shadow:var(--shadow-lift);
+}
+.mystery .cap{display:flex;align-items:center;justify-content:space-between}
+.silhouette{
+  position:relative;height:176px;border-radius:var(--r-md);
+  display:grid;place-items:center;overflow:hidden;
+  background:radial-gradient(140px 140px at 50% 46%,#FF4E5B1C,transparent 70%),#070C1B;
+  border:1px solid var(--line);
+}
+.silhouette .art{position:absolute;width:210px;color:#fff;opacity:.09}
+.silhouette .qm{position:relative;font-size:56px;font-weight:800;color:#FFFFFF26}
+.silhouette .scan{position:absolute;left:0;right:0;top:34%;height:32%;background:linear-gradient(180deg,transparent,#FF4E5B17,transparent)}
+.mini-row{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.mini{height:36px;border-radius:var(--r-xs);display:grid;place-items:center;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.mini.hit{background:var(--green);color:#03150D}
+.mini.part{background:var(--amber);color:#1A1102}
+.mini.miss{background:#111931;color:#68728F;border:1px solid var(--line)}
+.mystery .foot{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted)}
+
+/* =========================================== seletor de universo ====== */
+.universe{position:relative;width:296px}
+.universe-trigger{
+  width:100%;display:flex;align-items:center;gap:11px;
+  padding:9px 12px;border-radius:var(--r-sm);
+  border:1px solid var(--line-2);background:#FFFFFF08;text-align:left;
+  transition:border-color .15s,background .15s,box-shadow .15s;
+}
+.universe-trigger:hover{border-color:#7C5CFF66;background:#FFFFFF0D}
+.universe-trigger[aria-expanded="true"]{border-color:var(--purple);box-shadow:0 0 0 3px var(--purple-glow)}
+.universe-trigger .txt{flex:1;min-width:0}
+.universe-trigger .name{display:block;font-size:14px;font-weight:600}
+.universe-trigger .desc{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.universe-trigger .chev{color:var(--muted);flex:none;transition:transform .18s}
+.universe-trigger[aria-expanded="true"] .chev{transform:rotate(180deg)}
+
+.mono{
+  width:32px;height:32px;border-radius:9px;flex:none;
+  display:grid;place-items:center;
+  font-size:11px;font-weight:800;letter-spacing:-0.03em;color:#fff;
+  box-shadow:inset 0 1px 0 #FFFFFF33;
+}
+.mono.sm{width:26px;height:26px;border-radius:7px;font-size:10px}
+
+.universe-panel{
+  position:absolute;z-index:60;top:calc(100% + 8px);left:0;width:392px;
+  border-radius:var(--r-md);border:1px solid var(--line-2);
+  background:#0A0F22F5;backdrop-filter:blur(18px);
+  box-shadow:var(--shadow-lift);overflow:hidden;
+}
+.universe-panel[hidden]{display:none}
+.universe-panel.up{top:auto;bottom:calc(100% + 8px)}
+.usearch{display:flex;align-items:center;gap:9px;padding:11px 13px;border-bottom:1px solid var(--line)}
+.usearch svg{color:var(--muted);flex:none}
+.usearch input{flex:1;min-width:0;background:none;border:0;outline:none;font-size:14px}
+.usearch input::placeholder{color:var(--muted)}
+.usearch kbd{
+  font-family:var(--font);font-size:10px;font-weight:600;color:var(--muted);
+  border:1px solid var(--line-2);border-radius:5px;padding:2px 6px;background:#FFFFFF08;
+}
+.ulist{max-height:296px;overflow-y:auto;padding:6px;scrollbar-width:thin;scrollbar-color:#FFFFFF1F transparent}
+.ulist::-webkit-scrollbar{width:10px}
+.ulist::-webkit-scrollbar-thumb{background:#FFFFFF1F;border:3px solid transparent;background-clip:content-box;border-radius:99px}
+.ulist li{
+  display:flex;align-items:center;gap:11px;
+  padding:8px 10px;border-radius:var(--r-xs);cursor:pointer;
+  border:1px solid transparent;transition:background .12s,border-color .12s;
+}
+.ulist li:hover{background:#FFFFFF0A}
+.ulist li[aria-selected="true"]{background:linear-gradient(90deg,#7C5CFF1F,#FF4E5B12);border-color:#7C5CFF5C}
+.ulist .txt{flex:1;min-width:0}
+.ulist .name{display:block;font-size:13.5px;font-weight:600}
+.ulist .desc{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ulist .check{color:var(--purple-hi);opacity:0;flex:none}
+.ulist li[aria-selected="true"] .check{opacity:1}
+.ulist .none{padding:26px;text-align:center;color:var(--muted);font-size:13px}
+.ufoot{
+  display:flex;align-items:center;gap:8px;
+  padding:11px 14px;border-top:1px solid var(--line);
+  font-size:13px;color:var(--muted);cursor:pointer;width:100%;
+  transition:color .15s,background .15s;
+}
+.ufoot:hover{color:var(--purple-hi);background:#7C5CFF0F}
+
+/* ========================================================== modos ===== */
+.modes{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.mode{
+  position:relative;overflow:hidden;
+  display:flex;flex-direction:column;gap:11px;
+  padding:20px;border-radius:var(--r-lg);
+  border:1px solid var(--line);background:var(--surface);text-align:left;
+  transition:border-color .18s,background .18s,transform .18s,box-shadow .18s;
+}
+.mode:hover{transform:translateY(-2px);border-color:var(--line-2);background:var(--surface-2);box-shadow:var(--shadow)}
+.mode .ico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;border:1px solid var(--line);background:#FFFFFF0A;color:var(--text-dim)}
+.mode h3{font-size:16px;font-weight:700}
+.mode p{font-size:13px;color:var(--muted);line-height:1.45}
+.mode .foot{margin-top:auto;padding-top:8px;display:flex;align-items:center;gap:8px}
+.mode .go{margin-left:auto;color:var(--muted);transition:transform .18s,color .18s}
+.mode:hover .go{transform:translateX(3px);color:var(--text)}
+.mode .corner{position:absolute;right:-30px;top:-30px;width:140px;color:#fff;opacity:.04}
+.mode.accent{border-color:#FF4E5B33;background:linear-gradient(180deg,#181832,#0C1226)}
+.mode.accent:hover{border-color:#FF4E5B66;box-shadow:0 22px 46px -28px var(--coral-glow)}
+.mode.accent .ico{background:#FF4E5B1A;border-color:#FF4E5B38;color:var(--coral-hi)}
+.mode.violet .ico{background:#7C5CFF1A;border-color:#7C5CFF38;color:var(--purple-hi)}
+
+.code-join{display:flex;gap:8px}
+.code-join input{
+  flex:1;min-width:0;height:38px;
+  background:#FFFFFF08;border:1px solid var(--line-2);border-radius:var(--r-xs);
+  padding:0 12px;outline:none;
+  text-transform:uppercase;letter-spacing:.26em;font-weight:700;font-size:14px;
+  transition:border-color .15s,box-shadow .15s;
+}
+.code-join input::placeholder{letter-spacing:.14em;font-weight:500;color:var(--muted)}
+.code-join input:focus{border-color:var(--purple);box-shadow:0 0 0 3px var(--purple-glow)}
+
+/* ======================================================= sua sala ===== */
+.room{
+  display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:26px;
+  padding:20px 22px;border-radius:var(--r-lg);
+  border:1px solid #22C07A2E;
+  background:linear-gradient(100deg,#08191A,#0C1226 58%);
+  box-shadow:var(--shadow);
+}
+.room .codebox{padding:11px 22px;border-radius:var(--r-md);border:1px dashed #22C07A4D;background:#22C07A0F;text-align:center}
+.room .codebox .k{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--green)}
+.room .codebox .v{font-size:28px;font-weight:800;letter-spacing:.16em;text-indent:.16em;margin-top:2px}
+.room h3{font-size:16px;font-weight:700;margin-bottom:6px}
+.room .meta{display:flex;align-items:center;gap:9px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.room .actions{display:flex;gap:9px}
+.stack-avatars{display:flex;align-items:center}
+.stack-avatars .avatar{width:24px;height:24px;font-size:10px;border:2px solid #0C1226;margin-left:-8px}
+.stack-avatars .avatar:first-child{margin-left:0}
+.stack-avatars .more{
+  width:24px;height:24px;border-radius:50%;margin-left:-8px;border:2px solid #0C1226;
+  display:grid;place-items:center;font-size:10px;font-weight:700;color:var(--muted);background:var(--surface-3);
+}
+
+/* ==================================================== como jogar ====== */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.step{position:relative;padding:18px;border-radius:var(--r-md);border:1px solid var(--line);background:#FFFFFF05}
+.step .n{
+  width:28px;height:28px;border-radius:9px;display:grid;place-items:center;
+  font-size:12px;font-weight:800;margin-bottom:12px;
+  background:#FF4E5B1A;color:var(--coral-hi);border:1px solid #FF4E5B2E;
+}
+.step h4{font-size:14px;font-weight:650;margin-bottom:5px}
+.step p{font-size:12.5px;color:var(--muted);line-height:1.5}
+.step::after{
+  content:"";position:absolute;right:-9px;top:32px;width:8px;height:8px;
+  border-top:1px solid var(--line-2);border-right:1px solid var(--line-2);transform:rotate(45deg);
+}
+.step:last-child::after{display:none}
+
+/* ==================================================== modal criar ===== */
+.scrim{
+  position:fixed;inset:0;z-index:80;
+  background:#03050EB8;backdrop-filter:blur(6px);
+  display:grid;place-items:center;padding:32px;
+}
+.scrim[hidden]{display:none}
+.modal{
+  position:relative;width:min(1060px,100%);max-height:92vh;
+  display:grid;grid-template-columns:216px 1fr;
+  border-radius:var(--r-lg);border:1px solid var(--line-2);
+  background:linear-gradient(180deg,#0B1124,#080D1D);
+  box-shadow:var(--shadow-lift);
+}
+.modal .close{position:absolute;top:18px;right:18px;width:38px;height:38px;border-radius:var(--r-sm);display:grid;place-items:center;background:#FFFFFF0A;border:1px solid var(--line);color:var(--muted);transition:.15s}
+.modal .close:hover{background:#FFFFFF14;color:var(--text)}
+
+.modal-side{
+  border-right:1px solid var(--line);
+  border-radius:var(--r-lg) 0 0 var(--r-lg);
+  background:linear-gradient(180deg,#0A0F21,#080C1B);
+  padding:20px 14px;display:flex;flex-direction:column;gap:6px;
+}
+.side-tab{
+  display:flex;align-items:center;gap:11px;
+  padding:11px 13px;border-radius:var(--r-sm);
+  font-size:14px;font-weight:600;color:var(--muted);
+  border:1px solid transparent;transition:.15s;
+}
+.side-tab:hover{background:#FFFFFF08;color:var(--text)}
+.side-tab.on{background:#7C5CFF17;border-color:#7C5CFF3D;color:var(--purple-hi)}
+.side-art{margin:26px auto 0;width:150px;color:#fff;opacity:.07}
+.side-note{
+  margin-top:auto;padding:14px;border-radius:var(--r-md);
+  border:1px solid #7C5CFF2E;background:#7C5CFF0F;
+}
+.side-note .h{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--purple-hi);margin-bottom:6px}
+.side-note p{font-size:12px;color:var(--muted);line-height:1.5}
+
+.modal-main{padding:26px 30px 24px;border-radius:0 var(--r-lg) var(--r-lg) 0}
+.modal-title{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+.modal-title .mark{
+  width:44px;height:44px;border-radius:var(--r-md);flex:none;display:grid;place-items:center;
+  background:#7C5CFF1F;border:1px solid #7C5CFF3D;color:var(--purple-hi);
+}
+.modal-title h2{font-size:24px;font-weight:800}
+.modal-title p{font-size:13.5px;color:var(--muted);margin-top:3px}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px 26px}
+.f-label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:650;color:var(--text-dim);margin-bottom:9px}
+.f-label .i{color:var(--muted);display:flex}
+.text-field{
+  display:flex;align-items:center;gap:11px;
+  height:46px;padding:0 14px;border-radius:var(--r-sm);
+  border:1px solid var(--line-2);background:#FFFFFF08;
+  transition:border-color .15s,box-shadow .15s;
+}
+.text-field:focus-within{border-color:var(--purple);box-shadow:0 0 0 3px var(--purple-glow)}
+.text-field input{flex:1;min-width:0;background:none;border:0;outline:none;font-size:14.5px;font-weight:500}
+.text-field .count{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.f-help{font-size:12px;color:var(--muted);margin-top:8px}
+
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;
+  height:36px;padding:0 15px;border-radius:var(--pill);
+  border:1px solid var(--line-2);background:#FFFFFF08;
+  font-size:13.5px;font-weight:600;color:var(--text-dim);
+  transition:.15s;
+}
+.chip:hover{border-color:#7C5CFF66;color:var(--text)}
+.chip .tick{display:none}
+.chip.on{background:#7C5CFF1F;border-color:var(--purple);color:var(--purple-hi)}
+.chip.on .tick{display:block}
+.chip:disabled{opacity:.35;cursor:not-allowed}
+
+.switch-row{
+  display:flex;align-items:center;gap:14px;
+  padding:15px 16px;border-radius:var(--r-md);
+  border:1px solid var(--line);background:#FFFFFF06;width:100%;text-align:left;
+  transition:border-color .15s,background .15s;
+}
+.switch-row:hover{border-color:var(--line-2)}
+.switch-row.on{border-color:#7C5CFF3D;background:#7C5CFF0F}
+.switch-row .ico{width:38px;height:38px;border-radius:11px;flex:none;display:grid;place-items:center;background:#FFFFFF0A;border:1px solid var(--line);color:var(--muted)}
+.switch-row.on .ico{background:#7C5CFF1F;border-color:#7C5CFF38;color:var(--purple-hi)}
+.switch-row .txt{flex:1}
+.switch-row .txt b{display:block;font-size:14.5px;font-weight:650}
+.switch-row .txt small{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.switch{width:46px;height:26px;border-radius:var(--pill);background:#2A3350;padding:3px;flex:none;transition:background .18s}
+.switch i{display:block;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .18s}
+.switch-row.on .switch{background:var(--purple)}
+.switch-row.on .switch i{transform:translateX(20px)}
+
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+.tile{padding:14px 15px;border-radius:var(--r-md);border:1px solid var(--line);background:#FFFFFF06}
+.tile .k{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.tile .v{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;margin:6px 0 2px}
+.tile small{font-size:12px;color:var(--muted)}
+.tile.dim{opacity:.42}
+
+.modal-foot{display:flex;gap:12px;margin-top:26px;padding-top:22px;border-top:1px solid var(--line)}
+.modal-foot .btn.ghost{flex:0 0 170px}
+.modal-foot .btn.violet{flex:1}
+
+/* ================================================= barra do mockup ==== */
+.mockbar{
+  position:fixed;z-index:95;right:20px;bottom:20px;
+  display:flex;align-items:center;gap:6px;padding:6px;
+  border-radius:var(--pill);border:1px solid var(--line-2);
+  background:#0A0F22E6;backdrop-filter:blur(14px);box-shadow:var(--shadow-lift);
+}
+.mockbar span{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:0 10px}
+.mockbar button{padding:7px 14px;border-radius:var(--pill);font-size:13px;font-weight:600;color:var(--muted);transition:.15s}
+.mockbar button:hover{color:var(--text);background:#FFFFFF0A}
+.mockbar button.on{background:#FFFFFF12;color:var(--text)}
+.mockbar a{padding:7px 14px;border-radius:var(--pill);font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;transition:.15s}
+.mockbar a:hover{color:var(--text);background:#FFFFFF0A}
+
+/* ======================================================= responsivo === */
+@media (max-width:1100px){
+  .hero{grid-template-columns:1fr}
+  .mystery{max-width:420px}
+  .modes{grid-template-columns:1fr}
+  .steps{grid-template-columns:repeat(2,1fr)}
+  .step:nth-child(2)::after{display:none}
+  .room{grid-template-columns:1fr}
+  .modal{grid-template-columns:1fr}
+  .modal-side{display:none}
+  .form-grid{grid-template-columns:1fr}
+}
+@media (max-width:720px){
+  .nav-status,.nav-links{display:none}
+  .steps{grid-template-columns:1fr}
+  .step::after{display:none}
+  .hero{padding:22px}
+  .hero h1{font-size:28px}
+  .universe{width:100%}
+  .universe-panel{width:100%}
+  .tiles{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<!-- ===================================================== fundo ======== -->
+<div class="ambient" aria-hidden="true">
+  <div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
+  <div class="grid"></div>
+  <svg class="sil s1" viewBox="0 0 100 100" fill="currentColor"><path d="M50 6c22 0 38 17 38 40 0 18-8 27-8 36 0 7-6 12-14 12-6 0-9-4-12-4s-6 4-12 4c-8 0-14-5-14-12 0-9-8-18-8-36C20 23 28 6 50 6Zm-14 34c-5 0-9 5-9 11s4 11 9 11 9-5 9-11-4-11-9-11Zm28 0c-5 0-9 5-9 11s4 11 9 11 9-5 9-11-4-11-9-11Z"/></svg>
+  <svg class="sil s2" viewBox="0 0 100 100" fill="currentColor"><path d="M50 4 33 30 6 34l20 21-5 30 29-15 29 15-5-30 20-21-27-4L50 4Z"/></svg>
+  <svg class="sil s3" viewBox="0 0 100 100" fill="currentColor"><path d="M50 2a48 48 0 1 0 0 96 48 48 0 0 0 0-96Zm0 10a38 38 0 0 1 37.6 33H62a12 12 0 0 0-24 0H12.4A38 38 0 0 1 50 12Zm0 26a12 12 0 1 1 0 24 12 12 0 0 1 0-24Zm-37.6 17H38a12 12 0 0 0 24 0h25.6A38 38 0 0 1 12.4 55Z"/></svg>
+  <svg class="sil s4" viewBox="0 0 100 100" fill="currentColor"><path d="M28 12c8 0 14 8 16 18 2-1 8-1 10 0 2-10 8-18 16-18 6 0 8 6 6 12l-6 14c6 8 8 18 8 26 0 14-14 24-29 24s-29-10-29-24c0-8 2-18 8-26l-6-14c-2-6 0-12 6-12Z"/></svg>
+</div>
+
+<!-- ===================================================== topo ========= -->
+<header class="topnav">
+  <div class="inner">
+    <div class="logo"><span class="glyph">?</span>Palpite</div>
+
+    <nav class="nav-links">
+      <a href="#" class="active">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.9 4.9l2.9 2.9M16.2 16.2l2.9 2.9M2 12h4M18 12h4M4.9 19.1l2.9-2.9M16.2 7.8l2.9-2.9"/></svg>
+        Desafio diário
+      </a>
+      <a href="#">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Salas
+      </a>
+      <a href="#">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M17 3H7v6a5 5 0 0 0 10 0V3ZM17 5h3a3 3 0 0 1-3 3M7 5H4a3 3 0 0 0 3 3"/></svg>
+        Ranking
+      </a>
+    </nav>
+
+    <div class="nav-status">
+      <span>Quarta, <b>3 de setembro</b></span>
+      <i class="sep"></i>
+      <span class="live"><i></i>Diário aberto</span>
+      <i class="sep"></i>
+      <span>reinicia em <b>07:12</b></span>
+    </div>
+
+    <button class="icon-btn" aria-label="Notificações">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+      <i class="badge"></i>
+    </button>
+    <button class="icon-btn" aria-label="Configurações">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+    </button>
+    <i class="divider-v"></i>
+    <button class="profile">
+      <span class="avatar">PK</span>
+      <span class="who">PedroKaraio</span>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted)"><path d="m6 9 6 6 6-6"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="page">
+
+  <!-- ================================================== herói ======== -->
+  <section class="hero">
+    <div>
+      <span class="eyebrow">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        Todo dia · troca à meia-noite
+      </span>
+      <h1>Desafio diário</h1>
+      <p class="lead">Um segredo por universo. O mesmo para todo mundo, até a virada do dia.</p>
+
+      <div class="hero-stats">
+        <div class="stat streak">
+          <div class="k">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2s5 4.5 5 9a5 5 0 0 1-10 0c0-1.5.5-2.8 1.2-3.8C8.6 9.7 9.5 11 11 11c0-3 1-6 1-9Z"/></svg>
+            Sequência
+          </div>
+          <div class="v">12 <small>dias</small></div>
+        </div>
+        <div class="stat">
+          <div class="k">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+            Hoje
+          </div>
+          <div class="v">3<small>/20 universos</small></div>
+        </div>
+        <div class="stat">
+          <div class="k">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-6M6 20v-3M18 20V8"/></svg>
+            Média
+          </div>
+          <div class="v">4,2 <small>chutes</small></div>
+        </div>
+      </div>
+
+      <div class="hero-actions">
+        <!-- seletor de universo: ícone, nome, descrição, busca, seleção -->
+        <div class="universe" id="uni">
+          <button class="universe-trigger" id="uniTrigger" aria-expanded="false" aria-haspopup="listbox">
+            <span class="mono" id="uniMono" style="background:linear-gradient(145deg,#FF6E78,#C0303C)">PK</span>
+            <span class="txt">
+              <span class="name" id="uniName">Pokémon</span>
+              <span class="desc" id="uniDesc">1025 criaturas, 9 gerações</span>
+            </span>
+            <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+
+          <div class="universe-panel" id="uniPanel" hidden>
+            <div class="usearch">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <input id="uniSearch" type="text" placeholder="Buscar universo…" autocomplete="off" spellcheck="false">
+              <kbd>ESC</kbd>
+            </div>
+            <ul class="ulist" id="uniList" role="listbox"></ul>
+            <button class="ufoot">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              Sugerir um universo
+            </button>
+          </div>
+        </div>
+
+        <button class="btn primary lg">
+          Jogar agora
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- miniatura do jogo -->
+    <aside class="mystery">
+      <div class="cap">
+        <span class="tag coral">Pokémon · hoje</span>
+        <span class="tag ghost">#248</span>
+      </div>
+      <div class="silhouette">
+        <svg class="art" viewBox="0 0 100 100" fill="currentColor"><path d="M50 2a48 48 0 1 0 0 96 48 48 0 0 0 0-96Zm0 10a38 38 0 0 1 37.6 33H62a12 12 0 0 0-24 0H12.4A38 38 0 0 1 50 12Zm0 26a12 12 0 1 1 0 24 12 12 0 0 1 0-24Zm-37.6 17H38a12 12 0 0 0 24 0h25.6A38 38 0 0 1 12.4 55Z"/></svg>
+        <span class="qm">?</span>
+        <div class="scan"></div>
+      </div>
+      <div class="mini-row">
+        <div class="mini miss">Tipo</div>
+        <div class="mini part">Ger.</div>
+        <div class="mini hit">Cor</div>
+        <div class="mini miss">Alt.</div>
+        <div class="mini miss">Peso</div>
+      </div>
+      <div class="foot">
+        <span>Chute 3 de ∞</span>
+        <span>9.412 jogaram hoje</span>
+      </div>
+    </aside>
+  </section>
+
+  <!-- ================================================== modos ======== -->
+  <section class="section">
+    <div class="section-head">
+      <h2>Como você quer jogar</h2>
+      <span class="spacer"></span>
+      <span class="hint">Salas aceitam de 2 a 8 jogadores</span>
+    </div>
+
+    <div class="modes">
+      <button class="mode accent">
+        <svg class="corner" viewBox="0 0 100 100" fill="currentColor"><path d="M50 2a48 48 0 1 0 0 96 48 48 0 0 0 0-96Zm0 10a38 38 0 0 1 37.6 33H62a12 12 0 0 0-24 0H12.4A38 38 0 0 1 50 12Zm0 26a12 12 0 1 1 0 24 12 12 0 0 1 0-24Z"/></svg>
+        <span class="ico">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h6M15 12h6"/><circle cx="12" cy="12" r="3"/></svg>
+        </span>
+        <h3>Desafio diário</h3>
+        <p>Um segredo por universo, igual para todo mundo. Jogue sozinho e compare o resultado.</p>
+        <div class="foot">
+          <span class="tag green">3/20 hoje</span>
+          <svg class="go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </div>
+      </button>
+
+      <button class="mode violet" id="openCreate">
+        <span class="ico">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        </span>
+        <h3>Criar sala</h3>
+        <p>Escolha o universo, as regras e o tempo por turno. Você vira o host e convida por link.</p>
+        <div class="foot">
+          <span class="tag purple">Você é o host</span>
+          <svg class="go" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </div>
+      </button>
+
+      <div class="mode">
+        <span class="ico">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+        </span>
+        <h3>Entrar em uma sala</h3>
+        <p>Tem um código de 4 letras? Cole aqui e caia direto na partida dos seus amigos.</p>
+        <div class="foot" style="display:block">
+          <form class="code-join" onsubmit="return false">
+            <input maxlength="4" placeholder="CÓDIGO" aria-label="Código da sala" value="6VNQ">
+            <button class="btn secondary">Entrar</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================ sua sala ======= -->
+  <section class="section">
+    <div class="section-head">
+      <h2>Sua sala</h2>
+      <span class="tag green">Aberta</span>
+      <span class="spacer"></span>
+      <span class="hint">Você é o host</span>
+    </div>
+
+    <div class="room">
+      <div class="codebox">
+        <div class="k">Código</div>
+        <div class="v">6VNQ</div>
+      </div>
+      <div>
+        <h3>Caça ao segredo · Pokémon</h3>
+        <div class="meta">
+          <span class="stack-avatars">
+            <span class="avatar">PK</span>
+            <span class="avatar" style="background:linear-gradient(145deg,#22C07A,#0E7A4C)">LU</span>
+            <span class="avatar" style="background:linear-gradient(145deg,#F0A92B,#B36F06)">MA</span>
+            <span class="more">+2</span>
+          </span>
+          <span>5 jogadores</span>
+          <i class="sep" style="width:1px;height:12px;background:var(--line-2)"></i>
+          <span>5 rodadas · 45s por turno · até acertar</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copiar convite
+        </button>
+        <button class="btn primary">Voltar para a sala</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =============================================== como jogar ====== -->
+  <section class="section">
+    <div class="section-head">
+      <h2>Como jogar</h2>
+      <span class="spacer"></span>
+      <span class="hint">Leva um minuto para pegar</span>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="n">1</div>
+        <h4>Crie ou entre em uma sala</h4>
+        <p>Escolha o universo e as regras, ou entre com o código de 4 letras de um amigo.</p>
+      </div>
+      <div class="step">
+        <div class="n">2</div>
+        <h4>Descubra o segredo</h4>
+        <p>A cada rodada alguém escolhe o segredo — os outros têm que adivinhar quem é.</p>
+      </div>
+      <div class="step">
+        <div class="n">3</div>
+        <h4>Dê seus chutes</h4>
+        <p>Cada chute pinta a tabela: verde acertou, amarelo chegou perto, cinza errou.</p>
+      </div>
+      <div class="step">
+        <div class="n">4</div>
+        <h4>Acerte antes dos seus amigos</h4>
+        <p>Quem acerta primeiro leva mais pontos. No fim das rodadas, sai o ranking.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ============================================ modal criar sala ===== -->
+<div class="scrim" id="createScrim" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Criar nova sala">
+    <button class="close" id="closeCreate" aria-label="Fechar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+
+    <aside class="modal-side">
+      <button class="side-tab on">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="4"/><path d="M7 12h3M8.5 10.5v3M15 11h.01M17.5 13.5h.01"/></svg>
+        Configurações
+      </button>
+      <button class="side-tab">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+        Jogadores
+      </button>
+      <button class="side-tab">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 15l3-4 2.5 3L17 9"/></svg>
+        Visão geral
+      </button>
+
+      <svg class="side-art" viewBox="0 0 100 100" fill="currentColor"><path d="M50 2a48 48 0 1 0 0 96 48 48 0 0 0 0-96Zm0 10a38 38 0 0 1 37.6 33H62a12 12 0 0 0-24 0H12.4A38 38 0 0 1 50 12Zm0 26a12 12 0 1 1 0 24 12 12 0 0 1 0-24Zm-37.6 17H38a12 12 0 0 0 24 0h25.6A38 38 0 0 1 12.4 55Z"/></svg>
+
+      <div class="side-note">
+        <div class="h">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2Z"/></svg>
+          Dica
+        </div>
+        <p>“Até acertar” deixa a rodada só fechar em acerto. Bom para grupo grande — ninguém fica de fora.</p>
+      </div>
+    </aside>
+
+    <div class="modal-main">
+      <div class="modal-title">
+        <span class="mark">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M3 12h18M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>
+        </span>
+        <div>
+          <h2>Criar nova sala</h2>
+          <p>Configure a partida do jeito que quiser e chame seus amigos.</p>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div>
+          <div class="f-label">Nome da sala <span class="i" title="Aparece para quem entrar"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01" stroke-linecap="round"/></svg></span></div>
+          <label class="text-field">
+            <span class="mono sm" style="background:linear-gradient(145deg,#FF6E78,#C0303C)">PK</span>
+            <input value="Caça ao segredo" aria-label="Nome da sala">
+            <span class="count">16/32</span>
+          </label>
+        </div>
+
+        <div>
+          <div class="f-label">Universo <span class="i"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01" stroke-linecap="round"/></svg></span></div>
+          <div class="universe" id="uni2" style="width:100%">
+            <button class="universe-trigger" id="uniTrigger2" aria-expanded="false" aria-haspopup="listbox" style="height:46px">
+              <span class="mono sm" id="uniMono2" style="background:linear-gradient(145deg,#FF6E78,#C0303C)">PK</span>
+              <span class="txt"><span class="name" id="uniName2">Pokémon</span></span>
+              <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <div class="universe-panel" id="uniPanel2" hidden style="width:100%">
+              <div class="usearch">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input id="uniSearch2" type="text" placeholder="Escolha o universo…" autocomplete="off" spellcheck="false">
+                <kbd>ESC</kbd>
+              </div>
+              <ul class="ulist" id="uniList2" role="listbox"></ul>
+              <button class="ufoot">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                Sugerir um universo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div style="grid-column:1/-1">
+          <div class="f-label">Gerações <span class="i"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01" stroke-linecap="round"/></svg></span></div>
+          <div class="chips" id="gens">
+            <button class="chip on">Gen 1 <svg class="tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button class="chip">Gen 2 <svg class="tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button class="chip">Gen 3 <svg class="tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button class="chip">Gen 4 <svg class="tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button class="chip">Gen 5 <svg class="tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button class="chip">Gen 6 <svg class="tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button class="chip">Gen 7 <svg class="tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button class="chip">Gen 8 <svg class="tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>
+            <button class="chip">Gen 9 <svg class="tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></button>
+          </div>
+          <p class="f-help">Dá para marcar várias. Sem nenhuma marcada, valem todas.</p>
+        </div>
+
+        <div style="grid-column:1/-1">
+          <div class="f-label">Regras da partida <span class="i"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01" stroke-linecap="round"/></svg></span></div>
+
+          <button class="switch-row on" id="untilRight">
+            <span class="ico">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+            </span>
+            <span class="txt">
+              <b>Até acertar</b>
+              <small>A rodada só fecha quando alguém acerta, sem teto de chutes.</small>
+            </span>
+            <span class="switch"><i></i></span>
+          </button>
+
+          <div class="tiles">
+            <div class="tile">
+              <div class="k">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+                Rodadas
+              </div>
+              <div class="v">5</div>
+              <small>Total da partida</small>
+            </div>
+            <div class="tile">
+              <div class="k">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                Tempo por turno
+              </div>
+              <div class="v">45s</div>
+              <small>Para mandar o chute</small>
+            </div>
+            <div class="tile dim" id="guessTile">
+              <div class="k">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>
+                Chutes por jogador
+              </div>
+              <div class="v">∞</div>
+              <small>“Até acertar” ignora o teto</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn ghost lg" id="cancelCreate">Cancelar</button>
+        <button class="btn violet lg">
+          Criar sala
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =========================================== barra do mockup ======= -->
+<div class="mockbar">
+  <span>Mockup</span>
+  <button class="on" id="tabHome">Início</button>
+  <button id="tabCreate">Criar sala</button>
+  <a href="lobby.html">Sala</a>
+  <a href="game.html">Partida</a>
+  <a href="gameover.html">Fim</a>
+</div>
+
+<script>
+/* Universos do jogo: monograma colorido no lugar de logo, para o mockup ficar
+   consistente sem depender de arte externa. */
+const UNIVERSES = [
+  ['PK','Pokémon','1025 criaturas, 9 gerações','#FF6E78','#C0303C'],
+  ['BL','Bleach','Shinigami, Quincy e Arrancar','#93A5C4','#3D4C6B'],
+  ['NA','Naruto','Shinobi de Konoha a Boruto','#FF9F45','#C25A0E'],
+  ['CR','Clash Royale','Cartas, raridades e elixir','#6FB6FF','#2A5FC4'],
+  ['YG','Yu-Gi-Oh!','Monstros, magias e armadilhas','#C08BFF','#6C3BB8'],
+  ['LO','League of Legends','Campeões de Runeterra','#D8B04A','#8A6A20'],
+  ['VA','Valorant · Agentes','Duelistas, sentinelas e mais','#FF7A6B','#B8332A'],
+  ['VW','Valorant · Armas','O arsenal inteiro do jogo','#9AA7BD','#4A566E'],
+  ['RM','Rick and Morty','Personagens do multiverso','#7FE3B0','#1E8B5E'],
+  ['SH','Super-heróis','Marvel e DC lado a lado','#6FA8FF','#2C4FB8'],
+  ['HP','Harry Potter','Bruxos, casas e varinhas','#C9A227','#7A5E0B'],
+  ['SA','Senhor dos Anéis','Povos da Terra-média','#B79A6A','#6B5433'],
+  ['F1','Fórmula 1','Pilotos, equipes e títulos','#FF5C5C','#A81E1E'],
+  ['CA','Carros','Marcas, motores e potência','#8FA3BF','#3C4B63'],
+  ['ML','My Little Pony','Pôneis de Equestria','#FFA6D5','#B03D77'],
+  ['OP','One Piece','Piratas, marinha e akuma no mi','#FF8A5B','#C24A16'],
+  ['DB','Dragon Ball','Guerreiros e transformações','#FFB84D','#C07A00'],
+  ['HX','Hunter x Hunter','Nen, tipos e associações','#7BE0D8','#1F8E86'],
+  ['OR','Ordem Paranormal','Agentes e os quatro elementos','#B36BFF','#5E23A8'],
+  ['B1','Ben 10','Os aliens do Omnitrix','#9BE84F','#4E8A12'],
+];
+
+function setupUniverse(ids){
+  const root = document.getElementById(ids.root);
+  const trigger = document.getElementById(ids.trigger);
+  const panel = document.getElementById(ids.panel);
+  const list = document.getElementById(ids.list);
+  const search = document.getElementById(ids.search);
+  const mono = document.getElementById(ids.mono);
+  const name = document.getElementById(ids.name);
+  const desc = ids.desc ? document.getElementById(ids.desc) : null;
+  let selected = 0;
+
+  function render(filter){
+    const q = (filter || '').trim().toLowerCase();
+    const rows = UNIVERSES
+      .map((u, i) => ({ u, i }))
+      .filter(({ u }) => !q || u[1].toLowerCase().includes(q) || u[2].toLowerCase().includes(q));
+
+    if (!rows.length){
+      list.innerHTML = '<li class="none">Nenhum universo com esse nome.</li>';
+      return;
+    }
+    list.innerHTML = rows.map(({ u, i }) => `
+      <li role="option" data-i="${i}" aria-selected="${i === selected}">
+        <span class="mono" style="background:linear-gradient(145deg,${u[3]},${u[4]})">${u[0]}</span>
+        <span class="txt"><span class="name">${u[1]}</span><span class="desc">${u[2]}</span></span>
+        <svg class="check" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </li>`).join('');
+  }
+
+  function pick(i){
+    selected = i;
+    const u = UNIVERSES[i];
+    mono.style.background = `linear-gradient(145deg,${u[3]},${u[4]})`;
+    mono.textContent = u[0];
+    name.textContent = u[1];
+    if (desc) desc.textContent = u[2];
+    close();
+  }
+
+  function open(){
+    panel.hidden = false;
+    trigger.setAttribute('aria-expanded', 'true');
+    search.value = '';
+    render('');
+    search.focus();
+  }
+  function close(){
+    panel.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+  }
+
+  trigger.addEventListener('click', () => panel.hidden ? open() : close());
+  search.addEventListener('input', () => render(search.value));
+  list.addEventListener('click', (e) => {
+    const li = e.target.closest('li[data-i]');
+    if (li) pick(Number(li.dataset.i));
+  });
+  document.addEventListener('click', (e) => { if (!root.contains(e.target)) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+
+  render('');
+}
+
+setupUniverse({ root:'uni',  trigger:'uniTrigger',  panel:'uniPanel',  list:'uniList',  search:'uniSearch',  mono:'uniMono',  name:'uniName', desc:'uniDesc' });
+setupUniverse({ root:'uni2', trigger:'uniTrigger2', panel:'uniPanel2', list:'uniList2', search:'uniSearch2', mono:'uniMono2', name:'uniName2' });
+
+/* chips de geração */
+document.getElementById('gens').addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (chip) chip.classList.toggle('on');
+});
+
+/* "até acertar" desliga o teto de chutes — o tile apaga junto */
+const untilRight = document.getElementById('untilRight');
+const guessTile = document.getElementById('guessTile');
+untilRight.addEventListener('click', () => {
+  const on = untilRight.classList.toggle('on');
+  guessTile.classList.toggle('dim', on);
+  guessTile.querySelector('.v').textContent = on ? '∞' : '6';
+  guessTile.querySelector('small').textContent = on ? '“Até acertar” ignora o teto' : 'Máximo por rodada';
+});
+
+/* modal + barra do mockup */
+const scrim = document.getElementById('createScrim');
+const tabHome = document.getElementById('tabHome');
+const tabCreate = document.getElementById('tabCreate');
+function showCreate(on){
+  scrim.hidden = !on;
+  tabCreate.classList.toggle('on', on);
+  tabHome.classList.toggle('on', !on);
+}
+document.getElementById('openCreate').addEventListener('click', () => showCreate(true));
+document.getElementById('closeCreate').addEventListener('click', () => showCreate(false));
+document.getElementById('cancelCreate').addEventListener('click', () => showCreate(false));
+tabHome.addEventListener('click', () => showCreate(false));
+tabCreate.addEventListener('click', () => showCreate(true));
+scrim.addEventListener('click', (e) => { if (e.target === scrim) showCreate(false); });
+</script>
+</body>
+</html>
