@@ -18,10 +18,10 @@ const ZONE = 'America/Sao_Paulo';
 
 /**
  * Quantos candidatos uma fatia precisa ter para valer como recorte do dia.
- * Abaixo disso o desafio ja nasceria quase entregue — os 3 personagens da 5a
- * temporada de Rick and Morty, as 2 cartas Pendulo do Yu-Gi-Oh!.
+ * Abaixo disso o dia acaba na forca bruta: com dez nomes possiveis a pessoa
+ * chuta a lista inteira sem ler dica nenhuma.
  */
-const MIN_POOL = 10;
+const MIN_POOL = 15;
 
 /** Data de hoje no fuso do jogo, como "2026-08-27". */
 export function today(now = new Date()) {
@@ -45,31 +45,41 @@ function pickFrom(list, key) {
 const eligibleOf = (universeId) => datasetOf(universeId).list.filter(item => item.eligible);
 
 /**
- * O recorte do dia: uma epoca e uma categoria — os dois eixos que o host liga e
- * desliga no lobby, aqui reduzidos a um de cada. Nada disso e anunciado: quem
- * joga descobre porque a busca do chute so oferece quem esta dentro.
+ * O recorte do dia, do jeito que o universo pediu no schema (`daily`). Nada
+ * disso e anunciado: quem joga descobre porque a busca do chute so oferece
+ * quem esta dentro.
  *
- * A epoca vem primeiro, e a categoria e escolhida ja dentro dela — senao a
- * combinacao das duas poderia sobrar em tres nomes. Eixo sem duas fatias
- * grandes o bastante fica solto (null): com uma so o recorte seria o mesmo todo
- * dia, e com fatias minusculas o desafio acabaria no primeiro chute.
+ * O eixo preferido e o tempo — a epoca do Naruto, a temporada de Rick and
+ * Morty, a parte de JoJo, a geracao do Pokemon. Fatia menor que MIN_POOL nao
+ * entra no sorteio, e eixo que sobra com uma fatia so fica solto (null): o
+ * recorte seria o mesmo todo dia.
+ *
+ * `daily.scope` e o caso a parte: uma epoca fixa, que nao roda. E o anime do
+ * Hunter x Hunter e os filmes dos herois — nao sao recorte do dia, sao o
+ * pedaco do universo que o desafio reconhece.
  */
 export function sliceOf(universeId, date = today()) {
   const universe = UNIVERSES[universeId];
-  if (!universe) return { scope: null, group: null };
+  const daily = universe?.daily;
+  if (!daily) return { scope: null, group: null };
+
   const eligible = eligibleOf(universeId);
+  let scope = daily.scope ?? null;
+  if (!scope && daily.rotate === 'scope') {
+    const epocas = scopeOptions(universe)
+      .filter(option => eligible.filter(scopeFilter(universe, [option.id])).length >= MIN_POOL);
+    // chaves proprias: epoca, categoria e segredo sao sorteios independentes
+    scope = epocas.length >= 2 ? pickFrom(epocas, `${date}:${universeId}:epoca`).id : null;
+  }
 
-  const epocas = scopeOptions(universe)
-    .filter(option => eligible.filter(scopeFilter(universe, [option.id])).length >= MIN_POOL);
-  // chaves proprias: epoca, categoria e segredo sao sorteios independentes
-  const scope = epocas.length >= 2 ? pickFrom(epocas, `${date}:${universeId}:epoca`).id : null;
-
-  const naEpoca = scope ? eligible.filter(scopeFilter(universe, [scope])) : eligible;
-  const counts = new Map();
-  for (const item of naEpoca) counts.set(item.group, (counts.get(item.group) ?? 0) + 1);
-
-  const categorias = (universe.groups ?? []).filter(g => (counts.get(g.id) ?? 0) >= MIN_POOL);
-  const group = categorias.length >= 2 ? pickFrom(categorias, `${date}:${universeId}:categoria`).id : null;
+  let group = null;
+  if (daily.rotate === 'group') {
+    const naEpoca = scope ? eligible.filter(scopeFilter(universe, [scope])) : eligible;
+    const counts = new Map();
+    for (const item of naEpoca) counts.set(item.group, (counts.get(item.group) ?? 0) + 1);
+    const categorias = (universe.groups ?? []).filter(g => (counts.get(g.id) ?? 0) >= MIN_POOL);
+    group = categorias.length >= 2 ? pickFrom(categorias, `${date}:${universeId}:categoria`).id : null;
+  }
 
   return { scope, group };
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { getUniverse, scopeFilter, scopeReach } from '@shared/universes.js';
 import { socket } from '../socket.js';
 import { useDataset } from '../hooks/useDataset.js';
@@ -18,6 +18,18 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   // sair e a unica saida que nao guarda a cadeira; com a partida rolando o
   // botao pede confirmacao, senao um toque errado custa o placar
   const [leaving, setLeaving] = useState(false);
+  const actionsRef = useRef(null);
+
+  /**
+   * A logo tambem volta para o menu, mas aqui isso e sair da sala: com a
+   * partida em pe ela so acende a confirmacao la embaixo — e rola ate ela, que
+   * senao o clique parece nao ter feito nada.
+   */
+  const backToMenu = () => {
+    if (state.phase === 'gameOver') return onLeave();
+    setLeaving(true);
+    requestAnimationFrame(() => actionsRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+  };
 
   const isHost = state.hostId === myId;
   const untilRight = state.settings.guessesPerPlayer === 0;
@@ -39,7 +51,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   return (
     <>
       <header className="topbar">
-        <span className="wordmark">Palpite</span>
+        <button type="button" className="wordmark" onClick={backToMenu}>Palpite</button>
         <span className="pill">
           {`Rodada ${state.round}/${state.settings.rounds}`}
         </span>
@@ -86,7 +98,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
 
             {state.secret && <Reveal universe={universe} secret={state.secret} scope={scopeReach(universe, state.settings.scope)} />}
 
-            <div className="game-actions">
+            <div className="game-actions" ref={actionsRef}>
               {isHost && state.phase === 'roundEnd' && (
                 <button className="btn primary" onClick={() => socket.emit('game:next')}>Próxima rodada</button>
               )}

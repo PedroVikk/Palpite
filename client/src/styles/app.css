@@ -63,6 +63,7 @@ button, input, select { font: inherit; color: inherit; }
 }
 .topbar .spacer { flex: 1; }
 
+/* tambem e o caminho de volta para o menu: nas telas com topbar ela e um botao */
 .wordmark {
   display: inline-flex;
   align-items: center;
@@ -72,7 +73,12 @@ button, input, select { font: inherit; color: inherit; }
   font-size: 22px;
   letter-spacing: -.02em;
   color: var(--primary);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
 }
+.wordmark:hover { color: var(--primary-bright); }
 
 /* ----------------------------------------------------------------- cartao */
 

@@ -9,6 +9,15 @@
  * `eligible` marca quem tem dados completos o bastante para ser o segredo —
  * todo mundo pode ser chutado, mas so os elegiveis sao sorteados.
  *
+ * `daily` diz como o desafio do dia se tranca — e a trava nao e anunciada em
+ * lugar nenhum, quem sente e a busca do chute:
+ *   { rotate: 'scope' }   sorteia uma epoca/temporada/parte por dia
+ *   { rotate: 'group' }   sorteia uma fatia dos grupos por dia (so onde o grupo
+ *                         e a linha do tempo — geracao, decada, campanha — ou
+ *                         onde o elenco e grande demais para jogar inteiro)
+ *   { scope: 'anime' }    epoca fixa, a mesma todo dia
+ * Sem o campo, o universo joga o elenco inteiro todo dia.
+ *
  * Tipos de coluna:
  *   text    igual -> verde, diferente -> cinza
  *   slot    igual -> verde; valor existe no outro slot do secreto -> amarelo
@@ -491,6 +500,8 @@ export const UNIVERSES = {
     label: 'Pokémon',
     secretLabel: 'o Pokémon secreto',
     dataFile: 'pokemon.json',
+    // as geracoes sao a linha do tempo da Pokedex
+    daily: { rotate: 'group' },
     groupLabel: 'Gerações',
     groups: Array.from({ length: 9 }, (_, i) => ({ id: String(i + 1), label: `Gen ${i + 1}` })),
     defaultGroups: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
@@ -511,6 +522,7 @@ export const UNIVERSES = {
     label: 'Bleach',
     secretLabel: 'o personagem secreto',
     dataFile: 'bleach.json',
+    daily: { rotate: 'scope' },
     groupLabel: 'Raças',
     groups: [
       { id: 'shinigami', label: 'Shinigami' },
@@ -584,6 +596,7 @@ export const UNIVERSES = {
     label: 'Naruto',
     secretLabel: 'o personagem secreto',
     dataFile: 'naruto.json',
+    daily: { rotate: 'scope' },
     groupLabel: 'Vilas',
     groups: [
       { id: 'konoha', label: 'Konoha' },
@@ -638,6 +651,8 @@ export const UNIVERSES = {
     label: 'Yu-Gi-Oh!',
     secretLabel: 'a carta secreta',
     dataFile: 'yugioh.json',
+    // 600 cartas sao muita carta para um dia so
+    daily: { rotate: 'group' },
     groupLabel: 'Tipos de carta',
     groups: [
       { id: 'normal', label: 'Normal' },
@@ -771,6 +786,7 @@ export const UNIVERSES = {
     label: 'Rick and Morty',
     secretLabel: 'o personagem secreto',
     dataFile: 'rickmorty.json',
+    daily: { rotate: 'scope' },
     groupLabel: 'Espécies',
     groups: [
       { id: 'human', label: 'Humanos' },
@@ -811,6 +827,8 @@ export const UNIVERSES = {
     label: 'Super-heróis (Marvel e DC)',
     secretLabel: 'o personagem secreto',
     dataFile: 'heroes.json',
+    // quem nunca saiu da pagina nao vira desafio do dia
+    daily: { scope: 'filmes' },
     groupLabel: 'Editoras',
     groups: [
       { id: 'marvel', label: 'Marvel' },
@@ -847,6 +865,8 @@ export const UNIVERSES = {
     label: 'Harry Potter',
     secretLabel: 'o personagem secreto',
     dataFile: 'potter.json',
+    // sem `daily`: as casas fatiam demais um elenco ja pequeno, e o dia acabaria
+    // sempre no mesmo punhado de nomes
     groupLabel: 'Casas',
     groups: [
       { id: 'gryffindor', label: 'Grifinória' },
@@ -927,6 +947,8 @@ export const UNIVERSES = {
     label: 'Fórmula 1',
     secretLabel: 'o piloto secreto',
     dataFile: 'f1.json',
+    // o grupo aqui e a decada de estreia
+    daily: { rotate: 'group' },
     groupLabel: 'Década de estreia',
     groups: [
       { id: '1950s', label: 'Anos 50' },
@@ -957,6 +979,8 @@ export const UNIVERSES = {
     label: 'Carros',
     secretLabel: 'o carro secreto',
     dataFile: 'cars.json',
+    // mil carros sao muito carro para um dia so
+    daily: { rotate: 'group' },
     groupLabel: 'Origem da marca',
     groups: [
       { id: 'eua', label: 'EUA' },
@@ -1015,6 +1039,7 @@ export const UNIVERSES = {
     label: 'One Piece',
     secretLabel: 'o personagem secreto',
     dataFile: 'onepiece.json',
+    daily: { rotate: 'scope' },
     groupLabel: 'Facções',
     groups: [
       { id: 'chapeu', label: 'Chapéu de Palha' },
@@ -1089,6 +1114,8 @@ export const UNIVERSES = {
     label: 'Hunter × Hunter 2011',
     secretLabel: 'o personagem secreto',
     dataFile: 'hxh.json',
+    // metade do elenco do manga nunca apareceu na tela
+    daily: { scope: 'anime' },
     groupLabel: 'Facções',
     groups: [
       { id: 'hunter', label: 'Associação Hunter' },
@@ -1126,6 +1153,8 @@ export const UNIVERSES = {
     label: 'Ordem Paranormal',
     secretLabel: 'a criatura secreta',
     dataFile: 'ordem.json',
+    // as campanhas sao a linha do tempo do Ordem
+    daily: { rotate: 'group' },
     groupLabel: 'Campanhas',
     // as campanhas curtas entram na vizinha (a mesa de A Ordem Paranormal abre
     // O Segredo na Floresta; Quarentena e Natal Macabro sao noites de Tipora),
@@ -1157,6 +1186,7 @@ export const UNIVERSES = {
     label: 'Ben 10',
     secretLabel: 'o alien secreto',
     dataFile: 'ben10.json',
+    daily: { rotate: 'scope' },
     groupLabel: 'Relógios',
     // o grupo e o relogio, que e como a serie separa os aliens: os do Omnitrix
     // do Ben, os do Reboot, os predadores do Nemetrix do Khyber, os do Ben 23
@@ -1199,6 +1229,7 @@ export const UNIVERSES = {
     label: "JoJo's Bizarre Adventure",
     secretLabel: 'o personagem secreto',
     dataFile: 'jojo.json',
+    daily: { rotate: 'scope' },
     groupLabel: 'Quem entra',
     // as partes sao as epocas, entao o grupo e a outra divisao que a obra faz
     // sozinha: quem luta com Stand e quem nao. As partes 1 e 2 sao inteiras de
@@ -1239,6 +1270,8 @@ export const UNIVERSES = {
     label: 'Famosos',
     secretLabel: 'a pessoa famosa secreta',
     dataFile: 'famosos.json',
+    // dois mil famosos sao muito famoso para um dia so
+    daily: { rotate: 'group' },
     groupLabel: 'Categorias',
     groups: [
       { id: 'musico', label: 'Músico' },

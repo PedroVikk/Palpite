@@ -100,7 +100,7 @@ export default function DailyScreen({ toast, onExit }) {
   return (
     <>
       <header className="topbar">
-        <span className="wordmark">Palpite</span>
+        <button type="button" className="wordmark" onClick={onExit}>Palpite</button>
         <span className="pill">Desafio diário</span>
         {info && <span className="pill code">{prettyDate(info.date)}</span>}
         <span className="spacer" />
