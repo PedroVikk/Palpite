@@ -50,7 +50,7 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Ordem Paranormal** | 123 | 99 | 6 campanhas + livros | Elemento, Complemento, Campanha, Facção, Onde aparece |
 | **Ben 10** | 212 | 171 | 5 relógios + Ultimates | Espécie, Planeta natal, Poderes, Série, Estreia |
 | **JoJo's Bizarre Adventure** | 343 | 229 | Com e sem Stand | Parte, Gênero, Stand, Nacionalidade, Estado |
-| **Famosos** | 2164 | 1955 | 5 categorias | Categoria, Gênero, País, Nascimento, Estado |
+| **Famosos** | 2242 | 2036 | 5 categorias | Categoria, Gênero, País, Nascimento, Estado |
 
 **Sorteáveis** são os que entram na partida: viram segredo e são os únicos
 nomes que a busca de chute oferece. Quem fica de fora não existe para a sala —
@@ -200,20 +200,43 @@ prioridade sobre o inglês pelo mesmo motivo: o de lá diz "president … and ac
 e punha o Reagan entre os atores, o de cá diz "40.º Presidente dos Estados
 Unidos" e não deixa dúvida.
 
-**O piso de fama é baixo de propósito.** Sorteável precisa de três Wikipédias, e
-não das dezenas que atletas e atores atingem sem esforço, porque a Wikipédia
-sub-representa quem ficou famoso na internet: é entre três e cinco idiomas que
-entram o Whindersson, a Virginia, o Nobru, o Rezende e o PC Siqueira. Quem fica
-abaixo continua chutável, só não vira segredo. Ainda assim **Gamer é a categoria
-mais magra** — 277 sorteáveis contra 440 de Atleta —, e essa é a fronteira do que
-a Wikidata sabe: engordar a categoria pede a Liquipedia, que tem a ficha do
-jogador com time, país e função, e não foi usada aqui.
+**A régua de fama é a Wikipédia em português, não a Wikidata.** Contar em quantos
+idiomas a pessoa tem artigo mede fama de enciclopédia, e ela não é a fama da
+sala: por esse critério o Corbin Bleu e o Basshunter entravam no top 5 dos
+músicos — 7 mil e 24 mil visitas em pt no ano — enquanto o Wagner Moura (404 mil),
+o Caetano (252 mil) e a Marília Mendonça (198 mil) ficavam fora do universo
+inteiro. Quem senta na mesa conhece os segundos. Então o elenco de *Ator*,
+*Músico* e *Atleta* sai de quem tem artigo na Wikipédia lusófona, ordenado pelas
+visitas dos últimos doze meses — a mesma lógica das 3000 cartas mais vistas do
+Yu-Gi-Oh. Trocar a régua levou os brasileiros de 45 para 653 sorteáveis, e o
+Brasil passou a ser o país mais presente do universo, à frente dos Estados
+Unidos.
 
-Duas armadilhas custaram caro. `esport` casa dentro de "dirigente **esport**ivo" e
+Visita é um pedido por artigo e há 60 mil candidatos, então o **tamanho do
+artigo** faz o desbaste barato antes — 50 títulos por pedido — e só a fila da
+frente vai para a contagem. Os dois medem a mesma coisa de longe (o Corbin Bleu é
+o último dos dois jeitos); o tamanho só erra a ordem fina, e por isso não decide
+o corte sozinho.
+
+**Gamer e Influencer correm por outra régua**, e não por escolha: só 119 gamers no
+mundo inteiro têm artigo na Wikipédia em português, e 40 sobrevivem à descrição.
+Medir visitas ali dava uma categoria de dois nomes. Esses dois grupos continuam
+no número de Wikipédias, com piso de três — baixo de propósito, porque é entre
+três e cinco idiomas que estão o Whindersson, o Nobru, o Rezende e o PC Siqueira.
+Quem fica abaixo continua chutável, só não vira segredo. **Gamer segue a
+categoria mais magra**, 277 contra 449 de Atleta, e essa é a fronteira do que a
+Wikidata sabe: engordar a categoria pede a Liquipedia, que tem a ficha do jogador
+com time, país e função, e não foi usada aqui.
+
+Três armadilhas custaram caro. `esport` casa dentro de "dirigente **esport**ivo" e
 de "de**sport**ivo", e isso fez do Joseph Blatter e do João Havelange jogadores de
-e-sports — o termo agora exige o `s`. E o QLever, o espelho por onde as consultas
+e-sports — o termo agora exige o `s`. O QLever, o espelho por onde as consultas
 passam, devolve *zero linhas sem erro nenhum* quando a query junta `VALUES` com
-`GROUP BY`: por isso o build faz uma consulta por ocupação e junta em JS.
+`GROUP BY`: por isso o build faz uma consulta por ocupação e junta em JS. E o
+cache dos lotes precisou passar a ter o nome tirado do **conteúdo**, não da
+posição: com `pessoa-50` no nome, mudar o recorte do universo fez o lote 50
+guardar um conjunto e devolver outro na rodada seguinte — a ficha vinha da
+pessoa errada e a categoria Gamer caiu de 643 para 40 sem uma linha de erro.
 
 **As colunas são as que sobrevivem às cinco categorias.** Posição, gênero musical
 e jogo principal seriam ótimas dicas e ficariam cinzas em 80% da grade. *Cor do

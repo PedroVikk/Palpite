@@ -1,22 +1,35 @@
 /**
  * Monta data/famosos.json com gente famosa de verdade, em cinco categorias.
  *   npm run build:famosos
- * Fonte: Wikidata, lida pelo espelho QLever (aberta, sem chave).
+ * Fontes: Wikidata pelo espelho QLever, e a Wikipedia em portugues (as duas
+ * abertas, sem chave).
  *
  * API pronta de "famosos" nao existe. As que aparecem na busca ou cobram por um
  * elenco de mil nomes, ou entregam ficha que ninguem sabe de cabeca (patrimonio,
- * altura) — coluna morta pelo criterio da casa. A Wikidata cobre musico, ator e
- * atleta com folga; influencer e gamer sao o buraco dela, e por isso levam um
- * corte proprio (veja TETO).
+ * altura) — coluna morta pelo criterio da casa.
  *
- * A ocupacao da Wikidata escolhe o candidato, mas quem decide a categoria e a
- * *descricao*. Ordenar por fama sem isso enche o elenco de gente famosa por
- * outra coisa: o Albert Camus e o Niels Bohr entram como atletas (os dois
- * jogaram bola), a Madre Teresa entra como musica, o Reagan e o Papa Francisco
- * como atores, o Brian May e o Jamie Oliver como influencers. A descricao e uma
- * linha escrita por gente dizendo o que a pessoa e — "filosofo e jornalista
- * franco-argelino", "Santa da Igreja Catolica", "futebolista brasileiro",
- * "jogador de League of Legends sul-coreano" — e separa os cinco na hora.
+ * **A regua de fama e a Wikipedia em portugues, nao a Wikidata.** Contar em
+ * quantos idiomas a pessoa tem artigo mede fama de enciclopedia, e ela nao e a
+ * fama da sala: por esse criterio o Corbin Bleu e o Basshunter entravam no top 5
+ * dos musicos, com 7 mil e 24 mil visitas em pt no ano, enquanto o Wagner Moura
+ * (404 mil), a Marilia Mendonca (198 mil) e o Caetano (252 mil) ficavam de fora
+ * do universo inteiro. Quem joga em portugues conhece os segundos. Entao o
+ * elenco sai de quem tem artigo na Wikipedia em portugues, ordenado pelas
+ * visitas que esse artigo recebeu nos ultimos doze meses — a mesma logica das
+ * 3000 cartas mais vistas do Yu-Gi-Oh.
+ *
+ * Visita e um pedido por artigo, e ha 60 mil candidatos: o tamanho do artigo
+ * (50 titulos por pedido) faz o desbaste barato antes, e so a fila da frente vai
+ * para a contagem de visitas. Os dois medem a mesma coisa de longe — o Corbin
+ * Bleu e o ultimo dos dois jeitos —, o tamanho so erra a ordem fina.
+ *
+ * A ocupacao da Wikidata levanta o candidato, mas quem decide a categoria e a
+ * *descricao*. Sem ela o elenco enche de gente famosa por outra coisa: o Albert
+ * Camus e o Niels Bohr entram como atletas (os dois jogaram bola), a Madre
+ * Teresa entra como musica, o Reagan e o Papa Francisco como atores. A descricao
+ * e uma linha escrita por gente dizendo o que a pessoa e — "filosofo e
+ * jornalista franco-argelino", "Santa da Igreja Catolica", "futebolista
+ * brasileiro" — e separa os cinco na hora.
  *
  * Duas pegadinhas da fonte. O QLever devolve *zero linhas*, sem erro nenhum,
  * quando a query junta VALUES com GROUP BY — entao aqui vai uma consulta por
@@ -32,9 +45,12 @@
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 const SPARQL = 'https://qlever.dev/api/wikidata';
 const API = 'https://www.wikidata.org/w/api.php';
+const PTWIKI = 'https://pt.wikipedia.org/w/api.php';
+const METRICS = 'https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/pt.wikipedia/all-access/all-agents';
 const ROOT = path.resolve(process.cwd());
 const OUT = path.join(ROOT, 'data', 'famosos.json');
 const CACHE_DIR = path.join(ROOT, '.cache', 'famosos');
@@ -56,7 +72,7 @@ const chave = (texto) => texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerC
  */
 const CATEGORIAS = [
   {
-    id: 'gamer', label: 'Gamer',
+    id: 'gamer', label: 'Gamer', regua: 'idiomas',
     occs: ['Q4379701', 'Q50279140', 'Q57414145'],
     // "esport" sozinho nao serve: ele mora dentro de "dirigente esportivo" e de
     // "desportivo", e isso trouxe o Joseph Blatter e o Havelange para ca
@@ -68,7 +84,7 @@ const CATEGORIAS = [
       'pubg', 'apex legends', 'street fighter', 'tekken', 'super smash'],
   },
   {
-    id: 'influencer', label: 'Influencer',
+    id: 'influencer', label: 'Influencer', regua: 'idiomas',
     occs: ['Q17125263', 'Q2906862', 'Q2045208'],
     diz: ['youtuber', 'influenciador', 'influenciadora', 'influencer', 'streamer',
       'tiktoker', 'blogueiro', 'blogueira', 'vlogger', 'personalidade da internet',
@@ -76,7 +92,7 @@ const CATEGORIAS = [
       'internet celebrity', 'social media'],
   },
   {
-    id: 'atleta', label: 'Atleta',
+    id: 'atleta', label: 'Atleta', regua: 'visitas',
     occs: ['Q937857', 'Q3665646', 'Q10833314', 'Q11338576', 'Q10843402', 'Q378622',
       'Q15117302', 'Q13141064', 'Q10871364', 'Q11774891', 'Q11513337', 'Q12299841',
       'Q19204627'],
@@ -91,7 +107,7 @@ const CATEGORIAS = [
       'sprinter', 'gymnast', 'golfer', 'cyclist'],
   },
   {
-    id: 'musico', label: 'Músico',
+    id: 'musico', label: 'Músico', regua: 'visitas',
     occs: ['Q177220', 'Q639669', 'Q2252262', 'Q753110', 'Q130857', 'Q488205'],
     diz: ['cantor', 'cantora', 'musico', 'musicista', 'rapper', 'compositor',
       'compositora', 'guitarrista', 'baterista', 'pianista', 'violonista',
@@ -99,37 +115,39 @@ const CATEGORIAS = [
       'guitarist', 'drummer', 'pianist', 'bassist', 'vocalist', 'rap '],
   },
   {
-    id: 'ator', label: 'Ator',
+    id: 'ator', label: 'Ator', regua: 'visitas',
     occs: ['Q33999', 'Q10800557', 'Q10798782', 'Q2405480'],
     diz: ['ator', 'atriz', 'dublador', 'dubladora', 'actor', 'actress'],
   },
 ];
 
-/**
- * Teto por categoria, e e ele que mantem a sala honesta. Sem ele o universo
- * seria um jogo de atores com dois gamers de enfeite: com retrato e 10
- * Wikipedias, a Wikidata tem 32 mil atores e 49 gamers. O corte de cada
- * categoria e o topo dela por numero de Wikipedias — a mesma logica das 600
- * cartas mais vistas do Yu-Gi-Oh, com a regua que a categoria aguenta.
- *
- * FOLGA e quantos candidatos baixam por vaga: a descricao derruba boa parte do
- * topo, entao o corte final precisa de fila atras.
- */
-const TETO = 450;
-const FOLGA = 4;
+/** Quantos entram por categoria, e quantos passam por cada peneira antes. */
+const TETO = 450;          // sorteaveis por categoria, no fim
+const PRE_TAMANHO = 1500;  // maiores artigos que vao para a ficha da Wikidata
+const PRE_VISITAS = 900;   // aprovados que vao para a contagem de visitas
 
 /**
- * Piso de Wikipedias para ser sorteado — quem fica abaixo continua chutavel, so
- * nao vira segredo. Ele e baixo de proposito. Numero de Wikipedias mede fama de
- * enciclopedia, e ela subestima quem ficou famoso na internet: e entre tres e
- * cinco idiomas que estao o Whindersson, a Virginia, o Nobru, o Rezende e o PC
- * Siqueira, enquanto qualquer reserva de Serie A passa de vinte. Em 6 o elenco
- * de gamers caia para 98 contra 440 atletas; em 3 ele fica em 277, e a categoria
- * ganha justamente os nomes que a sala reconhece.
- *
- * Para atleta, ator e musico o piso nao corta nada: o teto ja os deixa em 58+.
+ * Piso de visitas em doze meses para ser sorteado — quem fica abaixo continua
+ * chutavel, so nao vira segredo. 20 mil e ~1.600 por mes: abaixo disso estao os
+ * nomes que ninguem na sala poe na mesa.
  */
-const PISO = 3;
+const PISO_VISITAS = 20_000;
+
+/**
+ * O mesmo piso para quem corre pela regua de idiomas: tres Wikipedias. E baixo
+ * porque a enciclopedia subestima quem ficou famoso na internet — e entre tres
+ * e cinco idiomas que estao o Whindersson, o Nobru e o Rezende.
+ */
+const PISO_IDIOMAS = 3;
+
+/**
+ * O nome do arquivo de cache de um lote sai do *conteudo* dele, nunca da
+ * posicao. Com `tam-0`, `tam-50` e afins, mudar o recorte do universo faz o
+ * lote 50 guardar um conjunto e devolver outro na rodada seguinte — foi o que
+ * apagou os gamers em silencio, porque a ficha vinha de outra pessoa.
+ */
+const loteSlug = (prefixo, ids) =>
+  `${prefixo}-${createHash('sha1').update(ids.join('|')).digest('hex').slice(0, 12)}`;
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
@@ -143,59 +161,48 @@ async function cached(slug, fetcher) {
   return data;
 }
 
-async function sparql(slug, query) {
-  return cached(slug, async () => {
-    for (let attempt = 1; attempt <= 4; attempt++) {
-      try {
-        const res = await fetch(SPARQL, {
-          method: 'POST',
-          headers: {
-            'content-type': 'application/sparql-query',
-            accept: 'application/sparql-results+json',
-            'user-agent': UA,
-          },
-          body: query,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = JSON.parse(await res.text());
-        if (json.exception) throw new Error(String(json.exception).slice(0, 120));
-        return json.results.bindings;
-      } catch (err) {
-        if (attempt === 4) throw new Error(`${slug}: ${err.message}`);
-        await sleep(800 * attempt * attempt);
+/**
+ * Um pedido com paciencia. O 429 da Wikipedia e o que manda no ritmo deste
+ * build: ele chega em rajada quando varios lotes saem juntos, e so passa se a
+ * espera crescer de verdade — por isso o backoff dobra ate um minuto e ele
+ * ganha o dobro de tentativas dos outros erros.
+ */
+async function pega(url, opcoes = {}, tentativas = 8) {
+  for (let i = 1; i <= tentativas; i++) {
+    try {
+      const res = await fetch(url, { ...opcoes, headers: { 'user-agent': UA, ...opcoes.headers } });
+      if (res.status === 404) return null;      // artigo sem dado de visita
+      if (res.status === 429) {
+        const pedido = Number(res.headers.get('retry-after')) * 1000;
+        await sleep(Math.min(Number.isFinite(pedido) && pedido > 0 ? pedido : 2000 * 2 ** i, 60_000));
+        continue;
       }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return JSON.parse(await res.text());
+    } catch (err) {
+      if (i === tentativas) throw err;
+      await sleep(600 * i * i);
     }
-  });
+  }
+  throw new Error(`desistiu apos ${tentativas} tentativas: ${url.slice(0, 80)}`);
 }
 
-/** wbgetentities aceita 50 ids por vez; acima disso ele corta sem avisar. */
-async function entities(slug, ids, props) {
-  return cached(slug, async () => {
-    const url = `${API}?${new URLSearchParams({
-      action: 'wbgetentities',
-      ids: ids.join('|'),
-      props,
-      languages: 'pt|pt-br|en',
-      format: 'json',
-    })}`;
-    for (let attempt = 1; attempt <= 4; attempt++) {
-      try {
-        const res = await fetch(url, { headers: { 'user-agent': UA } });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = JSON.parse(await res.text());
-        if (!json.entities) throw new Error('sem entities');
-        return json.entities;
-      } catch (err) {
-        if (attempt === 4) throw new Error(`${slug}: ${err.message}`);
-        await sleep(1200 * attempt * attempt);
-      }
+/** Roda `tarefa` sobre a lista com no maximo `n` pedidos ao mesmo tempo. */
+async function emParalelo(lista, n, tarefa) {
+  const saida = new Array(lista.length);
+  let proximo = 0;
+  await Promise.all(Array.from({ length: Math.min(n, lista.length) }, async () => {
+    while (proximo < lista.length) {
+      const i = proximo++;
+      saida[i] = await tarefa(lista[i], i);
     }
-  });
+  }));
+  return saida;
 }
 
 // ------------------------------------------------------------- candidatos
 
-/** Todo mundo que exerce a ocupacao e tem retrato, com o peso de fama junto. */
+/** Quem exerce a ocupacao e tem retrato, com o numero de Wikipedias junto. */
 const porOcupacao = (occ) => `
 PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wd: <http://www.wikidata.org/entity/>
@@ -204,42 +211,155 @@ SELECT ?p ?sl WHERE {
   ?p wdt:P106 wd:${occ} ; wdt:P18 ?img ; wikibase:sitelinks ?sl .
 }`;
 
+/** Os mesmos, mas so quem tem artigo na Wikipedia em portugues, com o titulo. */
+const porOcupacaoPt = (occ) => `
+PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX wd: <http://www.wikidata.org/entity/>
+PREFIX schema: <http://schema.org/>
+SELECT ?p ?art WHERE {
+  ?p wdt:P106 wd:${occ} ; wdt:P18 ?img .
+  ?art schema:about ?p ; schema:isPartOf <https://pt.wikipedia.org/> .
+}`;
+
+/** "https://pt.wikipedia.org/wiki/Wagner_Moura" -> "Wagner Moura" */
+const tituloDaUrl = (url) => {
+  try {
+    return decodeURIComponent(url.split('/wiki/')[1] ?? '').replace(/_/g, ' ');
+  } catch {
+    return null;
+  }
+};
+
+const consulta = (slug, query) => cached(slug, async () => {
+  const json = await pega(SPARQL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/sparql-query', accept: 'application/sparql-results+json' },
+    body: query,
+  });
+  if (json?.exception) throw new Error(String(json.exception).slice(0, 120));
+  return json.results.bindings;
+});
+
 console.log('Baixando os candidatos por ocupacao...');
-const pessoas = new Map();   // QID -> { sl, occs:Set de categoria }
+const pessoas = new Map();   // QID -> { titulo, sl, occs:Set de categoria }
+const anota = (qid) => {
+  const atual = pessoas.get(qid) ?? { titulo: null, sl: 0, occs: new Set() };
+  pessoas.set(qid, atual);
+  return atual;
+};
+
 for (const cat of CATEGORIAS) {
   for (const occ of cat.occs) {
-    const linhas = await sparql(`occ-${occ}`, porOcupacao(occ));
-    for (const linha of linhas) {
+    // o titulo em pt interessa a todos (e o nome que a sala le), mas so quem
+    // corre pela regua de visitas depende dele para existir
+    const comPt = await consulta(`pt-${occ}`, porOcupacaoPt(occ));
+    for (const linha of comPt) {
       const qid = linha.p.value.split('/').pop();
-      if (!qid.startsWith('Q')) continue;
-      const atual = pessoas.get(qid) ?? { sl: 0, occs: new Set() };
-      atual.sl = Math.max(atual.sl, Number(linha.sl.value));
-      atual.occs.add(cat.id);
-      pessoas.set(qid, atual);
+      const titulo = tituloDaUrl(linha.art.value);
+      if (!qid.startsWith('Q') || !titulo || titulo.includes('|')) continue;
+      const p = anota(qid);
+      p.titulo = titulo;
+      p.occs.add(cat.id);
     }
-    console.log(`  ${cat.id.padEnd(11)} ${occ.padEnd(10)} ${String(linhas.length).padStart(6)} pessoas`);
+
+    if (cat.regua === 'idiomas') {
+      const todos = await consulta(`occ-${occ}`, porOcupacao(occ));
+      for (const linha of todos) {
+        const qid = linha.p.value.split('/').pop();
+        if (!qid.startsWith('Q')) continue;
+        const p = anota(qid);
+        p.sl = Math.max(p.sl, Number(linha.sl.value));
+        p.occs.add(cat.id);
+      }
+      console.log(`  ${cat.id.padEnd(11)} ${occ.padEnd(10)} ${String(todos.length).padStart(6)} no mundo  (${comPt.length} com artigo em pt)`);
+    } else {
+      console.log(`  ${cat.id.padEnd(11)} ${occ.padEnd(10)} ${String(comPt.length).padStart(6)} com artigo em pt`);
+    }
   }
 }
+console.log(`\n${pessoas.size} pessoas distintas.`);
 
-// a fila de cada categoria e o topo dela por Wikipedias, com folga para a
-// descricao derrubar. Quem exerce duas ocupacoes entra nas duas filas
+// ------------------------------------------------- peneira 1: tamanho do artigo
+
+/**
+ * O tamanho do artigo em pt e o desbaste barato antes das visitas: 50 titulos
+ * por pedido contra um pedido por artigo. Ele so vale para as categorias que
+ * correm pela regua de visitas — as outras ja tem o numero de Wikipedias.
+ */
+const precisaTamanho = new Set();
+for (const [qid, dados] of pessoas) {
+  if (!dados.titulo) continue;
+  if ([...dados.occs].some(id => CATEGORIAS.find(c => c.id === id).regua === 'visitas')) {
+    precisaTamanho.add(dados.titulo);
+  }
+}
+const titulos = [...precisaTamanho];
+console.log(`\nMedindo ${titulos.length} artigos (50 por pedido)...`);
+const tamanho = new Map();
+const lotes = [];
+for (let i = 0; i < titulos.length; i += 50) lotes.push([i, titulos.slice(i, i + 50)]);
+
+let feitos = 0;
+await emParalelo(lotes, 2, async ([i, lote]) => {
+  const dados = await cached(loteSlug('tam', lote), async () => {
+    const url = `${PTWIKI}?${new URLSearchParams({
+      action: 'query', prop: 'info', format: 'json', titles: lote.join('|'),
+    })}`;
+    const json = await pega(url);
+    const saida = {};
+    for (const k in json?.query?.pages ?? {}) {
+      const pagina = json.query.pages[k];
+      if (pagina.length) saida[pagina.title] = pagina.length;
+    }
+    // a API normaliza titulos (underline, maiuscula): guarda o de volta tambem
+    for (const n of json?.query?.normalized ?? []) {
+      if (saida[n.to]) saida[n.from] = saida[n.to];
+    }
+    return saida;
+  });
+  for (const t in dados) tamanho.set(t, dados[t]);
+  feitos += lote.length;
+  if (feitos % 5000 < 50) process.stdout.write(`\r  ${feitos}/${titulos.length}`);
+});
+console.log(`\r  ${titulos.length}/${titulos.length}`);
+
+// a fila de cada categoria e o topo dela pela peneira barata da sua regua: o
+// tamanho do artigo em pt, ou o numero de Wikipedias
 const fila = new Map(CATEGORIAS.map(c => [c.id, []]));
 for (const [qid, dados] of pessoas) {
-  for (const id of dados.occs) fila.get(id).push({ qid, sl: dados.sl });
+  const bytes = dados.titulo ? (tamanho.get(dados.titulo) ?? 0) : 0;
+  for (const id of dados.occs) {
+    const cat = CATEGORIAS.find(c => c.id === id);
+    if (cat.regua === 'visitas') {
+      if (bytes) fila.get(id).push({ qid, peso: bytes });
+    } else {
+      fila.get(id).push({ qid, peso: dados.sl });
+    }
+  }
 }
-const candidatos = new Map();
+const candidatos = new Set();
 for (const cat of CATEGORIAS) {
-  const lista = fila.get(cat.id).sort((a, b) => b.sl - a.sl).slice(0, TETO * FOLGA);
-  for (const c of lista) candidatos.set(c.qid, c.sl);
+  const lista = fila.get(cat.id).sort((a, b) => b.peso - a.peso).slice(0, PRE_TAMANHO);
+  for (const c of lista) candidatos.add(c.qid);
 }
 
 // ------------------------------------------------------------- fichas
 
-const listaCandidatos = [...candidatos.keys()];
+const listaCandidatos = [...candidatos];
 console.log(`\nBaixando a ficha de ${listaCandidatos.length} candidatos...`);
 const fichas = new Map();
-for (let i = 0; i < listaCandidatos.length; i += 50) {
-  const bloco = await entities(`pessoa-${i}`, listaCandidatos.slice(i, i + 50), 'labels|descriptions|claims');
+const blocos = [];
+for (let i = 0; i < listaCandidatos.length; i += 50) blocos.push([i, listaCandidatos.slice(i, i + 50)]);
+for (const [i, lote] of blocos) {
+  const bloco = await cached(loteSlug('pessoa', lote), async () => {
+    const url = `${API}?${new URLSearchParams({
+      action: 'wbgetentities', ids: lote.join('|'),
+      props: 'labels|descriptions|claims', languages: 'pt|pt-br|en', format: 'json',
+    })}`;
+    const json = await pega(url);
+    if (!json?.entities) throw new Error('sem entities');
+    return json.entities;
+  });
   for (const qid in bloco) fichas.set(qid, bloco[qid]);
   process.stdout.write(`\r  ${Math.min(i + 50, listaCandidatos.length)}/${listaCandidatos.length}`);
 }
@@ -308,25 +428,66 @@ for (const qid of listaCandidatos) {
   if (!ficha.descriptions || !Object.keys(ficha.descriptions).length) { semDescricao++; continue; }
   const cats = categoriasDe(ficha);
   if (!cats.length) { semCategoria++; continue; }
-  aprovados.push({ qid, sl: candidatos.get(qid), cats });
+    const dados = pessoas.get(qid);
+    const bytes = dados.titulo ? (tamanho.get(dados.titulo) ?? 0) : 0;
+    // `peso` e a peneira barata da regua da categoria principal: bytes do artigo
+    // em pt para quem corre por visitas, numero de Wikipedias para os outros
+    const peso = cats[0].regua === 'visitas' ? bytes : dados.sl;
+    aprovados.push({ qid, cats, titulo: dados.titulo, sl: dados.sl, peso });
 }
 console.log(`\nA descricao confirmou ${aprovados.length} de ${listaCandidatos.length}`);
 console.log(`  sem descricao: ${semDescricao}   nenhuma das cinco: ${semCategoria}`);
 
-// o grupo e a primeira categoria confirmada, e so entra quem cabe no teto dela
+// ------------------------------------------------- peneira 2: visitas em pt
+
 const porGrupo = new Map(CATEGORIAS.map(c => [c.id, []]));
 for (const p of aprovados) porGrupo.get(p.cats[0].id).push(p);
 
-const escolhidos = [];
-console.log('\nCorte por categoria (topo por numero de Wikipedias):');
+// so quem corre pela regua de visitas vai para a contagem, e so a fila da frente
+const paraContar = [];
 for (const cat of CATEGORIAS) {
-  const lista = porGrupo.get(cat.id).sort((a, b) => b.sl - a.sl);
-  const corte = lista.slice(0, TETO);
-  const regua = corte.length ? corte[corte.length - 1].sl : 0;
-  console.log(`  ${cat.label.padEnd(11)} ${String(corte.length).padStart(4)} de ${String(lista.length).padStart(5)}  (regua: ${regua} wikis)`);
-  escolhidos.push(...corte.map(p => ({ ...p, group: cat.id })));
+  if (cat.regua !== 'visitas') continue;
+  paraContar.push(...porGrupo.get(cat.id).sort((a, b) => b.peso - a.peso).slice(0, PRE_VISITAS));
 }
 
+/** Os doze meses fechados antes do mes corrente. */
+function janela() {
+  const hoje = new Date();
+  const fim = new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), 1));
+  const ini = new Date(Date.UTC(fim.getUTCFullYear() - 1, fim.getUTCMonth(), 1));
+  const carimbo = (d) => `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}0100`;
+  return [carimbo(ini), carimbo(fim)];
+}
+const [DE, ATE] = janela();
+
+console.log(`\nContando as visitas em pt de ${paraContar.length} artigos (${DE.slice(0, 6)} a ${ATE.slice(0, 6)})...`);
+let contados = 0;
+await emParalelo(paraContar, 4, async (p) => {
+  p.views = await cached(`views-${p.qid}`, async () => {
+    const url = `${METRICS}/${encodeURIComponent(p.titulo.replace(/ /g, '_'))}/monthly/${DE}/${ATE}`;
+    const json = await pega(url);
+    return (json?.items ?? []).reduce((s, i) => s + i.views, 0);
+  });
+  contados++;
+  if (contados % 250 === 0) process.stdout.write(`\r  ${contados}/${paraContar.length}`);
+});
+console.log(`\r  ${paraContar.length}/${paraContar.length}`);
+
+const escolhidos = [];
+console.log('\nCorte por categoria:');
+for (const cat of CATEGORIAS) {
+  const porVisitas = cat.regua === 'visitas';
+  const lista = porVisitas
+    ? paraContar.filter(p => p.cats[0].id === cat.id).sort((a, b) => b.views - a.views)
+    : porGrupo.get(cat.id).sort((a, b) => b.peso - a.peso);
+  const corte = lista.slice(0, TETO);
+  const ultimo = corte.length ? corte[corte.length - 1] : null;
+  const regua = porVisitas
+    ? `${(ultimo?.views ?? 0).toLocaleString('pt-BR')} visitas em pt`
+    : `${ultimo?.peso ?? 0} wikipedias`;
+  console.log(`  ${cat.label.padEnd(11)} ${String(corte.length).padStart(4)} de ${String(lista.length).padStart(5)}  (regua: ${regua})`);
+  escolhidos.push(...corte.map(p => ({ ...p, group: cat.id, porVisitas })));
+}
 // ------------------------------------------------------------- paises
 
 const paisIds = new Set();
@@ -338,7 +499,15 @@ console.log(`\nResolvendo ${paisIds.size} paises...`);
 const paisNome = new Map();
 const listaPaises = [...paisIds];
 for (let i = 0; i < listaPaises.length; i += 50) {
-  const bloco = await entities(`pais-${i}`, listaPaises.slice(i, i + 50), 'labels');
+  const bloco = await cached(loteSlug('pais', listaPaises.slice(i, i + 50)), async () => {
+    const url = `${API}?${new URLSearchParams({
+      action: 'wbgetentities', ids: listaPaises.slice(i, i + 50).join('|'),
+      props: 'labels', languages: 'pt|pt-br|en', format: 'json',
+    })}`;
+    const json = await pega(url);
+    if (!json?.entities) throw new Error('sem entities');
+    return json.entities;
+  });
   for (const qid in bloco) {
     const l = bloco[qid].labels;
     const nome = l?.['pt-br']?.value ?? l?.pt?.value ?? l?.en?.value ?? null;
@@ -351,12 +520,18 @@ for (let i = 0; i < listaPaises.length; i += 50) {
 const CAT_LABEL = Object.fromEntries(CATEGORIAS.map(c => [c.id, c.label]));
 
 const roster = [];
-for (const { qid, group, cats, sl } of escolhidos) {
+for (const { qid, group, cats, titulo, views, sl, porVisitas } of escolhidos) {
   const ficha = fichas.get(qid);
   const labels = ficha.labels ?? {};
+  // o titulo do artigo em pt e como o leitor de ca escreve o nome; o label da
+  // Wikidata so entra quando o titulo vem com desambiguacao entre parenteses
   const nomePt = labels.pt?.value ?? labels['pt-br']?.value ?? null;
   const nomeEn = labels.en?.value ?? null;
-  const name = nomePt ?? nomeEn;
+  // o titulo do artigo em pt e como o leitor de ca escreve o nome, menos quando
+  // ele vem com desambiguacao entre parenteses ("Yuya (youtuber)"). Quem corre
+  // pela regua de idiomas pode nao ter artigo em pt: ai vale o label da Wikidata
+  const doArtigo = titulo && !titulo.includes('(') ? titulo : null;
+  const name = doArtigo ?? nomePt ?? nomeEn ?? titulo;
   if (!name) continue;
 
   const arquivo = melhor(claim(ficha, 'P18'))?.mainsnak?.datavalue?.value ?? null;
@@ -386,11 +561,13 @@ for (const { qid, group, cats, sl } of escolhidos) {
   };
 
   // o nome em ingles fica de apelido, para quem so conhece a grafia de la
-  if (nomeEn && nomePt && nomeEn !== nomePt) item.aliases = [nomeEn];
+  const apelidos = [nomeEn, nomePt].filter(a => a && a !== name);
+  if (apelidos.length) item.aliases = [...new Set(apelidos)];
 
   // sem pais ou sem nascimento a linha nasce com dois vazios, e sem retrato nao
   // ha o que a tabela mostre do chute
-  item.eligible = Boolean(filePath && pais && nascimento && genero && sl >= PISO);
+  const conhecida = porVisitas ? views >= PISO_VISITAS : sl >= PISO_IDIOMAS;
+  item.eligible = Boolean(filePath && pais && nascimento && genero && conhecida);
   roster.push(item);
 }
 
@@ -423,6 +600,13 @@ tally('Genero', p => p.gender);
 tally('Paises (top 12)', p => p.country);
 tally('Estado', p => p.status);
 tally('Decada de nascimento', p => `${Math.floor(p.birthYear / 10) * 10}s`);
+
+const brasileiros = roster.filter(p => p.eligible && p.country === 'Brasil');
+console.log(`\nBrasileiros sorteaveis: ${brasileiros.length} de ${roster.filter(p => p.eligible).length}`);
+for (const cat of CATEGORIAS) {
+  const n = brasileiros.filter(p => p.group === cat.id).length;
+  console.log(`  ${cat.label.padEnd(11)} ${String(n).padStart(3)}`);
+}
 
 await fs.mkdir(path.dirname(OUT), { recursive: true });
 await fs.writeFile(OUT, JSON.stringify(roster));
