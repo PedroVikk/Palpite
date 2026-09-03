@@ -563,6 +563,43 @@ try {
   check('/api/version responde', versao.ok && typeof version === 'string' && version.length > 0);
   check('/api/version nao e cacheado', versao.headers.get('cache-control') === 'no-store');
 
+  // ------------------------------------------------------- desafio do dia
+  // O desafio de hoje sai de uma categoria so (uma geracao, uma casa...), e a
+  // tela anuncia qual. Aqui conferimos que a categoria e do schema, que a
+  // contagem bate com ela e que o segredo esta mesmo la dentro.
+  console.log('\n== Desafio diario ==');
+  for (const universe of Object.values(UNIVERSES)) {
+    const res = await fetch(`${URL}/api/daily/${universe.id}`);
+    const hoje = await res.json();
+    const valido = !hoje.group || universe.groups.some(g => g.id === hoje.group.id && g.label === hoje.group.label);
+    check(`${universe.label}: categoria do dia e do schema`, res.ok && valido);
+  }
+
+  const diario = await (await fetch(`${URL}/api/daily/potter`)).json();
+  check('/api/daily nao e cacheado (vira a meia-noite)',
+    (await fetch(`${URL}/api/daily/potter`)).headers.get('cache-control') === 'no-store');
+  check('a categoria do dia nao muda entre duas consultas',
+    (await (await fetch(`${URL}/api/daily/potter`)).json()).group?.id === diario.group?.id);
+
+  const bruxos = JSON.parse(await fs.readFile('data/potter.json', 'utf8')).filter(item => item.eligible);
+  const daCasa = bruxos.filter(item => item.group === diario.group.id);
+  check('a contagem anunciada e a da categoria', diario.poolSize === daCasa.length);
+
+  // varre a categoria inteira: se o segredo saiu de dentro dela, um — e so um —
+  // dos chutes fecha certo
+  let acertos = 0;
+  for (const item of daCasa) {
+    const { correct } = await (await fetch(`${URL}/api/daily/potter/guess/${item.id}`)).json();
+    if (correct) acertos++;
+  }
+  check('o segredo do dia esta na categoria anunciada', acertos === 1);
+
+  // chutar fora da categoria continua valendo: e dica, nao resposta
+  const deFora = bruxos.find(item => item.group !== diario.group.id);
+  const foraDaCasa = await (await fetch(`${URL}/api/daily/potter/guess/${deFora.id}`)).json();
+  check('chute fora da categoria e aceito como dica',
+    foraDaCasa.correct === false && Boolean(foraDaCasa.row) && foraDaCasa.secret === null);
+
   // ----------------------------------------------------------- reconexao
   console.log('\n== Reconexao ==');
   // volta como quem pontuou no duelo (o escolhedor e sorteado, entao pode ser

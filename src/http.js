@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { UNIVERSES, getUniverse } from '../shared/universes.js';
 import { datasetOf, indexOf } from './catalog.js';
 import { compareGuess } from './game.js';
-import { isKnownUniverse, poolSizeOf, secretOf, today } from './daily.js';
+import { groupOf, isKnownUniverse, poolSizeOf, secretOf, today } from './daily.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLIENT_DIST = path.join(ROOT, 'client', 'dist');
@@ -89,12 +89,23 @@ export function createApp() {
     sendIndex(req, res, index);
   });
 
-  /** Qual e o desafio de hoje — sem entregar a resposta, claro. */
+  /**
+   * Qual e o desafio de hoje — sem entregar a resposta, claro. O `group` e a
+   * categoria sorteada para o dia (a geracao, a casa, o tipo de carta): o
+   * segredo sai so de dentro dela, e a tela anuncia isso. Vem null nos
+   * universos pequenos demais para ter tema.
+   */
   app.get('/api/daily/:universe', (req, res) => {
     const { universe } = req.params;
     if (!isKnownUniverse(universe)) return res.status(404).json({ error: 'Universo desconhecido.' });
+    const group = groupOf(universe);
     res.set('Cache-Control', 'no-store');   // vira a meia-noite; cachear atrasaria a troca
-    res.json({ date: today(), universe, poolSize: poolSizeOf(universe) });
+    res.json({
+      date: today(),
+      universe,
+      poolSize: poolSizeOf(universe),
+      group: group ? { id: group.id, label: group.label } : null,
+    });
   });
 
   /**

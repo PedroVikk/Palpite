@@ -25,9 +25,10 @@ const startingUniverse = () => {
  */
 export default function DailyScreen({ toast, onExit }) {
   const [universe, setUniverse] = useState(startingUniverse);
-  const [info, setInfo] = useState(null);                       // { date, poolSize }
+  const [info, setInfo] = useState(null);            // { date, poolSize, group }
   const [progress, setProgress] = useState({ rows: [], secret: null });
   const [sending, setSending] = useState(false);
+  const [round, setRound] = useState(0);             // sobe na virada do dia, para recarregar
 
   const schema = getUniverse(universe);
   const items = useDataset(universe) ?? [];
@@ -50,7 +51,7 @@ export default function DailyScreen({ toast, onExit }) {
       .catch(() => { if (alive) toast('Não consegui carregar o desafio de hoje.'); });
 
     return () => { alive = false; };
-  }, [universe, toast]);
+  }, [universe, round, toast]);
 
   const submit = useCallback(async (chosen) => {
     if (!chosen) return toast('Escolha um nome da lista.');
@@ -62,11 +63,11 @@ export default function DailyScreen({ toast, onExit }) {
       if (!res.ok) throw new Error('falhou');
       const data = await res.json();
 
-      // alguem pode estar jogando na virada da meia-noite
+      // alguem pode estar jogando na virada da meia-noite: a categoria tambem
+      // trocou, entao vale recarregar o desafio inteiro em vez de so a data
       if (data.date !== info.date) {
         pruneDaily(data.date);
-        setInfo(current => ({ ...current, date: data.date }));
-        setProgress({ rows: [], secret: null });
+        setRound(n => n + 1);
         return toast('O dia virou — desafio novo!');
       }
 
@@ -81,6 +82,7 @@ export default function DailyScreen({ toast, onExit }) {
   }, [info, solved, sending, universe, progress.rows, toast]);
 
   const attempts = progress.rows.length;
+  const group = info?.group ?? null;   // null nos universos pequenos, sem categoria do dia
 
   return (
     <>
@@ -88,6 +90,7 @@ export default function DailyScreen({ toast, onExit }) {
         <span className="wordmark">Palpite</span>
         <span className="pill">Desafio diário</span>
         {info && <span className="pill code">{prettyDate(info.date)}</span>}
+        {group && <span className="pill theme">{group.label}</span>}
         <span className="spacer" />
         <button className="btn link" onClick={onExit}>
           <ExitIcon width={16} height={16} /> Sair
@@ -110,6 +113,18 @@ export default function DailyScreen({ toast, onExit }) {
                 : `${attempts} ${attempts === 1 ? 'chute' : 'chutes'} · o mesmo segredo para todo mundo hoje.`}
           </p>
         </div>
+
+        {group && (
+          <p className="daily-theme">
+            <span className="tag">Categoria de hoje</span>
+            <strong>{group.label}</strong>
+            {!solved && (
+              <span className="muted">
+                o segredo está entre os {info.poolSize} desta categoria — mas você pode chutar qualquer um.
+              </span>
+            )}
+          </p>
+        )}
 
         {solved ? (
           <>
