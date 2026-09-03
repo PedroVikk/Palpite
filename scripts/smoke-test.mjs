@@ -6,7 +6,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { UNIVERSES, scopeFilter, scopeReach, valueOf } from '../shared/universes.js';
+import { UNIVERSES, scopeFilter, scopeOptions, scopeReach, valueOf } from '../shared/universes.js';
 import { compareGuess } from '../src/game.js';
 import { io } from 'socket.io-client';
 
@@ -564,41 +564,60 @@ try {
   check('/api/version nao e cacheado', versao.headers.get('cache-control') === 'no-store');
 
   // ------------------------------------------------------- desafio do dia
-  // O desafio de hoje sai de uma categoria so (uma geracao, uma casa...), e a
-  // tela anuncia qual. Aqui conferimos que a categoria e do schema, que a
-  // contagem bate com ela e que o segredo esta mesmo la dentro.
+  // O desafio de hoje sai de um recorte (uma epoca, uma categoria) que a tela
+  // nao anuncia: quem tranca o dia e a busca do chute. Aqui conferimos que o
+  // recorte e do schema, que a contagem bate com ele, que o segredo esta la
+  // dentro e que nome de fora nem vira dica.
   console.log('\n== Desafio diario ==');
+  const recortes = new Map();
   for (const universe of Object.values(UNIVERSES)) {
     const res = await fetch(`${URL}/api/daily/${universe.id}`);
     const hoje = await res.json();
-    const valido = !hoje.group || universe.groups.some(g => g.id === hoje.group.id && g.label === hoje.group.label);
-    check(`${universe.label}: categoria do dia e do schema`, res.ok && valido);
+    recortes.set(universe.id, hoje);
+
+    const data = JSON.parse(await fs.readFile(path.join('data', universe.dataFile), 'utf8'))
+      .filter(item => item.eligible);
+    const noRecorte = data
+      .filter(item => !hoje.group || item.group === hoje.group)
+      .filter(scopeFilter(universe, hoje.scope ? [hoje.scope] : null));
+
+    const doSchema = (!hoje.group || universe.groups.some(g => g.id === hoje.group))
+      && (!hoje.scope || scopeOptions(universe).some(o => o.id === hoje.scope));
+    check(`${universe.label}: recorte do dia e do schema`, res.ok && doSchema);
+    check(`${universe.label}: o dia tem candidatos de sobra`,
+      hoje.poolSize === noRecorte.length && hoje.poolSize >= 10);
   }
 
-  const diario = await (await fetch(`${URL}/api/daily/potter`)).json();
   check('/api/daily nao e cacheado (vira a meia-noite)',
     (await fetch(`${URL}/api/daily/potter`)).headers.get('cache-control') === 'no-store');
-  check('a categoria do dia nao muda entre duas consultas',
-    (await (await fetch(`${URL}/api/daily/potter`)).json()).group?.id === diario.group?.id);
+  check('o recorte do dia nao muda entre duas consultas',
+    (await (await fetch(`${URL}/api/daily/potter`)).json()).group === recortes.get('potter').group);
 
+  // varre o recorte inteiro de um universo pequeno: se o segredo saiu de dentro
+  // dele, um — e so um — dos chutes fecha certo
+  const potter = recortes.get('potter');
   const bruxos = JSON.parse(await fs.readFile('data/potter.json', 'utf8')).filter(item => item.eligible);
-  const daCasa = bruxos.filter(item => item.group === diario.group.id);
-  check('a contagem anunciada e a da categoria', diario.poolSize === daCasa.length);
-
-  // varre a categoria inteira: se o segredo saiu de dentro dela, um — e so um —
-  // dos chutes fecha certo
+  const daCasa = bruxos.filter(item => item.group === potter.group);
   let acertos = 0;
   for (const item of daCasa) {
     const { correct } = await (await fetch(`${URL}/api/daily/potter/guess/${item.id}`)).json();
     if (correct) acertos++;
   }
-  check('o segredo do dia esta na categoria anunciada', acertos === 1);
+  check('o segredo do dia esta no recorte', acertos === 1);
 
-  // chutar fora da categoria continua valendo: e dica, nao resposta
-  const deFora = bruxos.find(item => item.group !== diario.group.id);
-  const foraDaCasa = await (await fetch(`${URL}/api/daily/potter/guess/${deFora.id}`)).json();
-  check('chute fora da categoria e aceito como dica',
-    foraDaCasa.correct === false && Boolean(foraDaCasa.row) && foraDaCasa.secret === null);
+  // a trava vale tambem no servidor: aba velha nao ganha dica de fora
+  const deFora = bruxos.find(item => item.group !== potter.group);
+  const recusa = await fetch(`${URL}/api/daily/potter/guess/${deFora.id}`);
+  const recusado = await recusa.json();
+  check('chute fora da categoria e recusado',
+    recusa.status === 409 && recusado.date === potter.date && !recusado.row);
+
+  // o eixo das epocas tranca do mesmo jeito (o Naruto sempre tem epoca do dia)
+  const diaDoNaruto = recortes.get('naruto');
+  const ninjas = JSON.parse(await fs.readFile('data/naruto.json', 'utf8')).filter(item => item.eligible);
+  const foraDaEpoca = ninjas.find(item => !scopeFilter(UNIVERSES.naruto, [diaDoNaruto.scope])(item));
+  check('chute fora da epoca e recusado',
+    (await fetch(`${URL}/api/daily/naruto/guess/${foraDaEpoca.id}`)).status === 409);
 
   // ----------------------------------------------------------- reconexao
   console.log('\n== Reconexao ==');

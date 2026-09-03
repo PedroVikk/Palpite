@@ -210,7 +210,6 @@ select { appearance: none; cursor: pointer; }
   font-size: 11px;
   letter-spacing: .06em;
 }
-.pill.theme { background: #ef44442e; border-color: var(--primary); color: var(--primary); }
 .pill.turn { background: #ef44442e; border-color: var(--primary); color: var(--primary); font-size: 11px; }
 
 /* ------------------------------------------------------------ interruptor */
@@ -334,30 +333,6 @@ select { appearance: none; cursor: pointer; }
 
 .daily-head { display: flex; align-items: flex-end; gap: var(--sp-md); flex-wrap: wrap; }
 .daily-head .field { max-width: 280px; }
-
-/* a categoria sorteada para o dia: o segredo so sai de dentro dela */
-.daily-theme {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-sm);
-  flex-wrap: wrap;
-  margin: var(--sp-md) 0 0;
-  padding: 12px var(--sp-sm);
-  background: var(--surface-2);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--primary);
-  border-radius: var(--r-card);
-}
-.daily-theme .tag {
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.daily-theme strong { font-size: 18px; }
-.daily-theme .muted { font-size: 13px; }
 
 /* ---------------------------------------------------------------- lobby */
 

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { DEFAULT_UNIVERSE, UNIVERSES, getUniverse } from '@shared/universes.js';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { DEFAULT_UNIVERSE, UNIVERSES, getUniverse, scopeFilter } from '@shared/universes.js';
 import { useDataset } from '../hooks/useDataset.js';
 import { loadDaily, pruneDaily, saveDaily } from '../lib/storage.js';
 import GuessBar from '../components/GuessBar.jsx';
@@ -22,10 +22,14 @@ const startingUniverse = () => {
  * Desafio do dia: sem sala, sem turno, chutes ilimitados. O segredo e o mesmo
  * para todo mundo e o servidor nao guarda nada — o progresso vive no
  * localStorage deste navegador, e a data na chave faz virar o dia sozinho.
+ *
+ * O dia tem recorte (uma epoca, uma categoria), e ele nao e anunciado em lugar
+ * nenhum: a busca do chute so oferece quem esta dentro, e a pessoa descobre o
+ * cerco jogando.
  */
 export default function DailyScreen({ toast, onExit }) {
   const [universe, setUniverse] = useState(startingUniverse);
-  const [info, setInfo] = useState(null);            // { date, poolSize, group }
+  const [info, setInfo] = useState(null);      // { date, poolSize, scope, group }
   const [progress, setProgress] = useState({ rows: [], secret: null });
   const [sending, setSending] = useState(false);
   const [round, setRound] = useState(0);             // sobe na virada do dia, para recarregar
@@ -60,8 +64,12 @@ export default function DailyScreen({ toast, onExit }) {
     setSending(true);
     try {
       const res = await fetch(`/api/daily/${universe}/guess/${chosen.id}`);
-      if (!res.ok) throw new Error('falhou');
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        // recusa por recorte velho quer dizer que o dia virou nesta aba
+        if (data?.date && data.date !== info.date) { pruneDaily(data.date); setRound(n => n + 1); }
+        return toast(data?.error ?? 'Não consegui enviar o chute.');
+      }
 
       // alguem pode estar jogando na virada da meia-noite: a categoria tambem
       // trocou, entao vale recarregar o desafio inteiro em vez de so a data
@@ -82,7 +90,12 @@ export default function DailyScreen({ toast, onExit }) {
   }, [info, solved, sending, universe, progress.rows, toast]);
 
   const attempts = progress.rows.length;
-  const group = info?.group ?? null;   // null nos universos pequenos, sem categoria do dia
+
+  // a trava do dia: fora do recorte o nome nem aparece na busca
+  const inScope = useMemo(
+    () => scopeFilter(schema, info?.scope ?? null),
+    [schema, info?.scope],
+  );
 
   return (
     <>
@@ -90,7 +103,6 @@ export default function DailyScreen({ toast, onExit }) {
         <span className="wordmark">Palpite</span>
         <span className="pill">Desafio diário</span>
         {info && <span className="pill code">{prettyDate(info.date)}</span>}
-        {group && <span className="pill theme">{group.label}</span>}
         <span className="spacer" />
         <button className="btn link" onClick={onExit}>
           <ExitIcon width={16} height={16} /> Sair
@@ -114,18 +126,6 @@ export default function DailyScreen({ toast, onExit }) {
           </p>
         </div>
 
-        {group && (
-          <p className="daily-theme">
-            <span className="tag">Categoria de hoje</span>
-            <strong>{group.label}</strong>
-            {!solved && (
-              <span className="muted">
-                o segredo está entre os {info.poolSize} desta categoria — mas você pode chutar qualquer um.
-              </span>
-            )}
-          </p>
-        )}
-
         {solved ? (
           <>
             <div className="banner you">🎉 Você descobriu {schema.secretLabel} de hoje! Volte amanhã para o próximo.</div>
@@ -135,6 +135,8 @@ export default function DailyScreen({ toast, onExit }) {
           <GuessBar
             items={items}
             guessedIds={progress.rows.map(row => row.id)}
+            groups={info?.group ? [info.group] : []}
+            inScope={inScope}
             active={Boolean(info) && !sending}
             focusKey={universe}
             onSubmit={submit}

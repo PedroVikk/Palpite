@@ -9,10 +9,10 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { UNIVERSES, getUniverse } from '../shared/universes.js';
+import { UNIVERSES, getUniverse, scopeReach } from '../shared/universes.js';
 import { datasetOf, indexOf } from './catalog.js';
 import { compareGuess } from './game.js';
-import { groupOf, isKnownUniverse, poolSizeOf, secretOf, today } from './daily.js';
+import { inSlice, isKnownUniverse, poolSizeOf, secretOf, sliceOf, today } from './daily.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLIENT_DIST = path.join(ROOT, 'client', 'dist');
@@ -90,22 +90,16 @@ export function createApp() {
   });
 
   /**
-   * Qual e o desafio de hoje — sem entregar a resposta, claro. O `group` e a
-   * categoria sorteada para o dia (a geracao, a casa, o tipo de carta): o
-   * segredo sai so de dentro dela, e a tela anuncia isso. Vem null nos
-   * universos pequenos demais para ter tema.
+   * Qual e o desafio de hoje — sem entregar a resposta, claro. O recorte do dia
+   * (`scope` e `group`) vai junto porque e ele que tranca a busca do chute no
+   * cliente: sem isso a tela ofereceria nomes que o servidor recusa. Cada eixo
+   * vem null quando o universo nao tem fatia grande o bastante para recortar.
    */
   app.get('/api/daily/:universe', (req, res) => {
     const { universe } = req.params;
     if (!isKnownUniverse(universe)) return res.status(404).json({ error: 'Universo desconhecido.' });
-    const group = groupOf(universe);
     res.set('Cache-Control', 'no-store');   // vira a meia-noite; cachear atrasaria a troca
-    res.json({
-      date: today(),
-      universe,
-      poolSize: poolSizeOf(universe),
-      group: group ? { id: group.id, label: group.label } : null,
-    });
+    res.json({ date: today(), universe, poolSize: poolSizeOf(universe), ...sliceOf(universe) });
   });
 
   /**
@@ -122,8 +116,17 @@ export function createApp() {
     const secret = secretOf(universe);
     if (!secret) return res.status(503).json({ error: 'Sem desafio para hoje neste universo.' });
 
-    const row = compareGuess(guess, secret, getUniverse(universe));
     res.set('Cache-Control', 'no-store');
+    // fora do recorte do dia nem vira dica: a busca do cliente ja esconde esses
+    // nomes, entao aqui so chega aba velha — a data vai junto para ela se achar
+    if (!inSlice(universe, guess)) {
+      return res.status(409).json({ error: 'Esse nome está fora do desafio de hoje.', date: today() });
+    }
+
+    // o recorte tambem manda nas colunas: numa quinta-feira de Shippuden o
+    // Naruto ja e sabio, e a dica tem de responder por essa epoca
+    const schema = getUniverse(universe);
+    const row = compareGuess(guess, secret, schema, scopeReach(schema, sliceOf(universe).scope));
     // o segredo so viaja depois que a pessoa acertou
     res.json({ date: today(), row, correct: row.correct, secret: row.correct ? secret : null });
   });

@@ -11,17 +11,17 @@
  * 21h de quem joga aqui, no meio da noite de jogo.
  */
 import { createHash } from 'node:crypto';
-import { UNIVERSES } from '../shared/universes.js';
+import { UNIVERSES, scopeFilter, scopeOptions } from '../shared/universes.js';
 import { datasetOf } from './catalog.js';
 
 const ZONE = 'America/Sao_Paulo';
 
 /**
- * Quantos candidatos uma categoria precisa ter para virar o tema do dia.
- * Abaixo disso o desafio ja nasceria quase entregue — os 2 anoes do Senhor
- * dos Aneis, as 2 cartas Pendulo do Yu-Gi-Oh!.
+ * Quantos candidatos uma fatia precisa ter para valer como recorte do dia.
+ * Abaixo disso o desafio ja nasceria quase entregue — os 3 personagens da 5a
+ * temporada de Rick and Morty, as 2 cartas Pendulo do Yu-Gi-Oh!.
  */
-const MIN_GROUP = 10;
+const MIN_POOL = 10;
 
 /** Data de hoje no fuso do jogo, como "2026-08-27". */
 export function today(now = new Date()) {
@@ -45,32 +45,47 @@ function pickFrom(list, key) {
 const eligibleOf = (universeId) => datasetOf(universeId).list.filter(item => item.eligible);
 
 /**
- * A categoria do dia: uma geracao de Pokemon, uma casa de Hogwarts, um tipo de
- * carta — a mesma fatia que o host liga e desliga no lobby, aqui reduzida a uma
- * so. E o tema anunciado na tela: quem joga sabe de onde o segredo saiu.
+ * O recorte do dia: uma epoca e uma categoria — os dois eixos que o host liga e
+ * desliga no lobby, aqui reduzidos a um de cada. Nada disso e anunciado: quem
+ * joga descobre porque a busca do chute so oferece quem esta dentro.
  *
- * Universo sem duas fatias grandes o bastante joga sem tema (null): com uma so
- * o "tema" seria o mesmo todo dia, e com fatias minusculas o desafio acabaria
- * no primeiro chute.
+ * A epoca vem primeiro, e a categoria e escolhida ja dentro dela — senao a
+ * combinacao das duas poderia sobrar em tres nomes. Eixo sem duas fatias
+ * grandes o bastante fica solto (null): com uma so o recorte seria o mesmo todo
+ * dia, e com fatias minusculas o desafio acabaria no primeiro chute.
  */
-export function groupOf(universeId, date = today()) {
+export function sliceOf(universeId, date = today()) {
   const universe = UNIVERSES[universeId];
-  if (!universe?.groups?.length) return null;
+  if (!universe) return { scope: null, group: null };
+  const eligible = eligibleOf(universeId);
 
+  const epocas = scopeOptions(universe)
+    .filter(option => eligible.filter(scopeFilter(universe, [option.id])).length >= MIN_POOL);
+  // chaves proprias: epoca, categoria e segredo sao sorteios independentes
+  const scope = epocas.length >= 2 ? pickFrom(epocas, `${date}:${universeId}:epoca`).id : null;
+
+  const naEpoca = scope ? eligible.filter(scopeFilter(universe, [scope])) : eligible;
   const counts = new Map();
-  for (const item of eligibleOf(universeId)) counts.set(item.group, (counts.get(item.group) ?? 0) + 1);
+  for (const item of naEpoca) counts.set(item.group, (counts.get(item.group) ?? 0) + 1);
 
-  const viable = universe.groups.filter(group => (counts.get(group.id) ?? 0) >= MIN_GROUP);
-  // chave propria: a categoria e o item sao sorteios independentes
-  return viable.length >= 2 ? pickFrom(viable, `${date}:${universeId}:categoria`) : null;
+  const categorias = (universe.groups ?? []).filter(g => (counts.get(g.id) ?? 0) >= MIN_POOL);
+  const group = categorias.length >= 2 ? pickFrom(categorias, `${date}:${universeId}:categoria`).id : null;
+
+  return { scope, group };
 }
 
-/** Candidatos do dia: os sorteaveis da categoria do dia, ou todos se nao houver. */
-const poolOf = (universeId, date = today()) => {
-  const group = groupOf(universeId, date);
-  const eligible = eligibleOf(universeId);
-  return group ? eligible.filter(item => item.group === group.id) : eligible;
-};
+/** Se o item cabe no desafio de hoje — o mesmo teste que a busca faz no cliente. */
+export function inSlice(universeId, item, date = today()) {
+  const universe = UNIVERSES[universeId];
+  if (!universe || !item) return false;
+  const { scope, group } = sliceOf(universeId, date);
+  if (group && item.group !== group) return false;
+  return scope ? scopeFilter(universe, [scope])(item) : true;
+}
+
+/** Candidatos do dia: os sorteaveis que sobram depois do recorte. */
+const poolOf = (universeId, date = today()) =>
+  eligibleOf(universeId).filter(item => inSlice(universeId, item, date));
 
 /** O item do dia. Mesma data + mesmo universo = sempre o mesmo item. */
 export function secretOf(universeId, date = today()) {
