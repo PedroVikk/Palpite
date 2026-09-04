@@ -5,7 +5,7 @@ import UniverseSelect from './UniverseSelect.jsx';
 import UniverseIcon from './UniverseIcon.jsx';
 import Stepper from './Stepper.jsx';
 import {
-  BallMark, BulbIcon, CalendarIcon, CheckIcon, ClockIcon, CloseIcon,
+  BulbIcon, CalendarIcon, CheckIcon, ClockIcon, CloseIcon,
   InfoIcon, SearchIcon, SparkIcon, SwordsIcon, TargetIcon,
 } from './Icon.jsx';
 
@@ -19,6 +19,7 @@ export default function CreateRoomModal({ name, onName, onClose, onCreate }) {
   const [mode, setMode] = useState('hunt');
   const [universeId, setUniverseId] = useState('pokemon');
   const [groups, setGroups] = useState(() => [...getUniverse('pokemon').defaultGroups]);
+  const [scope, setScope] = useState(() => sanitizeScope(getUniverse('pokemon'), null));
   const [rounds, setRounds] = useState(5);
   const [turnSeconds, setTurnSeconds] = useState(45);
   const [guessesPerPlayer, setGuessesPerPlayer] = useState(6);
@@ -31,6 +32,7 @@ export default function CreateRoomModal({ name, onName, onClose, onCreate }) {
   const changeUniverse = (id) => {
     setUniverseId(id);
     setGroups([...getUniverse(id).defaultGroups]);
+    setScope(sanitizeScope(getUniverse(id), null));
   };
 
   const toggleGroup = (id) => {
@@ -38,6 +40,33 @@ export default function CreateRoomModal({ name, onName, onClose, onCreate }) {
     const next = groups.includes(id) ? groups.filter(g => g !== id) : [...groups, id];
     if (next.length) setGroups(next);
   };
+
+  const toggleScope = (id) => {
+    const next = scope.includes(id) ? scope.filter(e => e !== id) : [...scope, id];
+    if (next.length) setScope(next);
+  };
+
+  /**
+   * Por onde a sala se recorta aqui. Onde existe época, é ela que aparece: "só
+   * até o Soul Society" é a regra que os amigos combinam antes de jogar, e a
+   * categoria (raça, vila, facção) quase sempre fica inteira mesmo. Quem quiser
+   * as duas linhas continua tendo o lobby, que tem espaço para elas.
+   */
+  const axis = universe.scope
+    ? {
+      label: universe.scope.label,
+      help: 'Até onde a história entra no sorteio',
+      options: universe.scope.options,
+      on: scope,
+      toggle: toggleScope,
+    }
+    : {
+      label: universe.groupLabel,
+      help: 'De onde o segredo pode sair',
+      options: universe.groups,
+      on: groups,
+      toggle: toggleGroup,
+    };
 
   const pickMode = (next) => {
     setMode(next);
@@ -49,7 +78,7 @@ export default function CreateRoomModal({ name, onName, onClose, onCreate }) {
     mode,
     universe: universeId,
     groups,
-    scope: sanitizeScope(universe, null),
+    scope,
     rounds,
     turnSeconds,
     guessesPerPlayer: untilRight ? 0 : guessesPerPlayer,
@@ -64,7 +93,7 @@ export default function CreateRoomModal({ name, onName, onClose, onCreate }) {
 
         <aside className="modal-side">
           <span className="side-tab on"><SparkIcon width={17} height={17} />Configurações</span>
-          <BallMark className="side-art" />
+          <img className="side-art" src={meta.mark} alt="" aria-hidden />
           <div className="side-note">
             <div className="h"><BulbIcon width={14} height={14} />Dica</div>
             <p>
@@ -132,20 +161,21 @@ export default function CreateRoomModal({ name, onName, onClose, onCreate }) {
 
             <div className="field wide">
               <div className="f-label">
-                {universe.groupLabel} <span className="i" title="De onde o segredo pode sair"><InfoIcon /></span>
+                {axis.label} <span className="i" title={axis.help}><InfoIcon /></span>
               </div>
               <div className="chips">
-                {universe.groups.map(group => {
-                  const on = groups.includes(group.id);
+                {axis.options.map(option => {
+                  const on = axis.on.includes(option.id);
                   return (
                     <button
-                      key={group.id}
+                      key={option.id}
                       type="button"
                       className={`chip ${on ? 'on' : ''}`}
                       aria-pressed={on}
-                      onClick={() => toggleGroup(group.id)}
+                      title={option.hint}
+                      onClick={() => axis.toggle(option.id)}
                     >
-                      {group.label}
+                      {option.label}
                       <CheckIcon className="tick" width={13} height={13} />
                     </button>
                   );

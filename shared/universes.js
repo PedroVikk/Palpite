@@ -537,7 +537,9 @@ export const UNIVERSES = {
       options: [
         { id: 'agente', label: 'Agente Shinigami', hint: 'Capítulos 1 a 70.' },
         { id: 'soul-society', label: 'Soul Society', hint: 'Capítulos 71 a 182.' },
-        { id: 'arrancar', label: 'Arrancar', hint: 'Hueco Mundo e a Karakura falsa, capítulos 183 a 423.' },
+        // "Hueco Mundo", e nao "Arrancar": a saga tem o nome de uma das racas da
+        // coluna de dica, e ler "Ate Arrancar" no recorte do dia parecia raca
+        { id: 'arrancar', label: 'Hueco Mundo', hint: 'A saga dos Arrancar e a Karakura falsa, capítulos 183 a 423.' },
         { id: 'sangrenta', label: 'Guerra Sangrenta', hint: 'A guerra contra os Quincy, do capítulo 424 em diante.' },
       ],
     },
