@@ -69,10 +69,11 @@ function eligibleOf(universeId) {
  * entra no sorteio, e eixo que sobra com uma fatia so fica solto (null): o
  * recorte seria o mesmo todo dia.
  *
- * A epoca sorteada nunca vem sozinha: leva junto todas as mais novas. Uma
- * epoca so seria so quem estreou nela, e sortear o Shippuden deixaria de fora
- * justamente o Naruto e o Sasuke, que sao do Classico — assim o dia rende mais
- * gente, e a fatia mais curta e sempre a ponta mais nova da historia.
+ * A epoca sorteada nunca vem sozinha: leva junto todas as mais antigas, como
+ * a sala faz. Uma epoca so seria so quem estreou nela, e sortear o Shippuden
+ * deixaria de fora justamente o Naruto e o Sasuke, que sao do Classico — o
+ * recorte e ate a epoca sorteada, entao a fatia mais curta e sempre o comeco
+ * da historia.
  *
  * `daily.scope` e o caso a parte: uma epoca fixa, que nao roda nem acumula. E
  * o anime do Hunter x Hunter e os filmes dos herois — nao e recorte do dia, e
@@ -88,7 +89,7 @@ function cutOf(universeId, date) {
   if (!scope && daily.rotate === 'scope') {
     const options = scopeOptions(universe);
     const faixas = options
-      .map((_, i) => options.slice(i).map(option => option.id))
+      .map((_, i) => options.slice(0, i + 1).map(option => option.id))
       .filter(ids => eligible.filter(scopeFilter(universe, ids)).length >= MIN_POOL);
     // chaves proprias: epoca, categoria e segredo sao sorteios independentes
     scope = faixas.length >= 2 ? pickFrom(faixas, `${date}:${universeId}:epoca`) : null;

@@ -583,13 +583,13 @@ try {
       .filter(item => !hoje.group || item.group === hoje.group)
       .filter(scopeFilter(universe, hoje.scope));
 
-    // a epoca sorteada vem como faixa: ela e todas as mais novas. A epoca fixa
-    // do schema e a excecao — nao acumula, e uma so
+    // a epoca sorteada vem como faixa: ela e todas as mais antigas, ate ela. A
+    // epoca fixa do schema e a excecao — nao acumula, e uma so
     const epocas = scopeOptions(universe).map(o => o.id);
     const faixa = !hoje.scope ? true
       : hoje.scope.every(id => epocas.includes(id))
         && (universe.daily?.rotate !== 'scope'
-          || epocas.slice(epocas.indexOf(hoje.scope[0])).join() === hoje.scope.join());
+          || epocas.slice(0, epocas.indexOf(hoje.scope.at(-1)) + 1).join() === hoje.scope.join());
     const doSchema = (!hoje.group || universe.groups.some(g => g.id === hoje.group)) && faixa;
     check(`${universe.label}: recorte do dia e do schema`, res.ok && doSchema);
     check(`${universe.label}: o dia tem candidatos de sobra`,
