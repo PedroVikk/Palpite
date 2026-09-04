@@ -1,46 +1,58 @@
 /**
- * Tokens do "Palpite Strategy System".
+ * Tokens do Palpite.
  *
- * Vieram da prosa do DESIGN.md e das telas entregues. O bloco `colors:` do
- * topo daquele arquivo e um tema Material auto-gerado que diverge do design
- * real (declara primary rosa #ffb3ad) — foi descartado de proposito.
+ * Duas famílias de cor que nunca se misturam:
+ *
+ *  - marca e interação — coral é a identidade e a ação principal; roxo é
+ *    seleção, foco e ação secundária. Elas mandam em tudo que é interface.
+ *  - jogo — verde, âmbar e vermelho pertencem à tabela de dicas e a mais nada.
+ *    É a única informação da tela que se lê pela cor, então nada mais compete.
+ *
+ * Profundidade vem de tom e de uma borda de 1px em branco translúcido, não de
+ * sombra dura: sobre o navy quase preto, um brilho de 8% já separa camadas.
  */
 :root {
-  /* Camadas: chao, cartao, popover. Profundidade por tom, nao por borda. */
-  --floor: #020617;
-  --surface: #0f172a;
-  --surface-2: #1e293b;
-  --surface-3: #283349;
-  --line: #1e293b;
-  --line-strong: #2e3447;
+  /* Camadas: chão, cartão, campo, realce. */
+  --bg: #050816;
+  --surface: #0C1226;
+  --surface-2: #111931;
+  --surface-3: #18213E;
 
-  --text: #dce1fb;
-  --muted: #94a3b8;
+  /* Bordas: a fraca desenha, a forte reage ao mouse. */
+  --line: #FFFFFF14;
+  --line-2: #FFFFFF26;
 
-  --primary: #ef4444;
-  --primary-dark: #c72f2f;
-  --primary-bright: #f15757;
+  --text: #E9EDFA;
+  --text-dim: #B6BFD6;
+  --muted: #7E88A5;
 
-  /* Estados das dicas — a informacao principal da tabela.
-     "Errou" e vermelho proprio, mais escuro que o vermelho de acao, para nao
-     ser confundido com botao. "Sem dado" continua neutro: nao errar e nao ter
-     dado sao coisas diferentes. */
-  --hit: #22a06b;
-  --partial: #d99a10;
-  --miss: #a4232e;
-  --miss-text: #ffe4e6;
-  --unknown: #151b2d;
-  --unknown-text: #475569;
+  --coral: #FF4E5B;
+  --coral-hi: #FF6E78;
+  --coral-lo: #DE3946;
+  --coral-glow: #FF4E5B4D;
 
-  /* Cinza neutro do design, usado onde nao ha juizo de certo/errado
-     (jogador desconectado, interruptor desligado). */
-  --neutral: #3a465e;
+  --purple: #7C5CFF;
+  --purple-hi: #9B85FF;
+  --purple-lo: #6141F0;
+  --purple-glow: #7C5CFF4D;
 
-  /* Formas: cartao macio, chip pilula, celula quase reta (grade densa). */
-  --r-card: 14px;
-  --r-field: 10px;
-  --r-cell: 4px;
-  --r-pill: 999px;
+  /* Estados da tabela. "Errou" é vermelho próprio, mais escuro que o coral de
+     ação, para célula nunca ser confundida com botão. */
+  --hit: #1FA46B;
+  --hit-hi: #2ED694;
+  --partial: #D2941A;
+  --partial-hi: #F0B84A;
+  --miss: #A32633;
+
+  /* Cinza neutro: onde não há juízo de certo e errado (jogador que caiu). */
+  --neutral: #3A465E;
+
+  /* Formas: cartão macio, campo médio, célula quase reta, pílula. */
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 10px;
+  --r-xs: 8px;
+  --pill: 999px;
 
   /* Ritmo de 4px */
   --sp-xs: 8px;
@@ -49,12 +61,13 @@
   --sp-lg: 40px;
   --sp-xl: 64px;
 
-  /* Geist estrutura, Inter le. */
+  --shadow: 0 18px 40px -24px #000000E6;
+  --shadow-lift: 0 28px 56px -24px #000000F5;
+
+  /* Geist estrutura, Inter lê. */
   --font-display: 'Geist Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-body: 'Inter Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
 
-  --shadow-card: 0 8px 20px #00000026;
-  --shadow-pop: 0 8px 20px #00000040;
-
-  --page: 1280px;
+  --page: 1400px;
+  --page-narrow: 1240px;
 }

@@ -122,8 +122,9 @@ export default function App() {
     return clean;
   };
 
-  const createRoom = () =>
-    socket.emit('room:create', { name: commitName(), settings: NEW_ROOM }, handleJoined);
+  /** As regras vem do formulario da home; NEW_ROOM e so a rede de seguranca. */
+  const createRoom = (settings) =>
+    socket.emit('room:create', { name: commitName(), settings: { ...NEW_ROOM, ...settings } }, handleJoined);
 
   /**
    * Entrar e voltar sao o mesmo evento: o que muda e levar o playerId da
@@ -145,7 +146,12 @@ export default function App() {
     forget();
   };
 
-  const openDaily = () => setDaily(true);
+  // o endereco e quem carrega o universo escolhido: a tela do dia le dele ao
+  // abrir, e assim o link continua compartilhavel
+  const openDaily = (universe) => {
+    if (universe) history.replaceState(null, '', `?diario=${universe}`);
+    setDaily(true);
+  };
   const closeDaily = () => {
     setDaily(false);
     history.replaceState(null, '', location.pathname);

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { search } from '../lib/search.js';
-import { SearchIcon, SendIcon } from '../components/Icon.jsx';
+import { SearchIcon, SendIcon } from './Icon.jsx';
 
 /**
  * Campo de chute com autocomplete. So o item escolhido na lista e enviado —
  * texto livre nunca vira palpite, senao um erro de digitacao gastaria a vez.
+ * Por isso o botao so acende quando ha uma sugestao sob a selecao: o estado
+ * desabilitado ensina a regra em vez de aceitar e recusar depois.
  *
  * Nao conhece sala: recebe o que ja foi chutado e os grupos ligados soltos,
  * para servir tanto a partida quanto o desafio diario.
@@ -70,10 +72,12 @@ export default function GuessBar({
     ? 'Escolha o segredo...'
     : active ? 'Digite o nome...' : 'Aguarde sua vez...';
 
+  const showList = open && suggestions.length > 0;
+
   return (
     <div className={`guess-bar ${active ? '' : 'off'}`}>
-      <div className="autocomplete" ref={boxRef}>
-        <span className="search-icon"><SearchIcon /></span>
+      <div className={`searchbox ${choosing ? 'choosing' : ''}`} ref={boxRef}>
+        <span className="mag"><SearchIcon width={20} height={20} strokeWidth={2.2} /></span>
         <input
           ref={inputRef}
           value={query}
@@ -85,7 +89,11 @@ export default function GuessBar({
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onKeyDown={onKeyDown}
         />
-        {open && suggestions.length > 0 && (
+        {showList && (
+          <span className="hintkeys"><kbd>↑</kbd><kbd>↓</kbd><kbd>ENTER</kbd></span>
+        )}
+
+        {showList && (
           <ul className="suggestions" ref={listRef}>
             {suggestions.map((item, i) => (
               <li
@@ -96,14 +104,20 @@ export default function GuessBar({
                 onMouseEnter={() => setIndex(i)}
               >
                 {item.sprite && <img src={item.sprite} alt="" loading="lazy" />}
-                <span>{item.name}</span>
+                <span className="nm">{item.name}</span>
               </li>
             ))}
           </ul>
         )}
       </div>
-      <button className="btn primary" disabled={!active} onClick={() => pick(suggestions[index])}>
-        {choosing ? 'Escolher' : 'Chutar'} <SendIcon width={16} height={16} />
+
+      <button
+        className={`btn-guess ${choosing ? 'choosing' : ''}`}
+        disabled={!active || !suggestions[index]}
+        onClick={() => pick(suggestions[index])}
+      >
+        {choosing ? 'Escolher' : 'Chutar'}
+        <SendIcon width={17} height={17} strokeWidth={2.4} />
       </button>
     </div>
   );

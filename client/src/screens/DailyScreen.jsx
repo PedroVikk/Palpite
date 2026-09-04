@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DEFAULT_UNIVERSE, UNIVERSES, getUniverse, scopeFilter } from '@shared/universes.js';
 import { useDataset } from '../hooks/useDataset.js';
 import { loadDaily, pruneDaily, saveDaily } from '../lib/storage.js';
+import Ambient from '../components/Ambient.jsx';
+import UniverseSelect from '../components/UniverseSelect.jsx';
 import GuessBar from '../components/GuessBar.jsx';
 import HintsTable from '../components/HintsTable.jsx';
 import Reveal from '../components/Reveal.jsx';
-import { ExitIcon } from '../components/Icon.jsx';
+import { CheckIcon, ClockIcon, ExitIcon, TargetIcon } from '../components/Icon.jsx';
 
 /** "2026-08-27" -> "27/08". Sem Date, que reinterpretaria no fuso local. */
 const prettyDate = (iso) => {
@@ -99,38 +101,57 @@ export default function DailyScreen({ toast, onExit }) {
 
   return (
     <>
+      <Ambient />
+
       <header className="topbar">
-        <button type="button" className="wordmark" onClick={onExit}>Palpite</button>
-        <span className="pill">Desafio diário</span>
-        {info && <span className="pill code">{prettyDate(info.date)}</span>}
-        <span className="spacer" />
-        <button className="btn link" onClick={onExit}>
-          <ExitIcon width={16} height={16} /> Sair
-        </button>
+        <div className="inner">
+          <button type="button" className="wordmark" onClick={onExit}>
+            <span className="glyph">?</span>Palpite
+          </button>
+          <span className="pill"><ClockIcon width={14} height={14} />Desafio diário</span>
+          {info && <span className="pill code">{prettyDate(info.date)}</span>}
+          <span className="spacer" />
+          <button className="btn link" onClick={onExit}>
+            <ExitIcon width={15} height={15} /> Sair
+          </button>
+        </div>
       </header>
 
       <main className="page">
-        <div className="daily-head">
-          <label className="field">
-            <span>Universo</span>
-            <select value={universe} onChange={e => setUniverse(e.target.value)}>
-              {Object.values(UNIVERSES).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
-            </select>
-          </label>
-          <p className="muted">
-            {!info
-              ? 'Carregando...'
-              : solved
-                ? `Você acertou em ${attempts} ${attempts === 1 ? 'chute' : 'chutes'}.`
-                : `${attempts} ${attempts === 1 ? 'chute' : 'chutes'} · o mesmo segredo para todo mundo hoje.`}
-          </p>
-        </div>
+        <section className={`turn-banner ${solved ? 'you' : ''}`}>
+          <span className="badge">
+            {solved ? <CheckIcon width={22} height={22} /> : <TargetIcon width={22} height={22} />}
+          </span>
+          <div>
+            <h1>{solved ? 'Você descobriu!' : 'Desafio de hoje'}</h1>
+            <p>
+              {!info
+                ? 'Carregando...'
+                : solved
+                  ? `Acertou em ${attempts} ${attempts === 1 ? 'chute' : 'chutes'}. Volte amanhã para o próximo.`
+                  : 'Um segredo por universo, o mesmo para todo mundo. Chutes ilimitados.'}
+            </p>
+          </div>
+          <div className="clock" style={{ minWidth: 120 }}>
+            <div className="k">Chutes</div>
+            <div className="v">{attempts}</div>
+          </div>
+        </section>
+
+        {/* trocar de universo aqui é trocar de desafio: cada um tem o seu */}
+        <section className="progress-bar">
+          <span className="txt">Universo do dia</span>
+          <div style={{ width: 296, maxWidth: '100%' }}>
+            <UniverseSelect value={universe} onChange={setUniverse} />
+          </div>
+          <span className="spacer" />
+          <span className="left">
+            {info ? <><b>{info.poolSize}</b> nomes possíveis hoje</> : ' '}
+          </span>
+        </section>
 
         {solved ? (
-          <>
-            <div className="banner you">🎉 Você descobriu {schema.secretLabel} de hoje! Volte amanhã para o próximo.</div>
-            <Reveal universe={schema} secret={progress.secret} />
-          </>
+          <Reveal universe={schema} secret={progress.secret} />
         ) : (
           <GuessBar
             items={items}

@@ -86,3 +86,27 @@ export function pruneDaily(date) {
     for (const key of stale) localStorage.removeItem(key);
   });
 }
+
+/**
+ * Resumo do dia, lido das proprias chaves do diario. Como o `pruneDaily` varre
+ * o que e de outro dia, o que sobra no storage e sempre de hoje — entao dá para
+ * contar sem saber a data e sem perguntar nada ao servidor.
+ */
+export function dailySnapshot() {
+  return safe(() => {
+    let solved = 0, started = 0, guesses = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith(DAILY_PREFIX)) continue;
+      try {
+        const saved = JSON.parse(localStorage.getItem(key));
+        const rows = Array.isArray(saved?.rows) ? saved.rows : [];
+        if (!rows.length && !saved?.secret) continue;
+        started += 1;
+        guesses += rows.length;
+        if (saved?.secret) solved += 1;
+      } catch { /* chave estranha nao derruba a contagem */ }
+    }
+    return { solved, started, guesses };
+  }, { solved: 0, started: 0, guesses: 0 });
+}
