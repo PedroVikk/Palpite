@@ -1339,6 +1339,22 @@ export const scopeLabel = (universe, ids) =>
   scopeOptions(universe).filter(o => sanitizeScope(universe, ids).includes(o.id))
     .map(o => o.label).join(', ');
 
+/**
+ * O nome curto de uma faixa de epocas, para anunciar o recorte em uma linha.
+ * A faixa do desafio do dia e cumulativa — vai do comeco da historia ate a
+ * epoca sorteada —, entao quem batiza a faixa e a ponta: "Ate Shippuden" diz o
+ * mesmo que "Classico, Shippuden" e continua cabendo no JoJo, que tem nove
+ * partes. Faixa de uma epoca so — a fixa do schema, ou a primeira de todas —
+ * sai pelo proprio nome.
+ */
+export function scopeTipLabel(universe, ids) {
+  const escolhidas = sanitizeScope(universe, ids);
+  if (!escolhidas?.length) return null;
+  const ponta = scopeOptions(universe).find(o => o.id === escolhidas.at(-1));
+  if (!ponta) return null;
+  return escolhidas.length === 1 ? ponta.label : `Até ${ponta.label}`;
+}
+
 export function scopeFilter(universe, ids) {
   const scope = universe?.scope;
   if (!scope) return () => true;

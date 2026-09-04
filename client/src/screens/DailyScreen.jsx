@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { DEFAULT_UNIVERSE, UNIVERSES, getUniverse, scopeFilter } from '@shared/universes.js';
+import { DEFAULT_UNIVERSE, UNIVERSES, getUniverse, scopeFilter, scopeTipLabel } from '@shared/universes.js';
 import { useDataset } from '../hooks/useDataset.js';
 import { loadDaily, pruneDaily, saveDaily } from '../lib/storage.js';
 import Ambient from '../components/Ambient.jsx';
@@ -25,9 +25,10 @@ const startingUniverse = () => {
  * para todo mundo e o servidor nao guarda nada — o progresso vive no
  * localStorage deste navegador, e a data na chave faz virar o dia sozinho.
  *
- * O dia tem recorte (uma epoca, uma categoria), e ele nao e anunciado em lugar
- * nenhum: a busca do chute so oferece quem esta dentro, e a pessoa descobre o
- * cerco jogando.
+ * O dia tem recorte (uma epoca, uma categoria) e ele fica a vista, ao lado do
+ * universo: saber que hoje o segredo vai ate Shippūden muda o que a pessoa
+ * chuta desde o primeiro palpite. So o recorte aparece — quem esta dentro dele
+ * continua sendo assunto da busca do chute.
  */
 export default function DailyScreen({ toast, onExit }) {
   const [universe, setUniverse] = useState(startingUniverse);
@@ -99,6 +100,17 @@ export default function DailyScreen({ toast, onExit }) {
     [schema, info?.scope],
   );
 
+  // o recorte de hoje em duas etiquetas: a faixa de epocas pela ponta, a
+  // categoria pelo nome. Universo sem recorte no schema nao mostra nenhuma
+  const epoca = useMemo(
+    () => (info?.scope ? scopeTipLabel(schema, info.scope) : null),
+    [schema, info?.scope],
+  );
+  const categoria = useMemo(
+    () => (info?.group ? schema.groups?.find(g => g.id === info.group)?.label ?? null : null),
+    [schema, info?.group],
+  );
+
   return (
     <>
       <Ambient />
@@ -145,6 +157,8 @@ export default function DailyScreen({ toast, onExit }) {
             <UniverseSelect value={universe} onChange={setUniverse} />
           </div>
           <span className="spacer" />
+          {epoca && <span className="pill"><ClockIcon width={14} height={14} />{epoca}</span>}
+          {categoria && <span className="pill"><TargetIcon width={14} height={14} />{categoria}</span>}
           <span className="left">
             {info ? <><b>{info.poolSize}</b> nomes possíveis hoje</> : ' '}
           </span>
