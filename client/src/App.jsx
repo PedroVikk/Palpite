@@ -6,6 +6,7 @@ import {
   savedName, savedPlayerId, savedSession,
 } from './lib/storage.js';
 import { answerForOpenRoom, roomOpenElsewhere } from './lib/tabs.js';
+import { useProfile } from './hooks/useProfile.js';
 import HomeScreen from './screens/HomeScreen.jsx';
 import LobbyScreen from './screens/LobbyScreen.jsx';
 import GameScreen from './screens/GameScreen.jsx';
@@ -30,6 +31,8 @@ export default function App() {
   const [daily, setDaily] = useState(() => new URLSearchParams(location.search).has('diario'));
   // convite para voltar a partida de onde a pessoa caiu (ver o efeito abaixo)
   const [resume, setResume] = useState(null);
+  // a conta e opcional: sem ela `user` fica null e tudo segue como convidado
+  const profile = useProfile();
 
   const toastTimer = useRef(null);
   const showToast = useCallback((message) => {
@@ -48,6 +51,27 @@ export default function App() {
    * mais abaixo resolve calado. E so se nenhuma outra aba estiver com a sala
    * aberta — a cadeira dela nao esta livre.
    */
+  /**
+   * O Google devolve a pessoa carimbando `?login=` no endereco. Damos a
+   * noticia, limpamos o carimbo e recarregamos o perfil — sem isto a home
+   * mostraria o botao de entrar depois de a pessoa ter acabado de entrar.
+   */
+  useEffect(() => {
+    const outcome = new URLSearchParams(location.search).get('login');
+    if (!outcome) return;
+    const said = {
+      ok: 'Bem-vindo! Sua sequência agora fica salva na conta.',
+      falhou: 'Não consegui completar o login. Tente de novo.',
+      cancelado: 'Login cancelado.',
+      indisponivel: 'O login está fora do ar por enquanto.',
+    }[outcome];
+    if (said) showToast(said);
+    const url = new URL(location.href);
+    url.searchParams.delete('login');
+    history.replaceState(null, '', url.pathname + url.search);
+    if (outcome === 'ok') profile.refresh();
+  }, [showToast, profile.refresh]);
+
   useEffect(() => {
     const last = savedSession();
     if (!last || savedPlayerId(last.code)) return;
@@ -114,6 +138,14 @@ export default function App() {
     };
   }, [handleJoined, showToast]);
 
+  /**
+   * Entrou e nunca escolheu apelido: o nome da conta serve de padrao. Quem ja
+   * tinha um nome salvo continua com ele — a conta identifica, nao rebatiza.
+   */
+  useEffect(() => {
+    if (profile.user && !latest.current.name.trim()) setName(profile.user.name);
+  }, [profile.user]);
+
   /** O servidor tambem apara o nome; aqui e so para o que fica salvo bater. */
   const commitName = () => {
     const clean = name.trim().slice(0, 16) || 'Treinador';
@@ -175,6 +207,7 @@ export default function App() {
           resume={resume}
           onResume={() => joinRoom(resume.code, resume.playerId)}
           onForgetResume={forget}
+          profile={profile}
         />
       )}
       {state?.phase === 'lobby' && <LobbyScreen {...shared} />}

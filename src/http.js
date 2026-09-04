@@ -13,6 +13,8 @@ import { UNIVERSES, getUniverse, scopeReach } from '../shared/universes.js';
 import { datasetOf, indexOf } from './catalog.js';
 import { compareGuess } from './game.js';
 import { inSlice, isKnownUniverse, poolSizeOf, secretOf, sliceOf, today } from './daily.js';
+import * as db from './db.js';
+import { attachAuth } from './auth.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const CLIENT_DIST = path.join(ROOT, 'client', 'dist');
@@ -69,7 +71,28 @@ export function createApp() {
   }
 
   // ------------------------------------------------------------------- api
+  attachAuth(app);
+
   app.get('/healthz', (_req, res) => res.type('text').send('ok'));
+
+  /**
+   * Tudo que a home precisa saber sobre quem esta olhando, numa viagem so:
+   * quem e, a sequencia e o placar de hoje. Sem conta responde vazio, e a home
+   * cai no que ela sempre teve — o progresso do proprio navegador.
+   */
+  app.get('/api/profile', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    if (!req.user) return res.json({ user: null });
+    const { id, name, email, avatar_url: avatar } = req.user;
+    try {
+      const day = today();
+      const [streak, totals] = await Promise.all([db.streakOf(id, day), db.todayTotals(id, day)]);
+      res.json({ user: { id: String(id), name, email, avatar }, streak, today: totals, date: day });
+    } catch (err) {
+      console.error('[api] perfil falhou:', err.message);
+      res.status(503).json({ error: 'Não consegui carregar seu perfil.' });
+    }
+  });
 
   /** Versao do deploy no ar. Nunca cacheia: e o que o cliente consulta para saber se recarrega. */
   app.get('/api/version', (_req, res) => {
@@ -127,8 +150,22 @@ export function createApp() {
     // Naruto ja e sabio, e a dica tem de responder por essa epoca
     const schema = getUniverse(universe);
     const row = compareGuess(guess, secret, schema, scopeReach(schema, sliceOf(universe).scope));
+    const day = today();
+
+    /**
+     * Quem esta logado tem o chute anotado na conta — e aqui, nao no cliente:
+     * o servidor ve todos os chutes, entao a contagem nao depende de o
+     * navegador ser honesto nem de a ultima requisicao ter chegado.
+     * A anotacao nao segura a resposta: sequencia e placar podem esperar o
+     * proximo carregamento, o chute nao.
+     */
+    if (req.user) {
+      db.bumpDailyResult({ userId: req.user.id, day, universe, solved: row.correct })
+        .catch(err => console.error('[api] não anotei o chute na conta:', err.message));
+    }
+
     // o segredo so viaja depois que a pessoa acertou
-    res.json({ date: today(), row, correct: row.correct, secret: row.correct ? secret : null });
+    res.json({ date: day, row, correct: row.correct, secret: row.correct ? secret : null });
   });
 
   // sem isto uma rota /api errada cairia no index.html do SPA
@@ -154,6 +191,17 @@ export function createApp() {
    * das miniaturas.
    */
   app.use('/icons', express.static(path.join(ROOT, 'data', 'icons'), {
+    immutable: true,
+    maxAge: '1y',
+    fallthrough: false,
+  }));
+
+  /**
+   * As marcas-d'agua dos universos, uma por id (data/marks/<id>.png). Sao a
+   * cara do universo no fundo do desafio do dia; universo sem arquivo aqui
+   * aparece com a pokebola, e o smoke test cobra o que falta.
+   */
+  app.use('/marks', express.static(path.join(ROOT, 'data', 'marks'), {
     immutable: true,
     maxAge: '1y',
     fallthrough: false,

@@ -115,7 +115,11 @@ export default function LobbyScreen({ state, myId, toast, onLeave }) {
 
       <header className="topbar">
         <div className="inner">
-          <span className="wordmark"><span className="glyph">?</span>Palpite</span>
+          {/* a marca e o caminho de volta em toda tela; sair da sala de
+              espera nao custa placar nenhum, entao vai direto */}
+          <button type="button" className="wordmark" onClick={onLeave}>
+            <span className="glyph">?</span>Palpite
+          </button>
           <span className="pill wait"><i />Sala de espera</span>
           <span className="pill">{state.players.length} de {MAX_SEATS} jogadores</span>
           <span className="spacer" />

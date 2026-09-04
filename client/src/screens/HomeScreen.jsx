@@ -1,16 +1,28 @@
 import { useMemo, useState } from 'react';
 import { UNIVERSES, getUniverse } from '@shared/universes.js';
-import { dailySnapshot, lastDaily } from '../lib/storage.js';
+import { dailySnapshot, lastDaily, streak } from '../lib/storage.js';
+import { universeMeta } from '../lib/universeMeta.js';
 import Ambient from '../components/Ambient.jsx';
 import Avatar from '../components/Avatar.jsx';
 import UniverseSelect from '../components/UniverseSelect.jsx';
 import CreateRoomModal from '../components/CreateRoomModal.jsx';
 import {
-  BallMark, CheckIcon, ChartIcon, ClockIcon, EnterIcon, PlusIcon,
-  SendIcon, TargetIcon,
+  CheckIcon, ChartIcon, ClockIcon, EnterIcon, ExitIcon, FlameIcon,
+  GoogleIcon, PlusIcon, SendIcon, TargetIcon,
 } from '../components/Icon.jsx';
 
 const TOTAL_UNIVERSES = Object.keys(UNIVERSES).length;
+
+/**
+ * A linha embaixo do número da sequência. Zerada, ela fala do recorde ou
+ * convida a começar; de pé, avisa se o dia de hoje ainda está em aberto —
+ * que é justamente quando o aviso serve para alguma coisa.
+ */
+function streakNote({ current, best, solvedToday }) {
+  if (!current) return best ? `recorde: ${best} ${best === 1 ? 'dia' : 'dias'}` : 'comece hoje';
+  const dias = current === 1 ? 'dia' : 'dias';
+  return solvedToday ? `${dias} seguidos` : `${dias} · não perca hoje`;
+}
 
 /** "quarta, 3 de setembro", com a primeira letra em maiúscula. */
 const today = () => {
@@ -19,7 +31,7 @@ const today = () => {
 };
 
 export default function HomeScreen({
-  name, onName, onCreate, onJoin, onDaily, toast, resume, onResume, onForgetResume,
+  name, onName, onCreate, onJoin, onDaily, toast, resume, onResume, onForgetResume, profile,
 }) {
   // convite chega como ?sala=XXXX: o código já vem preenchido
   const [code, setCode] = useState(() =>
@@ -29,7 +41,17 @@ export default function HomeScreen({
 
   // o diário mora no localStorage e o prune deixa só o dia de hoje lá: o que
   // sobrou é o placar de hoje, sem precisar perguntar nada ao servidor
-  const day = useMemo(() => dailySnapshot(), []);
+  const localDay = useMemo(() => dailySnapshot(), []);
+  const localStreak = useMemo(() => streak(), []);
+
+  /**
+   * Logado, a sequência e o placar do dia vêm da conta — é o que faz eles
+   * atravessarem o navegador. Sem conta, seguem saindo do localStorage, que é
+   * como o jogo sempre funcionou e continua funcionando.
+   */
+  const signedIn = Boolean(profile?.user);
+  const day = (signedIn && profile.today) || localDay;
+  const dias = (signedIn && profile.streak) || localStreak;
 
   /**
    * A miniatura não é ilustração: ela mostra onde a pilha daquele universo
@@ -53,6 +75,10 @@ export default function HomeScreen({
     return { rows, secret, last, cells };
   }, [dailyUniverse]);
 
+  // a marca-d'água segue o universo escolhido: o card do dia e o atalho do
+  // desafio mostram a cara de quem está em jogo, não a pokébola de sempre
+  const dailyMark = universeMeta(dailyUniverse).mark;
+
   const submitCode = (event) => {
     event.preventDefault();
     const clean = code.trim().toUpperCase();
@@ -69,10 +95,13 @@ export default function HomeScreen({
           <span className="wordmark"><span className="glyph">?</span>Palpite</span>
           <span className="pill"><ClockIcon width={14} height={14} />{today()}</span>
           <span className="spacer" />
-          {/* a identidade é um campo, não um perfil de mentira: é o nome que
-              os outros vão ver, e dá para trocar a qualquer momento */}
+
+          {/* o apelido é o nome da partida — continua editável mesmo logado,
+              porque a conta identifica, não rebatiza */}
           <label className="text-field" style={{ height: 40, maxWidth: 210 }}>
-            <Avatar name={name || 'Treinador'} size="sm" />
+            {signedIn && profile.user.avatar
+              ? <img className="avatar sm" src={profile.user.avatar} alt="" referrerPolicy="no-referrer" />
+              : <Avatar name={name || 'Treinador'} size="sm" />}
             <input
               value={name}
               maxLength={16}
@@ -82,6 +111,19 @@ export default function HomeScreen({
               onChange={e => onName(e.target.value)}
             />
           </label>
+
+          {/* o botão só existe onde o login existe: sem banco ou sem app
+              registrado, o jogo segue de convidado e não promete o que não tem */}
+          {profile?.enabled && !signedIn && (
+            <a className="btn ghost" href="/auth/google">
+              <GoogleIcon /> Entrar com Google
+            </a>
+          )}
+          {signedIn && (
+            <button className="btn link" onClick={profile.logout} title={profile.user.email ?? ''}>
+              <ExitIcon width={15} height={15} /> Sair
+            </button>
+          )}
         </div>
       </header>
 
@@ -118,13 +160,14 @@ export default function HomeScreen({
             <p className="lead">Um segredo por universo. O mesmo para todo mundo, até a virada do dia.</p>
 
             <div className="hero-stats">
+              {/* a sequência vem primeiro: é o número que faz voltar amanhã */}
+              <div className="stat streak">
+                <div className="k"><FlameIcon width={12} height={12} strokeWidth={2.2} />Sequência</div>
+                <div className="v">{dias.current} <small>{streakNote(dias)}</small></div>
+              </div>
               <div className="stat">
                 <div className="k"><CheckIcon width={12} height={12} strokeWidth={2.2} />Resolvidos hoje</div>
                 <div className="v">{day.solved} <small>de {TOTAL_UNIVERSES} universos</small></div>
-              </div>
-              <div className="stat">
-                <div className="k"><TargetIcon width={12} height={12} strokeWidth={2.2} />Começados</div>
-                <div className="v">{day.started} <small>{day.started === 1 ? 'universo' : 'universos'}</small></div>
               </div>
               <div className="stat">
                 <div className="k"><ChartIcon width={12} height={12} strokeWidth={2.2} />Chutes hoje</div>
@@ -158,7 +201,7 @@ export default function HomeScreen({
                 <img className="face" src={stack.secret.sprite} alt={stack.secret.name} />
               ) : (
                 <>
-                  <BallMark className="art" />
+                  <img className="art" src={dailyMark} alt="" aria-hidden />
                   <span className="qm">?</span>
                   <div className="scan" />
                 </>
@@ -200,7 +243,7 @@ export default function HomeScreen({
 
         <div className="modes-grid">
           <button className="mode-card accent" onClick={() => onDaily(dailyUniverse)}>
-            <BallMark className="corner" />
+            <img className="corner" src={dailyMark} alt="" aria-hidden />
             <span className="ico"><TargetIcon width={19} height={19} /></span>
             <h3>Desafio diário</h3>
             <p>Um segredo por universo, igual para todo mundo. Jogue sozinho e compare o resultado.</p>

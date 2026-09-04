@@ -56,6 +56,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
 
   const banner = buildBanner({ state, myId, universe, isMyTurn, isMyChoice, nameOf });
   const urgent = left !== null && left <= 10 && state.phase !== 'roundEnd';
+  const roundOver = state.phase === 'roundEnd';
 
   if (state.phase === 'gameOver') {
     return (
@@ -97,55 +98,81 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
             )}
           </section>
 
-          <GuessBar
-            items={items}
-            guessedIds={state.rows.map(row => row.id)}
-            groups={state.settings.groups}
-            inScope={scopeFilter(universe, state.settings.scope)}
-            active={isMyTurn || isMyChoice}
-            choosing={isMyChoice}
-            focusKey={state.phase}
-            onSubmit={submit}
-          />
-
-          {/* quantos chutes já foram e quantos sobram, em número e em forma */}
-          {state.phase === 'playing' && (
-            <section className="progress-bar">
-              <span className="txt">
-                Você já deu <b>{myGuesses} {myGuesses === 1 ? 'chute' : 'chutes'}</b>
-              </span>
-              <i className="sep" />
-              <span className="left">
-                {untilRight
-                  ? <>Chutes <b>ilimitados</b> nesta sala</>
-                  : <>Faltam <b>{me?.guessesLeft ?? 0} {(me?.guessesLeft ?? 0) === 1 ? 'chute' : 'chutes'}</b></>}
-              </span>
-              {!untilRight && budget > 0 && (
-                <span className="pips" aria-hidden="true">
-                  {Array.from({ length: budget }, (_, i) => (
-                    <i key={i} className={i < budget - (me?.guessesLeft ?? 0) ? 'used' : ''} />
-                  ))}
-                </span>
+          {/*
+            * Rodada fechada: o segredo e o que vem depois ficam aqui em cima,
+            * logo abaixo do aviso. No fim da tabela eles obrigavam a rolar a
+            * partida inteira para descobrir quem era e clicar em continuar, e
+            * a tabela so cresce a cada chute.
+            *
+            * O campo de chute sai de cena junto: nao ha o que chutar numa
+            * rodada que ja acabou.
+            */}
+          {roundOver ? (
+            <>
+              {state.secret && (
+                <Reveal
+                  universe={universe}
+                  secret={state.secret}
+                  scope={scopeReach(universe, state.settings.scope)}
+                />
               )}
-            </section>
+              <div className="game-actions">
+                {isHost ? (
+                  <>
+                    <button className="btn primary lg" onClick={() => socket.emit('game:next')}>
+                      Próxima rodada
+                    </button>
+                    <button className="btn ghost" onClick={() => socket.emit('game:end')}>
+                      Encerrar partida
+                    </button>
+                  </>
+                ) : (
+                  <span className="muted">Esperando o host puxar a próxima rodada...</span>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <GuessBar
+                items={items}
+                guessedIds={state.rows.map(row => row.id)}
+                groups={state.settings.groups}
+                inScope={scopeFilter(universe, state.settings.scope)}
+                active={isMyTurn || isMyChoice}
+                choosing={isMyChoice}
+                focusKey={state.phase}
+                onSubmit={submit}
+              />
+
+              {/* quantos chutes já foram e quantos sobram, em número e em forma */}
+              {state.phase === 'playing' && (
+                <section className="progress-bar">
+                  <span className="txt">
+                    Você já deu <b>{myGuesses} {myGuesses === 1 ? 'chute' : 'chutes'}</b>
+                  </span>
+                  <i className="sep" />
+                  <span className="left">
+                    {untilRight
+                      ? <>Chutes <b>ilimitados</b> nesta sala</>
+                      : <>Faltam <b>{me?.guessesLeft ?? 0} {(me?.guessesLeft ?? 0) === 1 ? 'chute' : 'chutes'}</b></>}
+                  </span>
+                  {!untilRight && budget > 0 && (
+                    <span className="pips" aria-hidden="true">
+                      {Array.from({ length: budget }, (_, i) => (
+                        <i key={i} className={i < budget - (me?.guessesLeft ?? 0) ? 'used' : ''} />
+                      ))}
+                    </span>
+                  )}
+                </section>
+              )}
+            </>
           )}
 
           <HintsTable universe={universe} rows={state.rows} />
 
-          {state.secret && (
-            <Reveal
-              universe={universe}
-              secret={state.secret}
-              scope={scopeReach(universe, state.settings.scope)}
-            />
-          )}
-
           <div className="game-actions" ref={actionsRef}>
-            {isHost && state.phase === 'roundEnd' && (
-              <button className="btn primary" onClick={() => socket.emit('game:next')}>Próxima rodada</button>
-            )}
             {/* rodada "ate acertar" nao fecha sozinha: o host pode encerrar */}
-            {isHost && untilRight && (
+            {isHost && !roundOver && untilRight && (
               <button className="btn ghost" onClick={() => socket.emit('game:end')}>Encerrar partida</button>
             )}
             {leaving && (

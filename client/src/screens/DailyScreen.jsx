@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DEFAULT_UNIVERSE, UNIVERSES, getUniverse, scopeFilter, scopeTipLabel } from '@shared/universes.js';
 import { useDataset } from '../hooks/useDataset.js';
-import { loadDaily, pruneDaily, saveDaily } from '../lib/storage.js';
+import { loadDaily, markSolvedToday, pruneDaily, saveDaily } from '../lib/storage.js';
 import Ambient from '../components/Ambient.jsx';
 import UniverseSelect from '../components/UniverseSelect.jsx';
 import GuessBar from '../components/GuessBar.jsx';
@@ -85,6 +85,9 @@ export default function DailyScreen({ toast, onExit }) {
       const next = { rows: [...progress.rows, data.row], secret: data.secret ?? null };
       setProgress(next);
       saveDaily(data.date, universe, next);
+      // primeiro acerto do dia e o que segura a sequencia; do segundo em
+      // diante a propria funcao ignora, entao nao ha o que checar aqui
+      if (next.secret) markSolvedToday(data.date);
     } catch {
       toast('Não consegui enviar o chute.');
     } finally {

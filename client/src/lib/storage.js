@@ -130,3 +130,78 @@ export function lastDaily(universe) {
     return { rows: [], secret: null };
   }, { rows: [], secret: null });
 }
+
+// ------------------------------------------------------------- sequencia
+
+/**
+ * A sequencia de dias — o unico numero do jogo que precisa sobreviver a virada
+ * do dia. O progresso do diario nao serve para isso: o `pruneDaily` apaga o que
+ * e de ontem, entao a contagem mora em chave propria, que ele nao varre.
+ *
+ * Um dia entra na sequencia quando a pessoa resolve pelo menos um universo
+ * nele. Sao vinte e dois desafios por dia; exigir todos seria uma sequencia que
+ * ninguem mantem, e exigir so ter chutado premiaria abrir a tela e sair.
+ */
+const STREAK_KEY = 'palpite:streak';
+
+/** "2026-09-04" menos um dia, sem passar por fuso: a data ja e do fuso do jogo. */
+function dayBefore(iso) {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  const at = new Date(Date.UTC(y, m - 1, d) - 86400000);
+  return at.toISOString().slice(0, 10);
+}
+
+/**
+ * Hoje no fuso do jogo (America/Sao_Paulo), a mesma conta que o `today()` do
+ * servidor faz. Sem isso, quem joga de outro fuso veria a sequencia quebrar
+ * numa data que para o servidor ainda e o mesmo dia.
+ */
+export function gameToday(now = new Date()) {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(now);
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
+}
+
+const readStreak = () => safe(() => {
+  const saved = JSON.parse(localStorage.getItem(STREAK_KEY));
+  return {
+    last: typeof saved?.last === 'string' ? saved.last : null,
+    current: Number(saved?.current) || 0,
+    best: Number(saved?.best) || 0,
+  };
+}, { last: null, current: 0, best: 0 }) ?? { last: null, current: 0, best: 0 };
+
+/**
+ * A sequencia como ela esta hoje. Guardada ela nunca cai sozinha, entao a
+ * leitura e que decide: resolveu hoje ou ontem, continua de pe (com ontem ela
+ * ainda da para salvar); mais velha que isso, ja quebrou e vale zero. O recorde
+ * fica, que e o ponto dele.
+ */
+export function streak(date = gameToday()) {
+  const saved = readStreak();
+  const alive = saved.last === date || saved.last === dayBefore(date);
+  return {
+    current: alive ? saved.current : 0,
+    best: saved.best,
+    solvedToday: saved.last === date,
+  };
+}
+
+/**
+ * Marca que hoje teve acerto. Chamado uma vez por dia, no primeiro universo
+ * resolvido — resolver o segundo nao conta de novo.
+ */
+export function markSolvedToday(date = gameToday()) {
+  const saved = readStreak();
+  if (saved.last === date) return streak(date);
+
+  const current = saved.last === dayBefore(date) ? saved.current + 1 : 1;
+  const next = { last: date, current, best: Math.max(saved.best, current) };
+  safe(() => localStorage.setItem(STREAK_KEY, JSON.stringify(next)));
+  return { current, best: next.best, solvedToday: true };
+}
