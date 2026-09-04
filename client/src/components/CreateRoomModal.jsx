@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { getUniverse, sanitizeScope } from '@shared/universes.js';
 import { universeMeta } from '../lib/universeMeta.js';
 import UniverseSelect from './UniverseSelect.jsx';
+import UniverseIcon from './UniverseIcon.jsx';
 import Stepper from './Stepper.jsx';
 import {
   BallMark, BulbIcon, CalendarIcon, CheckIcon, ClockIcon, CloseIcon,
@@ -204,7 +205,7 @@ export default function CreateRoomModal({ name, onName, onClose, onCreate }) {
             <button type="button" className="btn ghost lg" onClick={onClose}>Cancelar</button>
             <button type="button" className="btn violet lg" onClick={create}>
               Criar sala de {universe.label}
-              <span className="mono xs" style={{ background: meta.gradient }}>{meta.mono}</span>
+              <UniverseIcon universe={universeId} size="xs" />
             </button>
           </div>
         </div>

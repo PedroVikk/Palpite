@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
-import { UNIVERSES } from '@shared/universes.js';
-import { dailySnapshot } from '../lib/storage.js';
-import { universeMeta } from '../lib/universeMeta.js';
+import { UNIVERSES, getUniverse } from '@shared/universes.js';
+import { dailySnapshot, lastDaily } from '../lib/storage.js';
 import Ambient from '../components/Ambient.jsx';
 import Avatar from '../components/Avatar.jsx';
 import UniverseSelect from '../components/UniverseSelect.jsx';
@@ -31,6 +30,28 @@ export default function HomeScreen({
   // o diário mora no localStorage e o prune deixa só o dia de hoje lá: o que
   // sobrou é o placar de hoje, sem precisar perguntar nada ao servidor
   const day = useMemo(() => dailySnapshot(), []);
+
+  /**
+   * A miniatura não é ilustração: ela mostra onde a pilha daquele universo
+   * parou hoje. O último chute pinta as cinco primeiras colunas; resolvido
+   * fica tudo verde, e quem ainda não jogou vê cinco casas vazias — que é
+   * diferente de ter errado tudo.
+   */
+  const stack = useMemo(() => {
+    const schema = getUniverse(dailyUniverse);
+    const { rows, secret } = lastDaily(dailyUniverse);
+    const last = rows[rows.length - 1] ?? null;
+    const cells = schema.columns.slice(0, 5).map(column => {
+      if (secret) return { key: column.key, label: column.label, tone: 'hit' };
+      if (!last) return { key: column.key, label: column.label, tone: 'none' };
+      const status = last.cells?.[column.key]?.status ?? 'unknown';
+      const tone = status === 'hit' ? 'hit'
+        : (status === 'partial' || status === 'close') ? 'part'
+          : status === 'unknown' ? 'none' : 'miss';
+      return { key: column.key, label: column.label, tone };
+    });
+    return { rows, secret, last, cells };
+  }, [dailyUniverse]);
 
   const submitCode = (event) => {
     event.preventDefault();
@@ -119,27 +140,54 @@ export default function HomeScreen({
             </div>
           </div>
 
-          {/* o que se joga, em miniatura: silhueta e as cores da tabela */}
+          {/* onde a pilha de hoje parou, neste universo */}
           <aside className="mystery">
             <div className="cap">
               <span className="tag coral">{UNIVERSES[dailyUniverse].label} · hoje</span>
-              <span className="tag ghost">{day.solved > 0 ? `${day.solved} resolvidos` : 'sem chutes'}</span>
+              <span className={`tag ${stack.secret ? 'green' : 'ghost'}`}>
+                {stack.secret
+                  ? 'resolvido'
+                  : stack.rows.length
+                    ? `${stack.rows.length} ${stack.rows.length === 1 ? 'chute' : 'chutes'}`
+                    : 'sem chutes'}
+              </span>
             </div>
+
             <div className="silhouette">
-              <BallMark className="art" />
-              <span className="qm">?</span>
-              <div className="scan" />
+              {stack.secret?.sprite ? (
+                <img className="face" src={stack.secret.sprite} alt={stack.secret.name} />
+              ) : (
+                <>
+                  <BallMark className="art" />
+                  <span className="qm">?</span>
+                  <div className="scan" />
+                </>
+              )}
             </div>
+
             <div className="mini-row">
-              <div className="mini miss">Errou</div>
-              <div className="mini part">Perto</div>
-              <div className="mini hit">Acertou</div>
-              <div className="mini miss">Errou</div>
-              <div className="mini miss">Errou</div>
+              {stack.cells.map(cell => (
+                <div key={cell.key} className={`mini ${cell.tone}`} title={cell.label}>{cell.label}</div>
+              ))}
             </div>
+
             <div className="foot">
-              <span>Chutes ilimitados</span>
-              <span>Sem sala, sem turno</span>
+              {stack.secret ? (
+                <>
+                  <span>Era <b style={{ color: 'var(--text-dim)' }}>{stack.secret.name}</b></span>
+                  <span>em {stack.rows.length} {stack.rows.length === 1 ? 'chute' : 'chutes'}</span>
+                </>
+              ) : stack.last ? (
+                <>
+                  <span>Último: <b style={{ color: 'var(--text-dim)' }}>{stack.last.name}</b></span>
+                  <span>continue de onde parou</span>
+                </>
+              ) : (
+                <>
+                  <span>Chutes ilimitados</span>
+                  <span>Sem sala, sem turno</span>
+                </>
+              )}
             </div>
           </aside>
         </section>

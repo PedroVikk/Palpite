@@ -110,3 +110,23 @@ export function dailySnapshot() {
     return { solved, started, guesses };
   }, { solved: 0, started: 0, guesses: 0 });
 }
+
+/**
+ * O ultimo estado do diario de um universo, hoje. Como o `pruneDaily` varre o
+ * que e de outro dia, basta procurar a chave que termina no universo pedido —
+ * a data que sobrou e a de hoje, sem precisar perguntar ao servidor.
+ */
+export function lastDaily(universe) {
+  return safe(() => {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith(DAILY_PREFIX) || !key.endsWith(`:${universe}`)) continue;
+      const saved = JSON.parse(localStorage.getItem(key));
+      return {
+        rows: Array.isArray(saved?.rows) ? saved.rows : [],
+        secret: saved?.secret ?? null,
+      };
+    }
+    return { rows: [], secret: null };
+  }, { rows: [], secret: null });
+}

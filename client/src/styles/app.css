@@ -385,10 +385,22 @@ input, select { font: inherit; color: inherit; }
   font-weight: 800;
   letter-spacing: -.03em;
   color: #fff;
+  /* várias miniaturas são arte quadrada e opaca: sem o corte elas passariam
+     por cima do canto arredondado do selo */
+  overflow: hidden;
   box-shadow: inset 0 1px 0 #FFFFFF33;
 }
 .mono.sm { width: 26px; height: 26px; border-radius: 7px; font-size: 10px; }
-.mono.xs { width: 18px; height: 18px; border-radius: 5px; font-size: 8px; }
+.mono.xs { width: 18px; height: 18px; border-radius: 5px; font-size: 5px; }
+/* o retrato ocupa quase o selo inteiro: sobra só a borda de cor, que é o que
+   identifica o universo de relance na lista */
+.mono img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  image-rendering: auto;
+  filter: drop-shadow(0 1px 2px #00000059);
+}
 
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hit-hi); flex: none; }
 .dot.off { background: var(--neutral); }
@@ -661,6 +673,8 @@ input, select { font: inherit; color: inherit; }
   border: 1px solid var(--line);
 }
 .silhouette .art { position: absolute; width: 210px; color: #fff; opacity: .09; }
+/* resolvido: a silhueta some e quem aparece é o segredo daquele dia */
+.silhouette .face { width: 148px; height: 148px; object-fit: contain; filter: drop-shadow(0 6px 16px #00000073); }
 .silhouette .qm { position: relative; font-family: var(--font-display); font-size: 56px; font-weight: 800; color: #FFFFFF26; }
 .silhouette .scan { position: absolute; left: 0; right: 0; top: 34%; height: 32%; background: linear-gradient(180deg, transparent, #FF4E5B17, transparent); }
 .mini-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
@@ -682,6 +696,8 @@ input, select { font: inherit; color: inherit; }
 .mini.hit { background: var(--hit); color: #EAFFF5; }
 .mini.part { background: var(--partial); color: #231603; }
 .mini.miss { background: var(--surface-2); color: #68728F; border: 1px solid var(--line); }
+/* nunca jogou nao e a mesma coisa que errou tudo: fica vazio, nao cinza cheio */
+.mini.none { background: transparent; border: 1px dashed var(--line-2); color: var(--muted); }
 .mystery .foot { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); }
 
 .section-head { display: flex; align-items: center; gap: 14px; margin: 26px 0 2px; }

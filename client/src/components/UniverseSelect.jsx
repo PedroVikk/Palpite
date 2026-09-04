@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { UNIVERSES } from '@shared/universes.js';
 import { universeMeta } from '../lib/universeMeta.js';
+import UniverseIcon from './UniverseIcon.jsx';
 import { CheckIcon, ChevronIcon, SearchIcon } from './Icon.jsx';
 
 const ALL = Object.values(UNIVERSES);
@@ -79,7 +80,7 @@ export default function UniverseSelect({ value, onChange, disabled = false, show
         disabled={disabled}
         onClick={() => setOpen(o => !o)}
       >
-        <span className="mono" style={{ background: meta.gradient }}>{meta.mono}</span>
+        <UniverseIcon universe={selected.id} />
         <span className="txt">
           <span className="name">{selected.label}</span>
           {showDesc && <span className="desc">{meta.desc}</span>}
@@ -118,7 +119,7 @@ export default function UniverseSelect({ value, onChange, disabled = false, show
                   onMouseDown={e => { e.preventDefault(); pick(universe); }}
                   onMouseEnter={() => setIndex(i)}
                 >
-                  <span className="mono" style={{ background: item.gradient }}>{item.mono}</span>
+                  <UniverseIcon universe={universe.id} />
                   <span className="txt">
                     <span className="name">{universe.label}</span>
                     <span className="desc">{item.desc}</span>

@@ -6,6 +6,7 @@ import { useCountdown } from '../hooks/useCountdown.js';
 import { universeMeta } from '../lib/universeMeta.js';
 import Ambient from '../components/Ambient.jsx';
 import GameSidebar from '../components/GameSidebar.jsx';
+import UniverseIcon from '../components/UniverseIcon.jsx';
 import GuessBar from '../components/GuessBar.jsx';
 import HintsTable from '../components/HintsTable.jsx';
 import Reveal from '../components/Reveal.jsx';
@@ -177,7 +178,7 @@ function TopBar({ state, universe, meta, onBack }) {
         </button>
         <span className="pill"><ClockIcon width={14} height={14} />Rodada <b>{state.round}</b>/{state.settings.rounds}</span>
         <span className="pill">
-          <span className="mono xs" style={{ background: meta.gradient }}>{meta.mono}</span>
+          <UniverseIcon universe={universe.id} size="xs" />
           {universe.label} · {state.settings.mode === 'duel' ? 'Duelo' : 'Caça ao segredo'}
         </span>
         <span className="pill"><UsersIcon width={14} height={14} />{state.players.length}</span>
