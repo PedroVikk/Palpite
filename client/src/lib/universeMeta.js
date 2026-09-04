@@ -25,9 +25,9 @@ const META = {
   rickmorty:        ['RM', '#7FE3B0', '#1E8B5E', 'Personagens do multiverso',        1],
   heroes:           ['SH', '#6FA8FF', '#2C4FB8', 'Marvel e DC lado a lado',          477],
   potter:           ['HP', '#C9A227', '#7A5E0B', 'Bruxos, casas e varinhas',         1],
-  lotr:             ['SA', '#B79A6A', '#6B5433', 'Povos da Terra-média',             3],
+  lotr:             ['SA', '#B79A6A', '#6B5433', 'Povos da Terra-média',             1],
   f1:               ['F1', '#FF5C5C', '#A81E1E', 'Pilotos, equipes e títulos',       643],
-  cars:             ['CA', '#8FA3BF', '#3C4B63', 'Marcas, motores e potência',       null],
+  cars:             ['CA', '#E23A44', '#8E0F1B', 'Marcas, motores e potência',       null],
   mlp:              ['ML', '#FFA6D5', '#B03D77', 'Pôneis de Equestria',              1],
   onepiece:         ['OP', '#FF8A5B', '#C24A16', 'Piratas, marinha e akuma no mi',   1],
   dragonball:       ['DB', '#FFB84D', '#C07A00', 'Guerreiros e transformações',      1],
@@ -35,7 +35,7 @@ const META = {
   ordem:            ['OR', '#B36BFF', '#5E23A8', 'Agentes e os quatro elementos',    11],
   ben10:            ['B1', '#9BE84F', '#4E8A12', 'Os aliens do Omnitrix',            146],
   jojo:             ['JJ', '#FFD166', '#B07C0A', 'Stands, poses e partes',           2],
-  famosos:          ['FA', '#FF9EC4', '#B03D6B', 'Gente de carne e osso',            null],
+  famosos:          ['FA', '#FF9EC4', '#B03D6B', 'Gente de carne e osso',            142794],
 };
 
 const FALLBACK = ['??', '#8FA3BF', '#3C4B63', '', null];

@@ -183,3 +183,16 @@ export const BallMark = (props) => (
     <path d="M50 2a48 48 0 1 0 0 96 48 48 0 0 0 0-96Zm0 10a38 38 0 0 1 37.6 33H62a12 12 0 0 0-24 0H12.4A38 38 0 0 1 50 12Zm0 26a12 12 0 1 1 0 24 12 12 0 0 1 0-24Zm-37.6 17H38a12 12 0 0 0 24 0h25.6A38 38 0 0 1 12.4 55Z" />
   </svg>
 );
+
+/**
+ * O "H" da Honda, desenhado a mao em vez de baixado: Carros e o unico universo
+ * sem miniatura nenhuma no espelho (nenhum dos 1570 carros tem imagem), entao
+ * o selo dele precisava de uma forma propria. Montanhas verticais que abrem
+ * para cima e para baixo, travessao no meio, tudo dentro do retangulo.
+ */
+export const HondaMark = (props) => (
+  <svg viewBox="0 0 100 100" fill="none" aria-hidden {...props}>
+    <rect x="9" y="19" width="82" height="62" rx="11" stroke="currentColor" strokeWidth="7" />
+    <path d="M23 29h16v13h22V29h16l-6 21 6 21H61V58H39v13H23l6-21z" fill="currentColor" />
+  </svg>
+);

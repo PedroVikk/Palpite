@@ -1,5 +1,12 @@
 import { useState } from 'react';
 import { universeMeta } from '../lib/universeMeta.js';
+import { HondaMark } from './Icon.jsx';
+
+/**
+ * Universo cujo selo e um desenho, nao um retrato. Carros nao tem uma unica
+ * miniatura no espelho, entao a marca faz o papel do rosto.
+ */
+const MARKS = { cars: HondaMark };
 
 /**
  * O selo do universo: o retrato de quem é a cara da franquia sobre o gradiente
@@ -12,6 +19,7 @@ import { universeMeta } from '../lib/universeMeta.js';
 export default function UniverseIcon({ universe, size = '', className = '' }) {
   const meta = universeMeta(universe);
   const [broken, setBroken] = useState(false);
+  const Mark = MARKS[universe];
   const showFace = meta.icon && !broken;
 
   return (
@@ -20,9 +28,11 @@ export default function UniverseIcon({ universe, size = '', className = '' }) {
       style={{ background: meta.gradient }}
       aria-hidden="true"
     >
-      {showFace
-        ? <img src={meta.icon} alt="" loading="lazy" onError={() => setBroken(true)} />
-        : meta.mono}
+      {Mark
+        ? <Mark className="mark" />
+        : showFace
+          ? <img src={meta.icon} alt="" loading="lazy" onError={() => setBroken(true)} />
+          : meta.mono}
     </span>
   );
 }

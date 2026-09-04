@@ -401,6 +401,8 @@ input, select { font: inherit; color: inherit; }
   image-rendering: auto;
   filter: drop-shadow(0 1px 2px #00000059);
 }
+/* selo desenhado: respira mais que a foto, que ocupa a moldura inteira */
+.mono .mark { width: 72%; height: 72%; color: #fff; }
 
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--hit-hi); flex: none; }
 .dot.off { background: var(--neutral); }
