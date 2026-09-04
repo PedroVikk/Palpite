@@ -5,7 +5,6 @@ import { universeMeta } from '../lib/universeMeta.js';
 import Ambient from '../components/Ambient.jsx';
 import Avatar from '../components/Avatar.jsx';
 import UniverseSelect from '../components/UniverseSelect.jsx';
-import CreateRoomModal from '../components/CreateRoomModal.jsx';
 import {
   CheckIcon, ChartIcon, ClockIcon, EnterIcon, ExitIcon, FlameIcon,
   GoogleIcon, PlusIcon, SendIcon, TargetIcon,
@@ -31,13 +30,12 @@ const today = () => {
 };
 
 export default function HomeScreen({
-  name, onName, onCreate, onJoin, onDaily, toast, resume, onResume, onForgetResume, profile,
+  name, onName, onNewRoom, onJoin, onDaily, toast, resume, onResume, onForgetResume, profile,
 }) {
   // convite chega como ?sala=XXXX: o código já vem preenchido
   const [code, setCode] = useState(() =>
     (new URLSearchParams(location.search).get('sala') ?? '').toUpperCase());
   const [dailyUniverse, setDailyUniverse] = useState('pokemon');
-  const [creating, setCreating] = useState(false);
 
   // o diário mora no localStorage e o prune deixa só o dia de hoje lá: o que
   // sobrou é o placar de hoje, sem precisar perguntar nada ao servidor
@@ -253,7 +251,7 @@ export default function HomeScreen({
             </div>
           </button>
 
-          <button className="mode-card violet" onClick={() => setCreating(true)}>
+          <button className="mode-card violet" onClick={onNewRoom}>
             <span className="ico"><PlusIcon width={19} height={19} /></span>
             <h3>Criar sala</h3>
             <p>Escolha o universo, as regras e o tempo por turno. Você vira o host e convida por link.</p>
@@ -316,15 +314,6 @@ export default function HomeScreen({
           </div>
         </div>
       </main>
-
-      {creating && (
-        <CreateRoomModal
-          name={name}
-          onName={onName}
-          onClose={() => setCreating(false)}
-          onCreate={(settings) => { setCreating(false); onCreate(settings); }}
-        />
-      )}
     </>
   );
 }

@@ -8,9 +8,9 @@ import {
 import { answerForOpenRoom, roomOpenElsewhere } from './lib/tabs.js';
 import { useProfile } from './hooks/useProfile.js';
 import HomeScreen from './screens/HomeScreen.jsx';
-import LobbyScreen from './screens/LobbyScreen.jsx';
 import GameScreen from './screens/GameScreen.jsx';
 import DailyScreen from './screens/DailyScreen.jsx';
+import RoomModal from './components/RoomModal.jsx';
 
 /** Com o que uma sala nasce. O host ajusta tudo depois, no lobby. */
 const NEW_ROOM = {
@@ -27,6 +27,9 @@ export default function App() {
   const [myId, setMyId] = useState(null);
   const [name, setName] = useState(savedName);
   const [toast, setToast] = useState(null);
+  // o modal da sala, aberto antes de ela existir: e a mesma janela que depois
+  // vira a sala de espera, entao quem manda nela e daqui de cima
+  const [creating, setCreating] = useState(false);
   // ?diario=<universo> abre o desafio direto, para o link ser compartilhavel
   const [daily, setDaily] = useState(() => new URLSearchParams(location.search).has('diario'));
   // convite para voltar a partida de onde a pessoa caiu (ver o efeito abaixo)
@@ -88,6 +91,7 @@ export default function App() {
     setState(null);
     setMyId(null);
     setResume(null);
+    setCreating(false);
     forgetSession();
     history.replaceState(null, '', location.pathname);
   }, []);
@@ -101,6 +105,12 @@ export default function App() {
     }
     setMyId(res.playerId);
     setResume(null);
+    // a sala existe: a mesma janela que estava criando passa a ser a sala, e o
+    // formulario de criacao nao precisa mais ficar de pe atras dela
+    setCreating(false);
+    // a sala de espera e um modal sobre a home: o desafio do dia sai da frente
+    // para ter home atras dele (o endereco ja virou ?sala= logo abaixo)
+    setDaily(false);
     rememberPlayerId(res.code, res.playerId);
     // o nome vem do servidor, ja aparado: e ele que o cartao de voltar mostra
     const seat = res.state.players.find(p => p.id === res.playerId);
@@ -189,18 +199,19 @@ export default function App() {
     history.replaceState(null, '', location.pathname);
   };
 
-  const shared = { state, myId, toast: showToast, onLeave: leave };
+  // a sala de espera e um modal, nao uma tela: a home continua de pe atras dela
+  const inLobby = state?.phase === 'lobby';
 
   return (
     <>
       {toast && <div className="toast" role="status">{toast}</div>}
 
       {!state && daily && <DailyScreen toast={showToast} onExit={closeDaily} />}
-      {!state && !daily && (
+      {(!state || inLobby) && !daily && (
         <HomeScreen
           name={name}
           onName={setName}
-          onCreate={createRoom}
+          onNewRoom={() => setCreating(true)}
           onJoin={joinRoom}
           onDaily={openDaily}
           toast={showToast}
@@ -210,8 +221,19 @@ export default function App() {
           profile={profile}
         />
       )}
-      {state?.phase === 'lobby' && <LobbyScreen {...shared} />}
-      {state && state.phase !== 'lobby' && <GameScreen {...shared} />}
+      {(creating || inLobby) && (
+        <RoomModal
+          state={state}
+          myId={myId}
+          name={name}
+          onName={setName}
+          onCreate={createRoom}
+          onCancel={() => setCreating(false)}
+          onLeave={leave}
+          toast={showToast}
+        />
+      )}
+      {state && !inLobby && <GameScreen state={state} myId={myId} toast={showToast} onLeave={leave} />}
     </>
   );
 }

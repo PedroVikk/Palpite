@@ -880,8 +880,32 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
 .side-note .h { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: var(--purple-hi); margin-bottom: 6px; }
 .side-note p { font-size: 12px; color: var(--muted); line-height: 1.5; }
 
+/* a sala de espera é a mesma janela, só que com o código e a lista de gente na
+   lateral: elas pedem mais largura do que a coluna de abas do formulário */
+.modal.room { grid-template-columns: 292px 1fr; }
+.room-side { padding: 20px 16px; gap: 16px; overflow: hidden; }
+.room-side .codecard { padding: 18px 16px; }
+.room-side .codecard .v { font-size: 38px; margin: 2px 0 12px; }
+.room-side .codecard .row .btn { font-size: 13px; }
+.side-seats { display: flex; flex-direction: column; gap: 9px; min-height: 0; }
+.side-seats .h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.side-seats .h .n { margin-left: auto; letter-spacing: 0; text-transform: none; font-size: 12px; }
+.side-seats .players { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #FFFFFF1F transparent; }
+.side-seats .players li { padding: 8px 10px; gap: 8px; }
+
 .modal-main { padding: 26px 30px 24px; border-radius: 0 var(--r-lg) var(--r-lg) 0; }
 .modal-title { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
+/* no lugar do selo genérico, a cara do universo em jogo */
+.modal-title > .mono { width: 44px; height: 44px; border-radius: var(--r-md); }
 .modal-title .mark {
   width: 44px;
   height: 44px;
@@ -899,7 +923,15 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
 .form-grid .wide { grid-column: 1 / -1; }
 .modal-foot { display: flex; gap: 12px; margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--line); }
 .modal-foot .btn.ghost { flex: 0 0 170px; }
-.modal-foot .btn.violet { flex: 1; }
+.modal-foot .btn.violet, .modal-foot .btn.primary { flex: 1; }
+/* convidado não começa a partida: no lugar do botão fica o que ele está esperando */
+.modal-foot .foot-note {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  font-size: 13.5px;
+  color: var(--muted);
+}
 
 /* ----------------------------------------------------------------- sala */
 
@@ -1498,9 +1530,18 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
 @media (max-width: 1024px) {
   .wrap, .wrap.lobby { grid-template-columns: 1fr; }
   .side { position: static; }
-  .modal { grid-template-columns: 1fr; }
+  .modal, .modal.room { grid-template-columns: 1fr; }
+  /* a lateral do formulário é enfeite e sai; a da sala tem o código e a lista
+     de gente, que é justamente o que se olha no celular — ela vira o topo */
   .modal-side { display: none; }
+  .room-side {
+    display: flex;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+  }
   .modal-main { border-radius: var(--r-lg); }
+  .room .modal-main { border-radius: 0 0 var(--r-lg) var(--r-lg); }
   .form-grid { grid-template-columns: 1fr; }
 }
 
