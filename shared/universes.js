@@ -1086,6 +1086,7 @@ export const UNIVERSES = {
     label: 'Dragon Ball',
     secretLabel: 'o personagem secreto',
     dataFile: 'dragonball.json',
+    daily: { rotate: 'scope' },
     groupLabel: 'Raças',
     groups: [
       { id: 'saiyajin', label: 'Saiyajin' },
@@ -1096,6 +1097,17 @@ export const UNIVERSES = {
       { id: 'outros', label: 'Outras raças' },
     ],
     defaultGroups: ['saiyajin', 'humano', 'namekuseijin', 'androide', 'divino', 'outros'],
+    // a estreia esta escrita a mao no build (a API nao tem saga); filme conta
+    // para a epoca em que saiu, entao Broly e Gogeta chegam no Z
+    scope: {
+      label: 'Épocas',
+      key: 'era',
+      options: [
+        { id: 'classico', label: 'Clássico', hint: 'A caçada às esferas e os primeiros torneios.' },
+        { id: 'z', label: 'Z', hint: 'Saiyajins, Freeza, Célula e Buu — com os filmes da época.' },
+        { id: 'super', label: 'Super', hint: 'Deuses da destruição e o Torneio do Poder.' },
+      ],
+    },
     columns: [
       { key: 'race', label: 'Raça', kind: 'text', labels: DB_RACE_PT },
       { key: 'gender', label: 'Gênero', kind: 'text', labels: { Male: 'Masculino', Female: 'Feminino' } },

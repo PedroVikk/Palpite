@@ -94,6 +94,23 @@ const NAME_PT = {
   'Android 20 (Dr. Gero)': 'Dr. Gero (Android 20)', Vermoudh: 'Vermoud',
 };
 
+/**
+ * A epoca de estreia nao vem da API — e lista escrita a mao, pelos nomes ja em
+ * pt-BR. So o Classico e o Super aparecem aqui: quem nao esta em nenhum dos
+ * dois estreou no Z, que e a maior parte do elenco. Filme conta para a epoca em
+ * que saiu, entao Broly, Janemba e Gogeta ficam no Z, e Bills e Whis no Super.
+ * A ordem dos indices e a mesma do `scope.options` do universo.
+ */
+const ERA_CLASSICO = new Set([
+  'Goku', 'Bulma', 'Piccolo', 'Krillin', 'Tenshinhan', 'Yamcha',
+  'Chi-Chi', 'Launch', 'Mestre Kame',
+]);
+const ERA_SUPER = new Set([
+  'Bills', 'Whis', 'Zeno', 'Jiren', 'Toppo', 'Dyspo',
+  'Marcarita', 'Vermoud', 'Grande Sacerdote',
+]);
+const eraDe = (nome) => (ERA_CLASSICO.has(nome) ? 0 : ERA_SUPER.has(nome) ? 2 : 1);
+
 /** Apelidos para a busca: quem so lembra do nome em ingles tambem acha. */
 const ALIASES = {
   Celula: ['Cell'], Freezer: ['Frieza', 'Freeza'], Bills: ['Beerus'],
@@ -129,6 +146,7 @@ const roster = detalhes.map((c, index) => {
     sourceId: c.id,
     name: nome,
     group: groupOf(c.race),
+    era: eraDe(nome),
     race: clean(c.race),
     gender: clean(c.gender),
     affiliation: clean(c.affiliation),
@@ -165,6 +183,13 @@ coverage('sorteavel', c => c.eligible);
 const porGrupo = {};
 for (const c of roster) if (c.eligible) porGrupo[c.group] = (porGrupo[c.group] ?? 0) + 1;
 console.log('\nSorteaveis por raca:', JSON.stringify(porGrupo));
+
+// as epocas escritas a mao so batem se os nomes baterem: a contagem denuncia
+// tanto o nome que mudou na fonte quanto o personagem novo que caiu no Z sem
+// ninguem decidir isso
+const porEpoca = ['classico', 'z', 'super']
+  .map((id, i) => id + ' ' + roster.filter(c => c.eligible && c.era === i).length);
+console.log('Sorteaveis por epoca:', porEpoca.join(', '));
 
 await fs.mkdir(path.dirname(OUT), { recursive: true });
 await fs.writeFile(OUT, JSON.stringify(roster));
