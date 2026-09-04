@@ -167,10 +167,6 @@ export function createApp() {
     return app;
   }
 
-  // os assets do Vite tem hash no nome: podem ficar cravados no cache
-  app.use('/assets', express.static(path.join(CLIENT_DIST, 'assets'), { immutable: true, maxAge: '1y' }));
-  app.use(express.static(CLIENT_DIST, { index: false, maxAge: '1h' }));
-
   // o index sai carimbado com a versao do deploy; lido uma vez, servido sempre
   // fresco (aponta para os assets com hash, entao nunca pode envelhecer)
   const indexHtml = fs.readFileSync(path.join(CLIENT_DIST, 'index.html'), 'utf8').replace(
@@ -178,11 +174,25 @@ export function createApp() {
     `<script>window.__APP_VERSION__=${JSON.stringify(BUILD_VERSION)}</script></head>`,
   );
 
-  // fallback de SPA: link direto e F5 em qualquer rota devolvem o index
-  app.get('*', (_req, res) => {
+  const sendApp = (_req, res) => {
     res.set('Cache-Control', 'no-cache');
     res.type('html').send(indexHtml);
-  });
+  };
+
+  /**
+   * O caminho literal vem antes dos estaticos de proposito. Servido pela pasta,
+   * /index.html sairia como arquivo — com uma hora de cache e sem o carimbo da
+   * versao, ou seja, uma aba sem cache buster nenhum, presa no bundle daquele
+   * deploy. E o mesmo documento: tem de sair pela mesma porta que "/".
+   */
+  app.get('/index.html', sendApp);
+
+  // os assets do Vite tem hash no nome: podem ficar cravados no cache
+  app.use('/assets', express.static(path.join(CLIENT_DIST, 'assets'), { immutable: true, maxAge: '1y' }));
+  app.use(express.static(CLIENT_DIST, { index: false, maxAge: '1h' }));
+
+  // fallback de SPA: link direto e F5 em qualquer rota devolvem o index
+  app.get('*', sendApp);
 
   return app;
 }

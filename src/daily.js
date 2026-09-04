@@ -9,6 +9,12 @@
  *
  * O dia vira em America/Sao_Paulo, nao em UTC: com UTC o desafio trocaria as
  * 21h de quem joga aqui, no meio da noite de jogo.
+ *
+ * Como (data, universo) responde por tudo e o dataset e fixo dentro do deploy,
+ * o dia inteiro — recorte, candidatos e segredo — e calculado uma vez e fica
+ * guardado. Sem isso cada chute refazia a conta: o recorte varria a lista uma
+ * vez por candidato, e nos universos grandes a resposta passava de um segundo,
+ * com o campo de chute travado esperando por ela.
  */
 import { createHash } from 'node:crypto';
 import { UNIVERSES, scopeFilter, scopeOptions } from '../shared/universes.js';
@@ -42,7 +48,16 @@ function pickFrom(list, key) {
   return list[digest.readUInt32BE(0) % list.length];
 }
 
-const eligibleOf = (universeId) => datasetOf(universeId).list.filter(item => item.eligible);
+/** Sorteaveis do universo. Nao muda dentro do deploy: calculado uma vez so. */
+const elegiveis = new Map();
+function eligibleOf(universeId) {
+  let list = elegiveis.get(universeId);
+  if (!list) {
+    list = datasetOf(universeId).list.filter(item => item.eligible);
+    elegiveis.set(universeId, list);
+  }
+  return list;
+}
 
 /**
  * O recorte do dia, do jeito que o universo pediu no schema (`daily`). Nada
@@ -63,7 +78,7 @@ const eligibleOf = (universeId) => datasetOf(universeId).list.filter(item => ite
  * o anime do Hunter x Hunter e os filmes dos herois — nao e recorte do dia, e
  * o pedaco do universo que o desafio reconhece.
  */
-export function sliceOf(universeId, date = today()) {
+function cutOf(universeId, date) {
   const universe = UNIVERSES[universeId];
   const daily = universe?.daily;
   if (!daily) return { scope: null, group: null };
@@ -91,23 +106,61 @@ export function sliceOf(universeId, date = today()) {
   return { scope, group };
 }
 
-/** Se o item cabe no desafio de hoje — o mesmo teste que a busca faz no cliente. */
-export function inSlice(universeId, item, date = today()) {
+/**
+ * O dia pronto de um universo: recorte, o teste que diz quem esta dentro, os
+ * candidatos e o segredo. Guardado por (universo, data), porque e so disso que
+ * qualquer uma dessas respostas depende.
+ */
+const dias = new Map();
+
+function dayOf(universeId, date) {
+  const key = `${universeId}:${date}`;
+  const pronto = dias.get(key);
+  if (pronto) return pronto;
+
   const universe = UNIVERSES[universeId];
-  if (!universe || !item) return false;
-  const { scope, group } = sliceOf(universeId, date);
-  if (group && item.group !== group) return false;
-  return scope ? scopeFilter(universe, scope)(item) : true;
+  const { scope, group } = cutOf(universeId, date);
+  const noScope = scope ? scopeFilter(universe, scope) : null;
+  const matches = (item) => {
+    if (!item) return false;
+    if (group && item.group !== group) return false;
+    return noScope ? noScope(item) : true;
+  };
+
+  const pool = eligibleOf(universeId).filter(matches);
+  const dia = {
+    scope,
+    group,
+    matches,
+    pool,
+    secret: pool.length ? pickFrom(pool, `${date}:${universeId}`) : null,
+  };
+
+  // o dia de ontem nao serve mais a ninguem; so a virada guarda dois por um
+  // instante, enquanto um request atravessa a meia-noite
+  for (const [antiga] of dias) if (!antiga.endsWith(`:${date}`)) dias.delete(antiga);
+  dias.set(key, dia);
+  return dia;
 }
 
-/** Candidatos do dia: os sorteaveis que sobram depois do recorte. */
-const poolOf = (universeId, date = today()) =>
-  eligibleOf(universeId).filter(item => inSlice(universeId, item, date));
+/** O recorte de hoje, para o cliente trancar a busca no mesmo pedaco. */
+export function sliceOf(universeId, date = today()) {
+  if (!UNIVERSES[universeId]) return { scope: null, group: null };
+  const { scope, group } = dayOf(universeId, date);
+  return { scope, group };
+}
+
+/** Se o item cabe no desafio de hoje — o mesmo teste que a busca faz no cliente. */
+export function inSlice(universeId, item, date = today()) {
+  if (!UNIVERSES[universeId] || !item) return false;
+  return dayOf(universeId, date).matches(item);
+}
 
 /** O item do dia. Mesma data + mesmo universo = sempre o mesmo item. */
 export function secretOf(universeId, date = today()) {
-  const pool = poolOf(universeId, date);
-  return pool.length ? pickFrom(pool, `${date}:${universeId}`) : null;
+  return UNIVERSES[universeId] ? dayOf(universeId, date).secret : null;
 }
 
-export const poolSizeOf = (universeId, date = today()) => poolOf(universeId, date).length;
+/** Quantos candidatos o recorte de hoje deixou de pe. */
+export const poolSizeOf = (universeId, date = today()) =>
+  (UNIVERSES[universeId] ? dayOf(universeId, date).pool.length : 0);
