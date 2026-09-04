@@ -244,6 +244,14 @@ try {
   console.log('\n== Todos os universos ==');
   const arena = [];
   for (const universe of Object.values(UNIVERSES)) {
+    // A marca-d'agua e o unico pedaco da camada visual que nao sabe se virar
+    // sozinho: sem data/marks/<id>.png o universo novo se anuncia com a
+    // pokebola, a cara de outro. As regras do desenho estao em
+    // docs/marcas-dos-universos.md.
+    const temMarca = await fs.access(path.join('data', 'marks', `${universe.id}.png`))
+      .then(() => true, () => false);
+    check(`${universe.label}: tem marca em data/marks/${universe.id}.png`, temMarca);
+
     // o catalogo do servidor so carrega os jogaveis, entao o teste chuta pela
     // mesma lista: quem esta de fora nem existe para a sala
     const data = JSON.parse(await fs.readFile(path.join('data', universe.dataFile), 'utf8'))

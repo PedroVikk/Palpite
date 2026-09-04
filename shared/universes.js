@@ -5,6 +5,13 @@
  * Cada dataset em data/<dataFile> e uma lista de itens com, no minimo:
  *   id, name, group, sprite, artwork, eligible  +  uma chave por coluna.
  *
+ * UNIVERSO NOVO PRECISA DE UMA MARCA: data/marks/<id>.png, a silhueta branca
+ * que vira marca-d'agua atras do segredo do dia. O resto da camada visual
+ * (cor, descricao, rosto) se vira sem ninguem — cai num neutro e aparece no
+ * mesmo dia. A marca nao: sem o arquivo o universo herda a pokebola e passa a
+ * se anunciar com a cara de outro, entao `npm test` cobra ela por nome. Como
+ * desenhar uma esta em docs/marcas-dos-universos.md.
+ *
  * `group` e a fatia que o host liga/desliga na sala (geracao, raca, vila...).
  * `eligible` marca quem tem dados completos o bastante para ser o segredo —
  * todo mundo pode ser chutado, mas so os elegiveis sao sorteados.

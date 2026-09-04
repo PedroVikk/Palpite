@@ -18,6 +18,7 @@ export default defineConfig({
     proxy: {
       '/api': API,
       '/sprites': API,
+      '/marks': API,
       '/socket.io': { target: API, ws: true },
     },
   },

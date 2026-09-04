@@ -11,6 +11,14 @@
  * baixado de fora, e nenhum arquivo novo no repositório. Onde não existe um
  * rosto óbvio (Carros não tem miniatura; Famosos são pessoas de verdade, e
  * eleger uma seria estranho) fica o monograma, que é o padrão de sempre.
+ *
+ * A marca (`mark`) é outra coisa: a silhueta chapada que serve de marca-d'água
+ * atrás do segredo do dia e na lateral do modal. Mora em `data/marks/<id>.png`
+ * — branco sobre transparente, 256x256 — e o caminho sai do id, sem tabela no
+ * meio. UNIVERSO NOVO PRECISA DO ARQUIVO: sem ele a marca cai na pokébola e o
+ * universo passa a se anunciar com a cara de outro. O teste cobra
+ * (`npm test`, bloco "Todos os universos") e o desenho tem regras próprias,
+ * escritas em `docs/marcas-dos-universos.md`.
  */
 const META = {
   //                mono   de         para       descrição                          rosto
@@ -41,11 +49,14 @@ const META = {
 const FALLBACK = ['??', '#8FA3BF', '#3C4B63', '', null];
 
 export function universeMeta(id) {
-  const [mono, from, to, desc, face] = META[id] ?? FALLBACK;
+  const known = id in META;
+  const [mono, from, to, desc, face] = known ? META[id] : FALLBACK;
   return {
     mono,
     desc,
     gradient: `linear-gradient(145deg, ${from}, ${to})`,
     icon: face ? `/sprites/${id}/${face}.webp` : null,
+    // desconhecido volta para a pokébola: melhor a marca errada que um quadrado quebrado
+    mark: `/marks/${known ? id : 'pokemon'}.png`,
   };
 }
