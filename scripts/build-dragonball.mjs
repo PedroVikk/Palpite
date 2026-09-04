@@ -85,7 +85,7 @@ const PLANET_PT = {
 
 /** Nomes em pt-BR onde a dublagem brasileira diverge do rotulo da API. */
 const NAME_PT = {
-  Celula: 'Célula', 'Master Roshi': 'Mestre Kame', 'Kaio del norte (Kaito)': 'Kaioh do Norte',
+  Celula: 'Cell', 'Master Roshi': 'Mestre Kame', 'Kaio del norte (Kaito)': 'Kaioh do Norte',
   'Kaio del Sur': 'Kaioh do Sul', 'Kaio del este': 'Kaioh do Leste',
   'Kaio del Oeste': 'Kaioh do Oeste', 'Gran Kaio': 'Grande Kaioh',
   'Kaio-shin del Este': 'Kaioh Shin do Leste', 'Kaio-shin del Norte': 'Kaioh Shin do Norte',
@@ -111,14 +111,60 @@ const ERA_SUPER = new Set([
 ]);
 const eraDe = (nome) => (ERA_CLASSICO.has(nome) ? 0 : ERA_SUPER.has(nome) ? 2 : 1);
 
-/** Apelidos para a busca: quem so lembra do nome em ingles tambem acha. */
+/**
+ * Apelidos da busca: o nome original e o traduzido levam ao mesmo personagem.
+ * A fonte e em espanhol e a dublagem brasileira renomeou meio elenco, entao
+ * "Cell" e "Célula", "Krillin" e "Kuririn", "Daishinkan" e "Grande Sacerdote"
+ * precisam achar a mesma ficha — quem assistiu num idioma nao deveria perder o
+ * chute por causa disso. O nome cru da API entra sozinho, la embaixo; aqui
+ * ficam o japones, o ingles e as grafias que a dublagem consagrou.
+ */
 const ALIASES = {
-  Celula: ['Cell'], Freezer: ['Frieza', 'Freeza'], Bills: ['Beerus'],
-  Vegetto: ['Vegito'], 'Master Roshi': ['Roshi', 'Kamesennin'],
-  Krillin: ['Kuririn', 'Cririn'], Tenshinhan: ['Tien'], 'Majin Buu': ['Boo', 'Bu'],
-  'Kibito-Shin': ['Kaioh Shin', 'Shin'], Zeno: ['Zen-Oh', 'Rei de Tudo'],
-  Goku: ['Son Goku', 'Kakaroto', 'Kakarot'], Gohan: ['Son Gohan'],
-  'Chi-Chi': ['Chichi'], Toppo: ['Top'], Whis: ['Whis'],
+  Goku: ['Son Goku', 'Kakaroto', 'Kakarot'],
+  Vegeta: ['Principe Vegeta'],
+  Piccolo: ['Piccolo Jr.', 'Ma Junior', 'Big Green'],
+  Bulma: ['Buruma'],
+  Celula: ['Cell', 'Célula', 'Perfect Cell'],
+  Freezer: ['Frieza', 'Freeza'],
+  Zarbon: ['Zarbom'],
+  Ginyu: ['Capitão Ginyu', 'Ginew'],
+  Gohan: ['Son Gohan'],
+  Krillin: ['Kuririn', 'Cririn', 'Klilyn'],
+  Tenshinhan: ['Tien', 'Tien Shinhan', 'Ten Shin Han'],
+  Yamcha: ['Yamtcha', 'Yamsha'],
+  'Chi-Chi': ['Chichi'],
+  Trunks: ['Trunks do Futuro'],
+  'Master Roshi': ['Mestre Kame', 'Roshi', 'Muten Roshi', 'Kamesennin', 'Tartaruga Genial'],
+  Bardock: ['Burdock', 'Bardak'],
+  Launch: ['Lunch'],
+  'Mr. Satan': ['Hercule', 'Satan', 'Senhor Satan'],
+  'Android 13': ['C-13', 'Androide 13'],
+  'Android 14': ['C-14', 'Androide 14'],
+  'Android 15': ['C-15', 'Androide 15'],
+  'Android 16': ['C-16', 'Androide 16'],
+  'Android 17': ['C-17', 'Androide 17', 'Lapis'],
+  'Android 18': ['C-18', 'Androide 18', 'Lazuli'],
+  'Android 19': ['C-19', 'Androide 19'],
+  'Android 20 (Dr. Gero)': ['C-20', 'Androide 20', 'Dr. Maki Gero'],
+  Nail: ['Neil'],
+  Raditz: ['Radditz'],
+  'Majin Buu': ['Majin Boo', 'Boo', 'Bu'],
+  Bills: ['Beerus', 'Birus'],
+  Zeno: ['Zen-Oh', 'Zeno Sama', 'Rei de Tudo'],
+  'Kibito-Shin': ['Kibitoshin', 'Kibito Kai', 'Kaioh Shin', 'Shin'],
+  Toppo: ['Top'],
+  Dyspo: ['Dispo'],
+  Vermoudh: ['Vermoud', 'Vermouth'],
+  // o Daishinkan e o caso que motivou a lista: ninguem procura por "Grande
+  // Sacerdote", que e como a dublagem o chama
+  'Grand Priest': ['Daishinkan', 'Dai Shinkan', 'Sumo Sacerdote'],
+  'Kaio del norte (Kaito)': ['King Kai', 'Kaito', 'Kaioh Sama'],
+  'Kaio-shin del Este': ['Supremo Kaioh Sama', 'Kaioshin', 'Shin'],
+  'Gran Kaio-shin': ['Dai Kaioshin'],
+  Gogeta: ['Gogueta'],
+  Vegetto: ['Vegito', 'Vegerot'],
+  Janemba: ['Jannemba'],
+  Broly: ['Brolly', 'Broli'],
 };
 
 console.log('Baixando personagens da Dragon Ball API...\n');

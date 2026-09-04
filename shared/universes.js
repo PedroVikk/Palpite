@@ -1111,7 +1111,7 @@ export const UNIVERSES = {
       key: 'era',
       options: [
         { id: 'classico', label: 'Clássico', hint: 'A caçada às esferas e os primeiros torneios.' },
-        { id: 'z', label: 'Z', hint: 'Saiyajins, Freeza, Célula e Buu — com os filmes da época.' },
+        { id: 'z', label: 'Z', hint: 'Saiyajins, Freeza, Cell e Buu — com os filmes da época.' },
         { id: 'super', label: 'Super', hint: 'Deuses da destruição e o Torneio do Poder.' },
       ],
     },
