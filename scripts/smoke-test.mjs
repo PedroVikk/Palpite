@@ -42,7 +42,18 @@ async function until(player, predicate, label, timeoutMs = 6000) {
 }
 
 const server = spawn(process.execPath, ['src/server.js'], {
-  env: { ...process.env, PORT: String(PORT) },
+  env: {
+    ...process.env,
+    PORT: String(PORT),
+    /**
+     * O freio do chute do dia (src/limits.js) fica solto neste servidor: ele
+     * tem secao propria, com servidor proprio e limites apertados. Aqui ele
+     * atropelaria a varredura que confere se o segredo saiu de dentro do
+     * recorte — a varredura que, no mundo real, e justamente o que ele barra.
+     */
+    DAILY_RITMO_MS: '0',
+    DAILY_TETO_DIA: '100000',
+  },
   stdio: ['ignore', 'pipe', 'inherit'],
 });
 await new Promise((resolve, reject) => {
@@ -776,6 +787,75 @@ try {
     retomou.state.phase === 'playing' && retomou.state.round === 1);
   check('a tabela de dicas sobreviveu a queda', retomou.state.rows.length === 1);
   check('a vez volta para quem voltou', retomou.state.turnPlayerId === salaSo.playerId);
+
+  // ------------------------------------------------- freio do desafio do dia
+  /**
+   * O chute do dia responde "acertou ou nao" para qualquer id: com o dataset na
+   * mao da para varrer a lista inteira ate cair no segredo, e foi o que um
+   * script de requisicoes paralelas fez. O freio (src/limits.js) nao tira o
+   * oraculo do ar — tira a varredura, que e a unica coisa que precisa de
+   * centenas de respostas por minuto.
+   *
+   * Servidor a parte, com o freio apertado por variavel de ambiente: o teto de
+   * verdade sao 60 chutes por universo no dia, o que levaria minutos de teste.
+   */
+  console.log('\n== Freio do desafio do dia ==');
+  const TETO = 12;
+  const guarda = spawn(process.execPath, ['src/server.js'], {
+    env: {
+      ...process.env,
+      PORT: String(PORT + 1),
+      DAILY_TETO_DIA: String(TETO),
+      DAILY_RITMO_FICHAS: '5',
+      DAILY_RITMO_MS: '50',
+    },
+    stdio: ['ignore', 'pipe', 'inherit'],
+  });
+  try {
+    await new Promise((resolve, reject) => {
+      guarda.stdout.on('data', d => { if (String(d).includes('rodando')) resolve(); });
+      setTimeout(() => reject(new Error('servidor do freio nao subiu')), 15000);
+    });
+    const chute = (id) => fetch(`http://localhost:${PORT + 1}/api/daily/pokemon/guess/${id}`);
+
+    // um nome que esta dentro do recorte de hoje: fora dele a resposta seria
+    // 409, e o teste passaria a medir a coisa errada
+    const hojePokemon = recortes.get('pokemon');
+    const valido = elencos.get('pokemon')
+      .filter(item => !hojePokemon.group || item.group === hojePokemon.group)
+      .filter(scopeFilter(UNIVERSES.pokemon, hojePokemon.scope))[0];
+
+    const primeiro = await chute(valido.id);
+    const linha = await primeiro.json();
+    check('chute normal passa', primeiro.status === 200 && Boolean(linha.row?.name));
+
+    // a varredura do script: vinte de uma vez, que e o que o balde de fichas
+    // existe para recusar
+    const rajada = await Promise.all(Array.from({ length: 20 }, (_, i) => chute(i + 2)));
+    const barrados = rajada.filter(r => r.status === 429);
+    check('rajada paralela leva 429', barrados.length > 0);
+    check('a rajada nao passou do teto do dia', rajada.filter(r => r.ok).length <= TETO);
+    const freada = await barrados[0].json();
+    check('a recusa diz quanto esperar', Number(freada.retryAfter) > 0);
+    check('e o 429 traz Retry-After no cabecalho', Number(barrados[0].headers.get('retry-after')) > 0);
+
+    // o teto do dia nao se recupera esperando: um chute por vez, no ritmo que
+    // o balde aceita, ate o dia fechar mesmo assim
+    for (let i = 0; i < TETO + 4; i++) { await sleep(60); await chute(300 + i); }
+    const depoisDoTeto = await chute(999);
+    const recusa = await depoisDoTeto.json();
+    check('estourado o teto do dia, o universo fecha', depoisDoTeto.status === 429);
+    check('e a mensagem fala do dia, nao da pressa', /hoje/.test(recusa.error ?? ''));
+
+    // outro universo tem orcamento proprio: quem varreu o Pokemon nao trancou
+    // o desafio de quem esta jogando o Naruto (o balde e comum, entao a pausa
+    // e so para o ritmo nao responder no lugar do teto)
+    await sleep(400);
+    const outro = await fetch(`http://localhost:${PORT + 1}/api/daily/naruto/guess/1`);
+    check('o teto e por universo, nao geral', outro.status !== 429);
+  } finally {
+    guarda.kill();
+  }
 
   for (const p of [ash, misty, brock, ...squad, gary, may, ...fila, ...arena, inf1, inf2, ini1, ini2, solo, duelista, back, ...trio, voltou, arrependido, depoisDoF5]) p.socket.close();
 } catch (err) {

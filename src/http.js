@@ -13,6 +13,7 @@ import { UNIVERSES, getUniverse, scopeReach } from '../shared/universes.js';
 import { datasetOf, indexOf } from './catalog.js';
 import { compareGuess } from './game.js';
 import { inSlice, isKnownUniverse, poolSizeOf, secretOf, sliceOf, today } from './daily.js';
+import { spendDailyGuess } from './limits.js';
 import * as db from './db.js';
 import { attachAuth } from './auth.js';
 
@@ -58,6 +59,19 @@ export function createApp() {
   const app = express();
   app.disable('x-powered-by');
   app.set('etag', false);   // os ETags que valem sao os do catalogo
+  /**
+   * Quantos saltos de proxy ha na frente da gente. Importa para o freio do
+   * chute do dia (limits.js), que conta por IP: sem isto, atras do Render o
+   * mundo inteiro chega como o IP do proxy — um visitante so, punido junto ou
+   * liberado junto.
+   *
+   * E ligado so onde ha proxy de verdade, e nunca por padrao: quem confia num
+   * salto que nao existe aceita `X-Forwarded-For` escrito pelo proprio cliente,
+   * e ai trocar de IP no freio custa um cabecalho. O Render carimba `RENDER` no
+   * ambiente; noutro lugar com proxy na frente, ajuste `TRUST_PROXY`.
+   */
+  const hops = Number(process.env.TRUST_PROXY ?? (process.env.RENDER ? 1 : 0));
+  app.set('trust proxy', Number.isFinite(hops) && hops > 0 ? hops : false);
 
   if (!isProd) {
     app.use((req, res, next) => {
@@ -128,10 +142,22 @@ export function createApp() {
   /**
    * Um chute contra o segredo do dia. E GET porque nao muda nada no servidor:
    * o progresso do jogador mora no navegador dele.
+   *
+   * O freio vem antes de qualquer conta, e antes ate de saber se o id existe:
+   * varredura tambem chuta id que nao existe, e a resposta "esse nem existe" e
+   * informacao de graca. Quem paga a ficha e a conta de quem esta logado, ou o
+   * IP de quem nao esta.
    */
   app.get('/api/daily/:universe/guess/:id', (req, res) => {
     const { universe, id } = req.params;
     if (!isKnownUniverse(universe)) return res.status(404).json({ error: 'Universo desconhecido.' });
+
+    res.set('Cache-Control', 'no-store');
+    const freio = spendDailyGuess(req.user ? `conta:${req.user.id}` : `ip:${req.ip}`, universe, today());
+    if (!freio.ok) {
+      res.set('Retry-After', String(freio.retryAfter));
+      return res.status(429).json({ error: freio.error, retryAfter: freio.retryAfter, date: today() });
+    }
 
     const guess = datasetOf(universe).byId.get(Number(id));
     if (!guess) return res.status(404).json({ error: 'Chute inválido.' });
@@ -139,7 +165,6 @@ export function createApp() {
     const secret = secretOf(universe);
     if (!secret) return res.status(503).json({ error: 'Sem desafio para hoje neste universo.' });
 
-    res.set('Cache-Control', 'no-store');
     // fora do recorte do dia nem vira dica: a busca do cliente ja esconde esses
     // nomes, entao aqui so chega aba velha — a data vai junto para ela se achar
     if (!inSlice(universe, guess)) {

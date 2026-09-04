@@ -16,3 +16,9 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+      # O tempero do sorteio do desafio do dia. Gerado uma vez pelo Render e
+      # guardado no servico: sem ele o segredo de hoje vira uma conta publica,
+      # que qualquer pessoa com o dataset refaz sem tocar no servidor. Trocar o
+      # valor troca o segredo do dia no meio do dia.
+      - key: DAILY_SALT
+        generateValue: true

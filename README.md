@@ -576,6 +576,10 @@ src/http.js                Express: API, estáticos e fallback de SPA
 src/rooms.js               salas, turnos, timers e eventos Socket.IO
 src/game.js                comparação e pontuação — puro, guiado pelo schema
 src/catalog.js             datasets em memória + índice enxuto do cliente
+src/daily.js               o segredo do dia: recorte, sorteio e tempero
+src/limits.js              o freio do chute do dia (ritmo e teto por dia)
+src/auth.js                entrar com o Google e a sessão que sai disso
+src/db.js                  Postgres opcional: contas, sequência e placar do dia
 client/src/                interface React (telas, componentes, estilos)
 scripts/build-*.mjs        uma ingestão por universo -> data/<nome>.json
 scripts/mirror-sprites.mjs baixa as miniaturas -> data/sprites/<universo>/
@@ -693,6 +697,37 @@ local — perde resolução, não a imagem.
 
 O que ainda depende das fontes é **reconstruir** os datasets (`npm run
 build:data`). As respostas ficam em `.cache/`, que não vai para o git.
+
+## O desafio do dia, e o que protege ele
+
+Um segredo por universo, igual para todo mundo, trocando à meia-noite de
+Brasília. Não há sorteio guardado em lugar nenhum: o item sai de um `sha256` de
+(tempero, data, universo), então o servidor reiniciado — ou uma segunda
+instância — chega no mesmo resultado sem combinar nada com ninguém.
+
+O chute do dia é um oráculo: `/api/daily/<universo>/guess/<id>` responde
+"acertou" ou "errou" para qualquer id. Ele **precisa** existir (a resposta não
+pode viajar até o navegador, senão não há segredo), e o dataset é público
+(a busca do chute vive dele). Duas coisas seguram isso de pé:
+
+- **`DAILY_SALT`** — o tempero da conta do sorteio. Sem ele o segredo de hoje é
+  uma conta pública: quem tem o dataset e a receita calcula a resposta em casa,
+  sem tocar no servidor. No Render o `render.yaml` já pede um valor gerado uma
+  vez e guardado; em outro lugar, defina a variável você mesmo. **Trocar o valor
+  troca o segredo no meio do dia** — mexa na virada.
+- **O freio de `src/limits.js`** — um balde de fichas (12, repondo uma a cada 2s)
+  e um teto de 60 chutes por universo por dia, cobrados da conta de quem está
+  logado ou do IP de quem não está. Rajada paralela morre na primeira leva;
+  quem digita um nome de cada vez nunca encosta no limite. Ajustável por
+  `DAILY_RITMO_FICHAS`, `DAILY_RITMO_MS` e `DAILY_TETO_DIA`.
+
+Contar por IP só funciona com o IP certo: atrás de um proxy, `TRUST_PROXY` diz
+quantos saltos existem na frente do app (no Render isso é automático). Ligar
+isso onde não há proxy seria pior que não ter freio — o cliente escreveria o
+próprio `X-Forwarded-For` e trocaria de identidade a cada chute.
+
+O `npm test` cobre os dois lados: que o chute normal passa e que a varredura de
+vinte requisições paralelas leva `429`.
 
 ## Deploy grátis
 

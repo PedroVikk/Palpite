@@ -23,6 +23,32 @@ import { datasetOf } from './catalog.js';
 const ZONE = 'America/Sao_Paulo';
 
 /**
+ * O tempero do sorteio, e a diferença entre "não conto a resposta" e "não dá
+ * para calcular a resposta".
+ *
+ * Sem ele o segredo sai de um sha256 de (data, universo) — uma conta sem
+ * segredo nenhum. Quem tem o dataset (ele é público: `/api/dataset/:universo`
+ * alimenta a busca do chute) refaz essa conta em casa e sabe o segredo de hoje
+ * e o de todo dia que vier, sem pedir nada ao servidor. O tempero entra na
+ * chave do hash: saber a receita deixa de bastar.
+ *
+ * Tem de ser o mesmo em toda instância e sobreviver a reinício, senão o
+ * desafio deixa de ser o mesmo para todo mundo — por isso é variável de
+ * ambiente, e não sorteio de processo. No Render o `render.yaml` pede um valor
+ * gerado uma vez e guardado; sem `DAILY_SALT` o jogo roda igual, mas
+ * adivinhável, e o aviso abaixo cobra isso alto na subida.
+ *
+ * Trocar o tempero troca o segredo do dia no meio do dia. Só mexa na virada.
+ */
+const SALT = process.env.DAILY_SALT ?? '';
+if (!SALT && process.env.NODE_ENV === 'production') {
+  console.warn(
+    '[daily] DAILY_SALT não definida: o segredo do dia vira uma conta pública,'
+    + ' que qualquer pessoa com o dataset refaz sem tocar no servidor.',
+  );
+}
+
+/**
  * Quantos candidatos uma fatia precisa ter para valer como recorte do dia.
  * Abaixo disso o dia acaba na forca bruta: com dez nomes possiveis a pessoa
  * chuta a lista inteira sem ler dica nenhuma.
@@ -42,9 +68,13 @@ export function today(now = new Date()) {
 
 export const isKnownUniverse = (universeId) => Boolean(UNIVERSES[universeId]);
 
-/** Sorteio deterministico: mesma chave, mesmo item, em qualquer instancia. */
+/**
+ * Sorteio deterministico: mesma chave, mesmo item, em qualquer instancia. O
+ * tempero entra aqui, na frente da chave, e e o que separa "deterministico" de
+ * "previsivel por quem quiser".
+ */
 function pickFrom(list, key) {
-  const digest = createHash('sha256').update(key).digest();
+  const digest = createHash('sha256').update(`${SALT}:${key}`).digest();
   return list[digest.readUInt32BE(0) % list.length];
 }
 
