@@ -11,6 +11,7 @@
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { ONEPIECE_ARCS } from '../shared/universes.js';
 
 const API = 'https://api.api-onepiece.com/v2';
 const WIKI = 'https://onepiece.fandom.com/api.php';
@@ -418,6 +419,59 @@ function eraDe(cap) {
   return i === -1 ? SAGAS.length : i;
 }
 
+/**
+ * Indice do ultimo arco do manga que ja tinha aberto no capitulo de estreia.
+ * A tabela mora em shared/universes.js — a coluna e o build leem a mesma lista.
+ * Sem capitulo (personagem sem ficha no wiki) o arco fica em branco.
+ */
+function arcoDe(cap) {
+  if (cap == null) return null;
+  let idx = null;
+  for (let i = 0; i < ONEPIECE_ARCS.length; i++) {
+    if (ONEPIECE_ARCS[i].start <= cap) idx = i; else break;
+  }
+  return idx;
+}
+
+/**
+ * A `{{Char Box}}` do One Piece nao tem campo de sexo, entao o genero sai da
+ * prosa: no texto de abertura da pagina o wiki ja escolheu os pronomes do
+ * personagem. Conta he/his contra she/her nas primeiras linhas depois da ficha
+ * e fica com o lado que aparece mais; zero a zero devolve null (vira dica de
+ * "desconhecido"). Kikunojo e as outras que o wiki trata no feminino caem em
+ * "Feminino" naturalmente, que e a leitura menos errada.
+ */
+function generoDe(wikitext) {
+  if (!wikitext) return null;
+  let texto = String(wikitext);
+  const box = texto.indexOf('{{Char Box');
+  if (box >= 0) {
+    let depth = 0;
+    for (let i = box; i < texto.length; i++) {
+      if (texto.startsWith('{{', i)) { depth++; i++; continue; }
+      if (texto.startsWith('}}', i)) {
+        depth--; i++;
+        if (!depth) { texto = texto.slice(i); break; }
+      }
+    }
+  }
+  // tira templates (ate aninhados), refs, marcacao de link e negrito
+  for (let n = 0; n < 6 && /\{\{[^{}]*\}\}/.test(texto); n++) {
+    texto = texto.replace(/\{\{[^{}]*\}\}/g, ' ');
+  }
+  texto = texto
+    .replace(/<ref[^>]*>[\s\S]*?<\/ref>/gi, ' ')
+    .replace(/<ref[^>]*\/>/gi, ' ')
+    .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1')
+    .replace(/'''?/g, '')
+    .slice(0, 1600)
+    .toLowerCase();
+  const he = (texto.match(/\b(?:he|him|his|himself)\b/g) ?? []).length;
+  const she = (texto.match(/\b(?:she|her|hers|herself)\b/g) ?? []).length;
+  if (!he && !she) return null;
+  return she > he ? 'Female' : 'Male';
+}
+
 // ------------------------------------------------- ficha do wiki (Char Box)
 
 /**
@@ -511,6 +565,8 @@ const wikiCm = (raw) => {
 
 console.log('\nLendo a ficha de cada personagem no wiki...');
 const fichas = new Map();
+// o texto cru da pagina, para o genero sair dos pronomes da prosa de abertura
+const prosas = new Map();
 const comPagina = [...new Set(roster.map(c => c.name))];
 // a ficha mora na pagina; nos personagens com abas ela foi para o
 // "Template:<nome> Tabs Top"
@@ -526,10 +582,13 @@ for (const molde of ['', 'Template:%s Tabs Top']) {
     const daRedirecao = new Map((page.query.redirects ?? []).map(r => [r.to, r.from]));
     for (const p of page.query.pages ?? []) {
       if (p.missing) continue;
-      const body = sliceCharBox(p.revisions[0].slots.main.content);
-      if (!body) continue;
+      const content = p.revisions[0].slots.main.content;
       const titulo = (daRedirecao.get(p.title) ?? p.title)
         .replace(/^Template:/, '').replace(/ Tabs Top$/, '');
+      // a prosa mora na pagina de verdade (1a passada); a aba so tem a ficha
+      if (!prosas.has(titulo)) prosas.set(titulo, content);
+      const body = sliceCharBox(content);
+      if (!body) continue;
       fichas.set(titulo, charBoxParams(body));
     }
     process.stdout.write(`\r  ${fichas.size}/${comPagina.length}`);
@@ -538,6 +597,7 @@ for (const molde of ['', 'Template:%s Tabs Top']) {
 process.stdout.write('\n');
 
 for (const item of roster) {
+  item.gender = generoDe(prosas.get(item.name)) ?? null;
   const ficha = fichas.get(item.name);
   if (!ficha) continue;
   // o wiki manda nos tres: conhece quase o dobro de recompensas que a API, e
@@ -546,12 +606,17 @@ for (const item of roster) {
   item.origin = originOf(ficha.origin) ?? item.origin ?? null;
   item.bounty = bountyOf(ficha.bounty) ?? item.bounty;
   item.height = wikiCm(ficha.height) ?? item.height;
-  item.era = eraDe(capituloDe(ficha.first));
+  const capEstreia = capituloDe(ficha.first);
+  item.era = eraDe(capEstreia);
+  // indice na tabela de arcos de shared/universes.js; branco sem capitulo
+  item.debutArc = arcoDe(capEstreia);
 }
 
 // sem ficha no wiki nao ha capitulo de estreia; a epoca mais nova e o palpite
 // menos errado, e a sala com todas ligadas nao filtra nada mesmo
 for (const item of roster) item.era = item.era ?? SAGAS.length;
+// arco sem capitulo fica em branco de verdade — vira dica de "desconhecido"
+for (const item of roster) if (!('debutArc' in item)) item.debutArc = null;
 
 // mar de origem em branco no wiki e mesmo desconhecido — muito personagem
 // nunca teve a terra natal dita —, e isso conta como dica
@@ -573,6 +638,8 @@ coverage('origem', c => c.origin !== 'Unknown');
 coverage('recompensa', c => c.bounty != null);
 coverage('altura', c => c.height != null);
 coverage('idade', c => c.age != null);
+coverage('genero', c => c.gender != null);
+coverage('arco', c => c.debutArc != null);
 coverage('sorteavel', c => c.eligible);
 
 const porGrupo = {};

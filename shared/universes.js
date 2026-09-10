@@ -303,6 +303,50 @@ const OP_ORIGIN_PT = {
 };
 
 /**
+ * Os arcos do mangá de One Piece, cada um com o capítulo em que abre (fonte: a
+ * One Piece Wiki). Mesmo arranjo do NARUTO_ARCS: o dataset guarda o índice, a
+ * coluna `debutArc` mostra o nome pelo `labels`, e o número só serve para a
+ * seta ▲/▼ e para o `nearby: 1` acender o arco vizinho de amarelo.
+ */
+export const ONEPIECE_ARCS = [
+  { start: 1, label: 'Romance Dawn' },
+  { start: 8, label: 'Orange Town' },
+  { start: 23, label: 'Vila Syrup' },
+  { start: 42, label: 'Baratie' },
+  { start: 69, label: 'Arlong Park' },
+  { start: 96, label: 'Loguetown' },
+  { start: 101, label: 'Montanha Reversa' },
+  { start: 106, label: 'Whisky Peak' },
+  { start: 115, label: 'Little Garden' },
+  { start: 130, label: 'Ilha de Drum' },
+  { start: 155, label: 'Alabasta' },
+  { start: 218, label: 'Jaya' },
+  { start: 237, label: 'Skypiea' },
+  { start: 303, label: 'Long Ring Long Land' },
+  { start: 322, label: 'Water 7' },
+  { start: 375, label: 'Enies Lobby' },
+  { start: 431, label: 'Pós-Enies Lobby' },
+  { start: 442, label: 'Thriller Bark' },
+  { start: 490, label: 'Arquipélago Sabaody' },
+  { start: 514, label: 'Amazon Lily' },
+  { start: 525, label: 'Impel Down' },
+  { start: 550, label: 'Marineford' },
+  { start: 581, label: 'Pós-Guerra' },
+  { start: 598, label: 'Volta a Sabaody' },
+  { start: 603, label: 'Ilha dos Homens-Peixe' },
+  { start: 654, label: 'Punk Hazard' },
+  { start: 700, label: 'Dressrosa' },
+  { start: 802, label: 'Zou' },
+  { start: 825, label: 'Whole Cake Island' },
+  { start: 903, label: 'Levely' },
+  { start: 909, label: 'País de Wano' },
+  { start: 1058, label: 'Egghead' },
+  { start: 1126, label: 'Elbaf' },
+];
+
+const ONEPIECE_ARC_PT = Object.fromEntries(ONEPIECE_ARCS.map((arc, i) => [i, arc.label]));
+
+/**
  * Os arcos do mangá em ordem, com o capítulo em que cada um abre. O dataset
  * guarda o índice desta lista (o build importa daqui, para nao existirem duas
  * tabelas de arco) e a coluna mostra o nome: o número esta ali so para a seta
@@ -1070,6 +1114,10 @@ export const UNIVERSES = {
       ],
     },
     columns: [
+      {
+        key: 'gender', label: 'Gênero', kind: 'text',
+        labels: { Male: 'Masculino', Female: 'Feminino' },
+      },
       { key: 'crew', label: 'Tripulação', kind: 'text' },
       { key: 'job', label: 'Papel', kind: 'text' },
       { key: 'fruit', label: 'Fruta', kind: 'text' },
@@ -1085,6 +1133,12 @@ export const UNIVERSES = {
       },
       { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1 },
       { key: 'age', label: 'Idade', kind: 'number', tolerance: 0.1 },
+      // o indice do arco existe so para a seta ▲/▼ dizer o lado da historia;
+      // a celula mostra o nome. `nearby: 1` deixa o arco vizinho em amarelo
+      {
+        key: 'debutArc', label: 'Arco de aparição', kind: 'number',
+        nearby: 1, labels: ONEPIECE_ARC_PT,
+      },
     ],
   },
 
