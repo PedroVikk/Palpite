@@ -647,7 +647,7 @@ npm test
 
 Sobe o servidor de verdade, conecta jogadores falsos e joga partidas completas
 nos dois modos e **nos vinte e dois universos**, verificando turnos, dicas, timeout,
-pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 389
+pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 390
 verificações.
 
 O modo imagem tem seção própria, e ela testa o que o modo promete: que a escada
@@ -792,15 +792,25 @@ o plano free hiberna a cada quinze minutos parados, e voltar de um café com a
 imagem de novo borrada seria castigo por nada.
 
 Então o degrau viaja com o jogador, **assinado**. O bilhete é um HMAC do mesmo
-tempero sobre (quem, dia, universo, degrau): quem tem o bilhete do degrau 3 não
+tempero sobre (dia, universo, degrau): quem tem o bilhete do degrau 3 não
 consegue escrever o do 4 — para isso tem de gastar um chute e receber o próximo
 das mãos do servidor, pela mesma resposta que traz a dica. Não há rota de
-imagem para apontar nem parâmetro de nitidez para torcer. A assinatura leva a
-chave do freio junto (a conta de quem entrou, o IP de quem não entrou), então
-um degrau 8 publicado num grupo não adianta para quem receber. O preço é que
-trocar de rede sem conta invalida o bilhete e o jogador volta ao degrau 0, com
-os chutes todos de pé — é o erro que a gente prefere: ele aperta o jogo, nunca
-afrouxa.
+imagem para apontar nem parâmetro de nitidez para torcer.
+
+**O carimbo não leva quem pediu, e já levou.** A primeira versão assinava junto
+a chave do freio (a conta de quem entrou, o IP de quem não entrou), para um
+degrau 8 publicado num grupo não valer para quem recebesse. Em produção isso
+quebrou o modo: o IP de quem joga troca sozinho — um cliente dual-stack alterna
+entre IPv6 e IPv4 de uma requisição para a outra, e o celular troca ao sair do
+wi-fi. A cada troca o bilhete deixava de conferir e o jogador despencava para o
+degrau 1, então a imagem embaralhava em vez de clarear. Em localhost nunca
+aparecia, porque ali o IP é sempre `::1` — por isso o `npm test` agora sobe com
+`TRUST_PROXY=1` e cobra a escada falando por dois IPs alternados.
+
+O que se perde é bilhete intransferível; o que se ganha é o modo funcionar.
+Passar um bilhete adiante não é pior do que mandar um print da imagem já
+revelada, que sempre foi possível — e continua não dando para escrever um degrau
+que não se pagou, nem para tocar no segredo da tabela de dicas, que é outro.
 
 Na sala nada disso é preciso: o servidor empurra o estado e o degrau é o número
 de chutes já dados na mesa. Ninguém consegue pedir um degrau que a rodada ainda

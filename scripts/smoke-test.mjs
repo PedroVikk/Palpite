@@ -53,6 +53,12 @@ const server = spawn(process.execPath, ['src/server.js'], {
      */
     DAILY_RITMO_MS: '0',
     DAILY_TETO_DIA: '100000',
+    /**
+     * Um salto de proxy, como no Render. E o que deixa o teste falar por dois
+     * IPs diferentes (X-Forwarded-For) e cobrar que o bilhete do degrau da
+     * imagem atravesse a troca — o bug que quebrou o modo em producao.
+     */
+    TRUST_PROXY: '1',
   },
   stdio: ['ignore', 'pipe', 'inherit'],
 });
@@ -830,6 +836,27 @@ try {
   check('cada chute sobe exatamente um degrau', subiuSempre);
   check('e cada degrau traz mais pixels que o anterior', cresceuSempre);
   check('a linha do chute vem sem a tabela de dicas', semCelulas.every(Boolean));
+
+  /**
+   * O bilhete tem de atravessar troca de IP, e esta e a regressao que quebrou o
+   * modo em producao. Ele assinava junto a chave do freio, para nao ser
+   * transferivel; so que o IP de quem joga troca sozinho — um cliente
+   * dual-stack alterna IPv6 e IPv4 de uma requisicao para a outra, e o celular
+   * troca ao sair do wi-fi. A cada troca o bilhete deixava de conferir e o
+   * degrau despencava para 1: a imagem embaralhava em vez de clarear. Em
+   * localhost nunca aparecia, porque ali o IP e sempre ::1.
+   */
+  const porIP = (id, ip) => fetch(
+    `${URL}/api/daily/pokemon/guess/${id}?modo=imagem&t=${encodeURIComponent(bilhete)}`,
+    { headers: { 'X-Forwarded-For': ip } }).then(r => r.json());
+
+  const trocandoDeIP = [];
+  for (const [i, ip] of ['2804:14d:1::a1', '189.40.12.7', '2804:14d:1::a1'].entries()) {
+    const r = await porIP(171 + i, ip);
+    trocandoDeIP.push(r.picture?.level);
+    bilhete = r.picture.ticket;
+  }
+  check('o bilhete atravessa troca de IP', trocandoDeIP.join() === '5,6,7');
 
   // pular a escada e o unico jeito de o modo virar entrega da resposta
   const forjado = await (await fetch(

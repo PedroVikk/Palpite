@@ -249,37 +249,46 @@ export const hasPictureChallenge = (universeId, date = today()) =>
  * novo borrada seria castigo por nada.
  *
  * Então o degrau viaja com o jogador, assinado. O bilhete é um carimbo do
- * mesmo tempero do sorteio sobre (quem, dia, universo, degrau): quem tem o
- * bilhete do degrau 3 não consegue escrever o do 4 — para isso tem de gastar
- * um chute e receber o próximo das mãos do servidor. Sem estado nenhum aqui
- * dentro, e reiniciar não apaga nada.
+ * mesmo tempero do sorteio sobre (dia, universo, degrau): quem tem o bilhete
+ * do degrau 3 não consegue escrever o do 4 — para isso tem de gastar um chute
+ * e receber o próximo das mãos do servidor. Sem estado nenhum aqui dentro, e
+ * reiniciar não apaga nada.
  *
- * Quem assina é a chave do freio (a conta de quem entrou, o IP de quem não
- * entrou), então bilhete de um não vale no outro: um degrau 8 publicado num
- * grupo não adianta para quem receber. O preço é que trocar de rede sem conta
- * invalida o bilhete — e aí o jogador volta ao degrau 0, com os chutes todos
- * de pé. É o erro que a gente prefere: ele aperta o jogo, nunca afrouxa.
+ * **O carimbo não leva quem pediu, e já levou.** A primeira versão assinava
+ * junto a chave do freio (a conta de quem entrou, o IP de quem não entrou),
+ * para um degrau 8 publicado num grupo não valer para quem recebesse. Em
+ * produção isso quebrou o modo: um cliente dual-stack alterna entre IPv6 e
+ * IPv4 sozinho de uma requisição para a outra, e o celular troca de IP ao sair
+ * do wi-fi. A cada troca o bilhete deixava de conferir e o jogador despencava
+ * para o degrau 1 — a imagem ficava embaralhando em vez de clarear. Em
+ * localhost nada disso aparece: ali o IP é sempre ::1.
+ *
+ * O que se perde é bilhete intransferível; o que se ganha é o modo funcionar.
+ * A troca vale porque passar um bilhete adiante não é pior do que mandar um
+ * print da imagem já revelada, que sempre foi possível — e continua não dando
+ * para escrever um degrau que não se pagou, nem para tocar no segredo da
+ * tabela de dicas, que é outro.
  */
-const stamp = (key, date, universeId, level) =>
+const stamp = (date, universeId, level) =>
   createHmac('sha256', SALT)
-    .update(`bilhete:${key}:${date}:${universeId}:${level}`)
+    .update(`bilhete:${date}:${universeId}:${level}`)
     .digest('base64url')
     .slice(0, 22);
 
 /** O bilhete que o cliente guarda: o degrau à vista, o carimbo provando ele. */
-export const pictureTicket = (key, universeId, level, date = today()) =>
-  `${level}.${stamp(key, date, universeId, level)}`;
+export const pictureTicket = (universeId, level, date = today()) =>
+  `${level}.${stamp(date, universeId, level)}`;
 
 /**
- * Lê o degrau de um bilhete. Bilhete ausente, torto, de outro dia ou de outra
- * pessoa não é erro — é degrau 0, o começo da escada.
+ * Lê o degrau de um bilhete. Bilhete ausente, torto ou de outro dia não é erro
+ * — é degrau 0, o começo da escada.
  */
-export function pictureLevel(key, universeId, ticket, date = today()) {
+export function pictureLevel(universeId, ticket, date = today()) {
   const [head, mark] = String(ticket ?? '').split('.');
   const level = Number(head);
   if (!Number.isInteger(level) || level < 0 || level > TOP_LEVEL || !mark) return 0;
 
-  const expected = stamp(key, date, universeId, level);
+  const expected = stamp(date, universeId, level);
   // comparação de tempo fixo: a igualdade de string vaza o prefixo acertado,
   // e com ela dá para descobrir o carimbo byte a byte
   if (mark.length !== expected.length) return 0;

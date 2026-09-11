@@ -60,9 +60,13 @@ function sendIndex(req, res, index) {
 }
 
 /**
- * Quem esta pedindo, para o freio e para o bilhete da imagem: a conta de quem
- * entrou, o IP de quem nao entrou. Logado ganha orcamento proprio de proposito
- * — ver o cabecalho de limits.js.
+ * Quem esta pedindo, para o freio: a conta de quem entrou, o IP de quem nao
+ * entrou. Logado ganha orcamento proprio de proposito — ver o cabecalho de
+ * limits.js.
+ *
+ * So o freio usa isto. O bilhete do degrau da imagem ja assinou por aqui e nao
+ * assina mais: IP de quem joga troca sozinho (dual-stack, wi-fi para celular) e
+ * o degrau despencava a cada troca. Ver o cabecalho do bilhete em daily.js.
  */
 const playerKey = (req) => (req.user ? `conta:${req.user.id}` : `ip:${req.ip}`);
 
@@ -70,12 +74,12 @@ const playerKey = (req) => (req.user ? `conta:${req.user.id}` : `ip:${req.ip}`);
 const modeOf = (req) => (isKnownMode(req.query.modo) ? req.query.modo : DEFAULT_MODE);
 
 /** O quadro do degrau + o bilhete que devolve o jogador a ele no proximo pedido. */
-async function frameOf(universe, secret, level, key, day) {
+async function frameOf(universe, secret, level, day) {
   return {
     level,
     top: PICTURE_TOP,
     src: await frameFor(universe, secret, level),
-    ticket: pictureTicket(key, universe, level, day),
+    ticket: pictureTicket(universe, level, day),
   };
 }
 
@@ -182,8 +186,8 @@ export function createApp() {
 
     // o bilhete devolve o jogador ao degrau em que ele parou: e o que faz um F5
     // (ou o servidor hibernar) nao reembacar a imagem ja conquistada
-    const level = pictureLevel(playerKey(req), universe, req.query.t, day);
-    res.json({ ...info, picture: await frameOf(universe, secret, level, playerKey(req), day) });
+    const level = pictureLevel(universe, req.query.t, day);
+    res.json({ ...info, picture: await frameOf(universe, secret, level, day) });
   });
 
   /**
@@ -250,8 +254,8 @@ export function createApp() {
     // chute gasto, degrau ganho: o proximo quadro (e o bilhete que prova ele)
     // sai junto da dica, pela mesma porta
     if (mode === 'imagem') {
-      const level = nextPictureLevel(pictureLevel(playerKey(req), universe, req.query.t, day));
-      answer.picture = await frameOf(universe, secret, level, playerKey(req), day);
+      const level = nextPictureLevel(pictureLevel(universe, req.query.t, day));
+      answer.picture = await frameOf(universe, secret, level, day);
     }
 
     // o segredo so viaja depois que a pessoa acertou
