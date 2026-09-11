@@ -30,27 +30,52 @@ function Symbols({ column, value }) {
  * grade propria, para poder animar e destacar a vencedora sem quebrar o
  * alinhamento das colunas.
  */
-export default function HintsTable({ universe, rows }) {
+export default function HintsTable({ universe, rows, hints = true }) {
   if (!rows.length) {
-    return <p className="empty-hint">Nenhum chute ainda. A tabela se pinta a cada palpite.</p>;
+    return (
+      <p className="empty-hint">
+        {hints
+          ? 'Nenhum chute ainda. A tabela se pinta a cada palpite.'
+          : 'Nenhum chute ainda. Os nomes que forem caindo ficam listados aqui.'}
+      </p>
+    );
   }
 
-  const columns = `176px repeat(${universe.columns.length}, minmax(88px, 1fr))`;
+  /**
+   * Jogando pela imagem nao ha dica para comparar — a dica e a figura —, entao
+   * a tabela fica so com a coluna do chute. Continua sendo esta tabela, e nao
+   * uma lista a parte: o cartao, a celula com retrato e nome, o realce do
+   * ultimo chute e o verde do acerto sao os mesmos, e quem trocou de modo
+   * reconhece a pilha na hora.
+   *
+   * Sem as colunas de dica, a linha inteira seria um trilho vazio a direita do
+   * nome. Entao a pilha vira grade: as mesmas celulas, lado a lado, quantas
+   * couberem na largura.
+   */
+  const hintColumns = hints ? universe.columns : [];
+  const columns = hints
+    ? `176px repeat(${hintColumns.length}, minmax(88px, 1fr))`
+    : 'minmax(0, 1fr)';
   // a largura minima acompanha o numero de colunas: universo enxuto nao precisa
   // rolar de lado, universo largo rola em vez de espremer a celula
-  const minWidth = `${176 + universe.columns.length * 94}px`;
+  const minWidth = hints ? `${176 + hintColumns.length * 94}px` : '0';
   const newest = rows[rows.length - 1];
 
   return (
     <section className="table">
       <div className="tscroll">
-        <div className="hints" style={{ '--hint-cols': columns, '--hint-min': minWidth }}>
-          <div className="hints-row">
-            <div className="cell head">Chute</div>
-            {universe.columns.map(column => (
-              <div key={column.key} className="cell head">{column.label}</div>
-            ))}
-          </div>
+        <div
+          className={`hints ${hints ? '' : 'bare'}`}
+          style={{ '--hint-cols': columns, '--hint-min': minWidth }}
+        >
+          {hints && (
+            <div className="hints-row">
+              <div className="cell head">Chute</div>
+              {hintColumns.map(column => (
+                <div key={column.key} className="cell head">{column.label}</div>
+              ))}
+            </div>
+          )}
 
           {/* pilha: o chute mais recente no topo */}
           {[...rows].reverse().map(row => (
@@ -66,8 +91,8 @@ export default function HintsTable({ universe, rows }) {
                 </span>
               </div>
 
-              {universe.columns.map(column => {
-                const cell = row.cells[column.key] ?? { value: null, status: 'unknown', hint: null };
+              {hintColumns.map(column => {
+                const cell = row.cells?.[column.key] ?? { value: null, status: 'unknown', hint: null };
                 const title = cell.status === 'unknown'
                   ? 'sem dado para comparar'
                   : fullValue(column, cell.value);
@@ -87,14 +112,15 @@ export default function HintsTable({ universe, rows }) {
       </div>
 
       {/* a legenda aparece uma vez, embaixo: a cor precisa ser ensinada, mas
-          repetir a explicacao em cada celula seria ruido */}
-      <div className="legend">
+          repetir a explicacao em cada celula seria ruido. Sem colunas de dica
+          nao ha cor para ensinar, e ela sai junto */}
+      {hints && <div className="legend">
         <span className="k"><i className="sw" style={{ background: 'var(--hit)' }} />Acertou</span>
         <span className="k"><i className="sw" style={{ background: 'var(--partial)' }} />Chegou perto</span>
         <span className="k"><i className="sw" style={{ background: 'var(--miss)' }} />Errou</span>
         <span className="spacer" />
         <span className="k">▲ o segredo é maior · ▼ é menor</span>
-      </div>
+      </div>}
     </section>
   );
 }

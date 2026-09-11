@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { getUniverse, sanitizeScope } from '@shared/universes.js';
+import { useDataset } from '../hooks/useDataset.js';
+import { canPlayPicture } from '../lib/picture.js';
 import { universeMeta } from '../lib/universeMeta.js';
 import UniverseSelect from './UniverseSelect.jsx';
 import UniverseIcon from './UniverseIcon.jsx';
 import Stepper from './Stepper.jsx';
 import {
-  BulbIcon, CalendarIcon, CheckIcon, ClockIcon,
+  BulbIcon, CalendarIcon, CheckIcon, ClockIcon, ImageIcon,
   InfoIcon, SearchIcon, SparkIcon, SwordsIcon, TargetIcon,
 } from './Icon.jsx';
 
@@ -24,10 +26,16 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
   const [turnSeconds, setTurnSeconds] = useState(45);
   const [guessesPerPlayer, setGuessesPerPlayer] = useState(6);
   const [untilRight, setUntilRight] = useState(true);
+  const [picture, setPicture] = useState(false);
 
   const universe = getUniverse(universeId);
   const meta = universeMeta(universeId);
   const duel = mode === 'duel';
+
+  // o interruptor da imagem so existe onde ha figura espelhada: os carros nao
+  // tem nenhuma, e universo assim mostra a chave apagada em vez de escondida —
+  // some a opcao, ficaria a impressao de que ela nunca existiu
+  const comImagem = canPlayPicture(useDataset(universeId));
 
   const changeUniverse = (id) => {
     setUniverseId(id);
@@ -82,6 +90,7 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
     rounds,
     turnSeconds,
     guessesPerPlayer: untilRight ? 0 : guessesPerPlayer,
+    picture: picture && comImagem,
   });
 
   return (
@@ -92,9 +101,11 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
         <div className="side-note">
           <div className="h"><BulbIcon width={14} height={14} />Dica</div>
           <p>
-            {duel
-              ? 'No duelo, quem esconde o segredo ganha pontos pelo tempo que os outros levam para achar.'
-              : '“Até acertar” deixa a rodada só fechar em acerto. Bom para grupo grande — ninguém fica de fora.'}
+            {picture
+              ? 'Pela imagem, a rodada não tem tabela: a figura do segredo abre irreconhecível e ganha nitidez a cada chute errado da mesa.'
+              : duel
+                ? 'No duelo, quem esconde o segredo ganha pontos pelo tempo que os outros levam para achar.'
+                : '“Até acertar” deixa a rodada só fechar em acerto. Bom para grupo grande — ninguém fica de fora.'}
           </p>
         </div>
       </aside>
@@ -181,6 +192,28 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
 
           <div className="field wide">
             <div className="f-label">Regras da partida</div>
+
+            {/* o interruptor da imagem atravessa os dois modos: tanto a caça ao
+                segredo quanto o duelo podem ser jogados pela figura */}
+            <button
+              type="button"
+              className={`switch-row ${picture && comImagem ? 'on' : ''}`}
+              disabled={!comImagem}
+              style={{ marginBottom: 10 }}
+              onClick={() => setPicture(v => !v)}
+            >
+              <span className="ico"><ImageIcon width={18} height={18} /></span>
+              <span className="txt">
+                <b>Jogar pela imagem</b>
+                <small>
+                  {comImagem
+                    ? 'Sem tabela de dicas: a figura do segredo clareia a cada chute errado.'
+                    : `${universe.label} não tem figuras para jogar assim.`}
+                </small>
+              </span>
+              <span className="switch"><i /></span>
+            </button>
+
             <button
               type="button"
               className={`switch-row ${untilRight ? 'on' : ''}`}

@@ -11,6 +11,7 @@ import {
   compareGuess, scoreForWin, SCORE_CHOOSER_SURVIVED, pickSecret,
 } from './game.js';
 import { datasetOf as datasetFor } from './catalog.js';
+import { TOP as PICTURE_TOP, frameOf, hasPicture, prepare as preparePicture } from './picture.js';
 
 /** Preenchido por attachRooms; broadcast e a unica coisa que depende dele. */
 let io = null;
@@ -87,12 +88,28 @@ function pool(room) {
   const groups = new Set(room.settings.groups);
   const inScope = scopeFilter(universeOf(room), room.settings.scope);
 
-  const eligible = datasetOf(room).list.filter(item => item.eligible);
+  // jogando de imagem, quem nao tem miniatura nao pode ser o segredo: a rodada
+  // inteira e a figura, e sem ela nao ha o que adivinhar
+  const eligible = datasetOf(room).list.filter(item =>
+    item.eligible && (!room.settings.picture || hasPicture(item)));
   const scoped = eligible.filter(inScope);
   const base = scoped.length ? scoped : eligible;
   const filtered = base.filter(item => groups.has(item.group));
   return filtered.length ? filtered : base;
 }
+
+/**
+ * Em que degrau da escada (picture.js) a rodada esta: um por chute ja dado na
+ * mesa. Aqui nao ha bilhete assinado como no desafio do dia — a sala nao
+ * pergunta nada ao jogador, e o servidor e quem empurra o estado. Ninguem
+ * consegue pedir um degrau que a rodada ainda nao alcancou porque ninguem pede
+ * coisa nenhuma.
+ */
+const pictureOf = (room) => {
+  if (!room.settings.picture || !room.secret) return null;
+  const level = Math.min(PICTURE_TOP, room.rows.length);
+  return { level, top: PICTURE_TOP, src: frameOf(room.settings.universe, room.secret, level) };
+};
 
 const activePlayers = (room) => room.order.map(id => room.players.get(id)).filter(p => p && p.connected);
 
@@ -119,6 +136,7 @@ function publicState(room) {
     message: room.message,
     summary: room.summary,
     secret: showSecret && room.secret ? room.secret : null,
+    picture: pictureOf(room),
   };
 }
 
@@ -268,6 +286,19 @@ function armTurnTimer(room) {
 }
 
 function beginGuessing(room) {
+  /**
+   * A escada da imagem fica pronta antes de o primeiro chute chegar. Gerar
+   * custa uns 40 ms e `publicState` e sincrono: sem adiantar isto, o quadro
+   * chegaria vazio no broadcast e so apareceria no seguinte. Quando os quadros
+   * ficam prontos, um broadcast extra os entrega — e se a rodada ja tiver
+   * virado, ele so repete o estado que todo mundo ja tem.
+   */
+  if (room.settings.picture && room.secret) {
+    preparePicture(room.settings.universe, room.secret).then(() => {
+      if (rooms.get(room.code) === room) broadcast(room);
+    });
+  }
+
   room.phase = 'playing';
   room.turnPlayerId = firstTurn(room);
   if (!room.turnPlayerId) return awaitingReturn(room) ? pauseRound(room, null) : endRound(room, null);
@@ -526,6 +557,9 @@ function onConnection(socket) {
     if (!mon.eligible) {
       return socket.emit('room:error', `${mon.name} não tem dados completos o bastante para ser o segredo.`);
     }
+    if (room.settings.picture && !hasPicture(mon)) {
+      return socket.emit('room:error', `Esta sala joga pela imagem, e ${mon.name} não tem figura.`);
+    }
     if (!scopeFilter(universeOf(room), room.settings.scope)(mon)) {
       const epocas = scopeLabel(universeOf(room), room.settings.scope);
       return socket.emit('room:error', `Esta sala está em "${epocas}", e ${mon.name} fica de fora.`);
@@ -555,11 +589,16 @@ function onConnection(socket) {
     }
 
     if (room.guessesLeft[player.id] !== null) room.guessesLeft[player.id] -= 1;
-    room.rows.push({
-      ...compareGuess(guess, room.secret, universeOf(room), scopeReach(universeOf(room), room.settings.scope)),
-      playerId: player.id,
-      playerName: player.name,
-    });
+    /**
+     * Jogando de imagem a tabela nao vai para a tela, entao a comparacao nem e
+     * feita: mandar as celulas que ninguem mostra seria deixar a tabela inteira
+     * no devtools de quem escolheu jogar sem ela. Sobra a lista de quem ja foi
+     * chutado, que e o que a rodada precisa para nao repetir nome.
+     */
+    const comparison = room.settings.picture
+      ? { id: guess.id, name: guess.name, sprite: guess.sprite, correct: guess.id === room.secret.id }
+      : compareGuess(guess, room.secret, universeOf(room), scopeReach(universeOf(room), room.settings.scope));
+    room.rows.push({ ...comparison, playerId: player.id, playerName: player.name });
     room.message = null;
 
     const row = room.rows[room.rows.length - 1];

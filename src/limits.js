@@ -36,10 +36,14 @@ const FICHAS = numero('DAILY_RITMO_FICHAS', 12);
 const RECARGA_MS = numero('DAILY_RITMO_MS', 2000);
 
 /**
- * Chutes por (chave, universo) num dia. É teto de abuso, não de jogo: com a
- * tabela de dicas, resolver leva menos de uma dezena de chutes, e teimar leva
- * duas. O número certo fica acima do jogador teimoso e abaixo do recorte do
- * dia, que hoje vai de 17 (Ordem Paranormal) a 284 (Heróis) candidatos.
+ * Chutes por (chave, universo, modo) num dia. É teto de abuso, não de jogo:
+ * com a tabela de dicas, resolver leva menos de uma dezena de chutes, e teimar
+ * leva duas. O número certo fica acima do jogador teimoso e abaixo do recorte
+ * do dia, que hoje vai de 17 (Ordem Paranormal) a 284 (Heróis) candidatos.
+ *
+ * O modo entra na chave porque os dois desafios de um universo têm segredos
+ * diferentes: um teto só faria quem jogou a tabela de manhã chegar sem fichas
+ * na imagem à noite, sem ter varrido nada.
  *
  * Onde o recorte é menor que este teto, a varredura sempre coube num dia — e
  * cabe também para uma pessoa com paciência, que é o preço de MIN_POOL lá no
@@ -55,7 +59,7 @@ const TETO_DIA = numero('DAILY_TETO_DIA', 60);
 const MAX_CHAVES = 50_000;
 
 const baldes = new Map();   // chave -> { fichas, visto }
-const cotas = new Map();    // `${data}:${chave}:${universo}` -> chutes gastos
+const cotas = new Map();    // `${data}:${chave}:${universo}:${modo}` -> chutes gastos
 
 /**
  * Baldes cheios e parados não guardam informação nenhuma: quem some por dez
@@ -80,18 +84,18 @@ setInterval(() => faxina(), 5 * 60_000).unref();
  * O teto é conferido antes do balde para a resposta não mentir sobre o tempo:
  * quem estourou o dia não resolve nada esperando alguns segundos.
  */
-export function spendDailyGuess(chave, universo, hoje) {
+export function spendDailyGuess(chave, universo, hoje, modo = 'dicas') {
   const agora = Date.now();
   if (baldes.size > MAX_CHAVES) faxina(agora, hoje);
 
-  const cota = `${hoje}:${chave}:${universo}`;
+  const cota = `${hoje}:${chave}:${universo}:${modo}`;
   const gastos = cotas.get(cota) ?? 0;
   if (gastos >= TETO_DIA) {
     // uma linha por chave que estourou, na primeira recusa: e o que aparece no
     // log quando alguem esta varrendo, e o que nao vira enxurrada se ele insistir
     if (gastos === TETO_DIA) {
       cotas.set(cota, gastos + 1);
-      console.warn(`[limits] ${chave} estourou o teto de ${TETO_DIA} chutes em ${universo} (${hoje}).`);
+      console.warn(`[limits] ${chave} estourou o teto de ${TETO_DIA} chutes em ${universo}/${modo} (${hoje}).`);
     }
     return {
       ok: false,

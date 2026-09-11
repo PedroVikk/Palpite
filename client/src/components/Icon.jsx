@@ -151,6 +151,14 @@ export const BulbIcon = (props) => (
   </svg>
 );
 
+export const ImageIcon = (props) => (
+  <svg {...base} {...props}>
+    <rect x="3" y="4" width="18" height="16" rx="2.5" />
+    <circle cx="8.5" cy="9.5" r="1.6" />
+    <path d="m4 17 4.5-4.5a2 2 0 0 1 2.8 0L16 17M14.5 15.5l1.8-1.8a2 2 0 0 1 2.8 0L21 16" />
+  </svg>
+);
+
 export const LockIcon = (props) => (
   <svg {...base} {...props}>
     <rect x="4" y="10" width="16" height="11" rx="2.5" />

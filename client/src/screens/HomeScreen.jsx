@@ -7,7 +7,7 @@ import Avatar from '../components/Avatar.jsx';
 import UniverseSelect from '../components/UniverseSelect.jsx';
 import {
   CheckIcon, ChartIcon, ClockIcon, EnterIcon, ExitIcon, FlameIcon,
-  GoogleIcon, PlusIcon, SendIcon, TargetIcon,
+  GoogleIcon, ImageIcon, PlusIcon, SendIcon, TargetIcon,
 } from '../components/Icon.jsx';
 
 const TOTAL_UNIVERSES = Object.keys(UNIVERSES).length;
@@ -155,7 +155,7 @@ export default function HomeScreen({
           <div>
             <span className="eyebrow"><ClockIcon width={13} height={13} strokeWidth={2.4} />Todo dia · troca à meia-noite</span>
             <h1>Desafio diário</h1>
-            <p className="lead">Um segredo por universo. O mesmo para todo mundo, até a virada do dia.</p>
+            <p className="lead">Um segredo por universo, e outro só de imagem. Os mesmos para todo mundo, até a virada do dia.</p>
 
             <div className="hero-stats">
               {/* a sequência vem primeiro: é o número que faz voltar amanhã */}
@@ -173,10 +173,15 @@ export default function HomeScreen({
               </div>
             </div>
 
+            {/* dois desafios por universo, com segredos diferentes: quem
+                resolveu a tabela ainda tem a imagem para jogar hoje */}
             <div className="hero-actions">
               <UniverseSelect value={dailyUniverse} onChange={setDailyUniverse} />
-              <button className="btn primary lg" onClick={() => onDaily(dailyUniverse)}>
+              <button className="btn primary lg" onClick={() => onDaily(dailyUniverse, 'dicas')}>
                 Jogar agora <SendIcon width={16} height={16} strokeWidth={2.2} />
+              </button>
+              <button className="btn ghost lg" onClick={() => onDaily(dailyUniverse, 'imagem')}>
+                <ImageIcon width={16} height={16} strokeWidth={2.2} /> Pela imagem
               </button>
             </div>
           </div>
@@ -244,7 +249,7 @@ export default function HomeScreen({
             <img className="corner" src={dailyMark} alt="" aria-hidden />
             <span className="ico"><TargetIcon width={19} height={19} /></span>
             <h3>Desafio diário</h3>
-            <p>Um segredo por universo, igual para todo mundo. Jogue sozinho e compare o resultado.</p>
+            <p>Dois segredos por universo — um pela tabela de dicas, outro pela imagem. Iguais para todo mundo.</p>
             <div className="foot">
               <span className="tag green">{day.solved}/{TOTAL_UNIVERSES} hoje</span>
               <SendIcon className="go" width={18} height={18} />

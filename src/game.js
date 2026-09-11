@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS = {
   rounds: 5,
   turnSeconds: 45,
   guessesPerPlayer: 0, // 0 = "ate acertar": sem teto de chutes (so no modo caca ao segredo)
+  picture: false,      // rodada jogada pela imagem, sem tabela de dicas
 };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -59,6 +60,12 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
     rounds: clamp(Math.round(Number(raw.rounds ?? base.rounds)) || 5, 1, 20),
     turnSeconds: clamp(Math.round(Number(raw.turnSeconds ?? base.turnSeconds)) || 45, 5, 180),
     guessesPerPlayer: untilRight ? 0 : clamp(rawGuesses || 6, 1, 20),
+    /**
+     * O interruptor da imagem atravessa os dois modos: tanto a caca ao segredo
+     * quanto o duelo podem ser jogados pela figura. Ele nao substitui `mode`,
+     * entao mora aqui do lado em vez de virar um terceiro valor dele.
+     */
+    picture: Boolean(raw.picture ?? base.picture),
   };
 }
 

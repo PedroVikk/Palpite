@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DEFAULT_UNIVERSE, UNIVERSES, getUniverse, scopeFilter, scopeTipLabel } from '@shared/universes.js';
 import { useDataset } from '../hooks/useDataset.js';
-import { loadDaily, markSolvedToday, pruneDaily, saveDaily } from '../lib/storage.js';
+import { gameToday, loadDaily, markSolvedToday, pruneDaily, saveDaily } from '../lib/storage.js';
+import { hasPicture } from '../lib/picture.js';
 import Ambient from '../components/Ambient.jsx';
 import UniverseSelect from '../components/UniverseSelect.jsx';
 import GuessBar from '../components/GuessBar.jsx';
 import HintsTable from '../components/HintsTable.jsx';
+import SecretImage from '../components/SecretImage.jsx';
 import Reveal from '../components/Reveal.jsx';
-import { CheckIcon, ClockIcon, ExitIcon, TargetIcon } from '../components/Icon.jsx';
+import { CheckIcon, ClockIcon, ExitIcon, ImageIcon, TargetIcon } from '../components/Icon.jsx';
 
 /** "2026-08-27" -> "27/08". Sem Date, que reinterpretaria no fuso local. */
 const prettyDate = (iso) => {
@@ -15,15 +17,25 @@ const prettyDate = (iso) => {
   return month ? `${day}/${month}` : '';
 };
 
+const params = () => new URLSearchParams(location.search);
 const startingUniverse = () => {
-  const asked = new URLSearchParams(location.search).get('diario');
+  const asked = params().get('diario');
   return UNIVERSES[asked] ? asked : DEFAULT_UNIVERSE;
 };
+const startingMode = () => (params().get('modo') === 'imagem' ? 'imagem' : 'dicas');
+
+const EMPTY = { rows: [], secret: null, ticket: null };
 
 /**
  * Desafio do dia: sem sala, sem turno, chutes ilimitados. O segredo e o mesmo
  * para todo mundo e o servidor nao guarda nada — o progresso vive no
  * localStorage deste navegador, e a data na chave faz virar o dia sozinho.
+ *
+ * Sao dois desafios por universo, e nao dois jeitos de olhar o mesmo. Nas
+ * `dicas` o segredo se revela por comparacao, coluna a coluna; na `imagem` ele
+ * aparece de verdade, so que reduzido a um punhado de pixels que vai crescendo
+ * a cada erro. Os segredos sao diferentes de proposito (ver src/daily.js):
+ * resolver um nao estraga o outro, entao da para jogar os dois no mesmo dia.
  *
  * O dia tem recorte (uma epoca, uma categoria) e ele fica a vista, ao lado do
  * universo: saber que hoje o segredo vai ate Shippūden muda o que a pessoa
@@ -32,33 +44,66 @@ const startingUniverse = () => {
  */
 export default function DailyScreen({ toast, onExit }) {
   const [universe, setUniverse] = useState(startingUniverse);
-  const [info, setInfo] = useState(null);      // { date, poolSize, scope, group }
-  const [progress, setProgress] = useState({ rows: [], secret: null });
+  const [mode, setMode] = useState(startingMode);
+  const [info, setInfo] = useState(null);      // { date, poolSize, scope, group, hasPicture, picture? }
+  const [progress, setProgress] = useState(EMPTY);
   const [sending, setSending] = useState(false);
   const [round, setRound] = useState(0);             // sobe na virada do dia, para recarregar
 
   const schema = getUniverse(universe);
   const items = useDataset(universe) ?? [];
   const solved = Boolean(progress.secret);
+  const picture = mode === 'imagem';
 
   useEffect(() => {
     let alive = true;
     setInfo(null);
-    setProgress({ rows: [], secret: null });
-    history.replaceState(null, '', `?diario=${universe}`);
+    setProgress(EMPTY);
+    history.replaceState(null, '', `?diario=${universe}${picture ? '&modo=imagem' : ''}`);
 
-    fetch(`/api/daily/${universe}`)
-      .then(res => (res.ok ? res.json() : Promise.reject(new Error('falhou'))))
+    /**
+     * O bilhete do degrau da imagem vai junto do pedido, senao a primeira tela
+     * depois de um F5 viria com a figura de volta ao pe da escada. A data sai
+     * do relogio daqui so para achar a chave certa no storage: quem decide o
+     * dia e o servidor, e bilhete de ontem simplesmente nao confere.
+     */
+    const saved = loadDaily(gameToday(), universe, mode);
+    const ticket = picture && saved.ticket ? `&t=${encodeURIComponent(saved.ticket)}` : '';
+
+    fetch(`/api/daily/${universe}?modo=${mode}${ticket}`)
+      .then(async (res) => {
+        /**
+         * Universo sem desafio de imagem hoje (os Carros nao tem miniatura
+         * nenhuma). O modo so fica apagado depois que um dia carrega, entao
+         * da para chegar aqui por link direto ou trocando de universo com a
+         * aba da imagem aberta — e ai a tela cai na tabela, em vez de ficar
+         * carregando para sempre um desafio que nao existe.
+         */
+        if (res.status === 503 && picture) {
+          if (alive) {
+            setMode('dicas');
+            toast(`${schema.label} não tem desafio de imagem hoje.`);
+          }
+          return null;
+        }
+        if (!res.ok) throw new Error('falhou');
+        return res.json();
+      })
       .then(data => {
-        if (!alive) return;
+        if (!alive || !data) return;
         pruneDaily(data.date);
         setInfo(data);
-        setProgress(loadDaily(data.date, universe));
+        setProgress(loadDaily(data.date, universe, mode));
       })
-      .catch(() => { if (alive) toast('Não consegui carregar o desafio de hoje.'); });
+      .catch(() => {
+        if (!alive) return;
+        toast(picture
+          ? 'Não consegui carregar o desafio de imagem de hoje.'
+          : 'Não consegui carregar o desafio de hoje.');
+      });
 
     return () => { alive = false; };
-  }, [universe, round, toast]);
+  }, [universe, mode, picture, round, schema.label, toast]);
 
   const submit = useCallback(async (chosen) => {
     if (!chosen) return toast('Escolha um nome da lista.');
@@ -66,7 +111,8 @@ export default function DailyScreen({ toast, onExit }) {
 
     setSending(true);
     try {
-      const res = await fetch(`/api/daily/${universe}/guess/${chosen.id}`);
+      const ticket = progress.ticket ? `&t=${encodeURIComponent(progress.ticket)}` : '';
+      const res = await fetch(`/api/daily/${universe}/guess/${chosen.id}?modo=${mode}${ticket}`);
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         // recusa por recorte velho quer dizer que o dia virou nesta aba
@@ -82,9 +128,15 @@ export default function DailyScreen({ toast, onExit }) {
         return toast('O dia virou — desafio novo!');
       }
 
-      const next = { rows: [...progress.rows, data.row], secret: data.secret ?? null };
+      const next = {
+        rows: [...progress.rows, data.row],
+        secret: data.secret ?? null,
+        ticket: data.picture?.ticket ?? progress.ticket,
+      };
       setProgress(next);
-      saveDaily(data.date, universe, next);
+      saveDaily(data.date, universe, next, mode);
+      // o quadro novo chega junto da dica: o degrau ganho e o troco do chute
+      if (data.picture) setInfo(prev => (prev ? { ...prev, picture: data.picture } : prev));
       // primeiro acerto do dia e o que segura a sequencia; do segundo em
       // diante a propria funcao ignora, entao nao ha o que checar aqui
       if (next.secret) markSolvedToday(data.date);
@@ -93,15 +145,23 @@ export default function DailyScreen({ toast, onExit }) {
     } finally {
       setSending(false);
     }
-  }, [info, solved, sending, universe, progress.rows, toast]);
+  }, [info, solved, sending, universe, mode, progress.rows, progress.ticket, toast]);
 
   const attempts = progress.rows.length;
 
-  // a trava do dia: fora do recorte o nome nem aparece na busca
-  const inScope = useMemo(
-    () => scopeFilter(schema, info?.scope ?? null),
-    [schema, info?.scope],
-  );
+  /**
+   * A trava do dia: fora do recorte o nome nem aparece na busca.
+   *
+   * No modo imagem a miniatura faz parte do recorte — quem não tem figura não
+   * pode ser o segredo, e o servidor recusa o chute. Sem somar isso aqui, a
+   * busca ofereceria nomes que voltam com erro, gastando a digitação de quem
+   * confiou na lista.
+   */
+  const inScope = useMemo(() => {
+    const noRecorte = scopeFilter(schema, info?.scope ?? null);
+    if (!picture) return noRecorte;
+    return (item) => noRecorte(item) && hasPicture(item);
+  }, [schema, info?.scope, picture]);
 
   // o recorte de hoje em duas etiquetas: a faixa de epocas pela ponta, a
   // categoria pelo nome. Universo sem recorte no schema nao mostra nenhuma
@@ -113,6 +173,23 @@ export default function DailyScreen({ toast, onExit }) {
     () => (info?.group ? schema.groups?.find(g => g.id === info.group)?.label ?? null : null),
     [schema, info?.group],
   );
+
+  /**
+   * O modo imagem some onde nao ha imagem. Os carros nao tem miniatura nenhuma
+   * espelhada, e um recorte do dia pode deixar outro universo com gente de
+   * menos para valer desafio — nos dois casos o botao fica apagado em vez de
+   * abrir uma tela quebrada. Enquanto o dia nao carregou, a aba segue
+   * clicavel: negar antes de saber esconderia o modo de quem chegou pelo link.
+   */
+  const semImagem = info ? info.hasPicture === false : false;
+
+  const pickMode = (next) => {
+    if (next === mode) return;
+    if (next === 'imagem' && semImagem) {
+      return toast(`${schema.label} não tem desafio de imagem hoje.`);
+    }
+    setMode(next);
+  };
 
   return (
     <>
@@ -135,16 +212,20 @@ export default function DailyScreen({ toast, onExit }) {
       <main className="page">
         <section className={`turn-banner ${solved ? 'you' : ''}`}>
           <span className="badge">
-            {solved ? <CheckIcon width={22} height={22} /> : <TargetIcon width={22} height={22} />}
+            {solved
+              ? <CheckIcon width={22} height={22} />
+              : picture ? <ImageIcon width={22} height={22} /> : <TargetIcon width={22} height={22} />}
           </span>
           <div>
-            <h1>{solved ? 'Você descobriu!' : 'Desafio de hoje'}</h1>
+            <h1>{solved ? 'Você descobriu!' : picture ? 'Quem está na imagem?' : 'Desafio de hoje'}</h1>
             <p>
               {!info
                 ? 'Carregando...'
                 : solved
                   ? `Acertou em ${attempts} ${attempts === 1 ? 'chute' : 'chutes'}. Volte amanhã para o próximo.`
-                  : 'Um segredo por universo, o mesmo para todo mundo. Chutes ilimitados.'}
+                  : picture
+                    ? 'A figura começa irreconhecível e ganha nitidez a cada erro. Sem tabela de dicas.'
+                    : 'Um segredo por universo, o mesmo para todo mundo. Chutes ilimitados.'}
             </p>
           </div>
           <div className="clock" style={{ minWidth: 120 }}>
@@ -152,6 +233,36 @@ export default function DailyScreen({ toast, onExit }) {
             <div className="v">{attempts}</div>
           </div>
         </section>
+
+        {/* dois desafios por universo, com segredos diferentes: trocar de aba
+            aqui é trocar de jogo, não de jeito de olhar o mesmo */}
+        <div className="field" style={{ marginTop: 2 }}>
+          <div className="mode-pick">
+            <button type="button" className={!picture ? 'on' : ''} onClick={() => pickMode('dicas')}>
+              <span className="ico"><TargetIcon width={17} height={17} /></span>
+              <span>
+                <b>Dicas</b>
+                <small>A tabela pinta a cada chute: verde, amarelo, vermelho.</small>
+              </span>
+            </button>
+            <button
+              type="button"
+              className={picture ? 'on' : ''}
+              disabled={semImagem}
+              onClick={() => pickMode('imagem')}
+            >
+              <span className="ico"><ImageIcon width={17} height={17} /></span>
+              <span>
+                <b>Imagem</b>
+                <small>
+                  {semImagem
+                    ? `${schema.label} não tem imagem para jogar hoje.`
+                    : 'A figura do segredo, clareando a cada erro.'}
+                </small>
+              </span>
+            </button>
+          </div>
+        </div>
 
         {/* trocar de universo aqui é trocar de desafio: cada um tem o seu */}
         <section className="progress-bar">
@@ -170,18 +281,27 @@ export default function DailyScreen({ toast, onExit }) {
         {solved ? (
           <Reveal universe={schema} secret={progress.secret} />
         ) : (
-          <GuessBar
-            items={items}
-            guessedIds={progress.rows.map(row => row.id)}
-            groups={info?.group ? [info.group] : []}
-            inScope={inScope}
-            active={Boolean(info) && !sending}
-            focusKey={universe}
-            onSubmit={submit}
-          />
+          <>
+            {picture && info?.picture && (
+              <SecretImage
+                universe={universe}
+                picture={info.picture}
+                caption={`Um nome de ${schema.label}, atrás de poucos pixels. Errar não custa nada — só revela mais um pedaço.`}
+              />
+            )}
+            <GuessBar
+              items={items}
+              guessedIds={progress.rows.map(row => row.id)}
+              groups={info?.group ? [info.group] : []}
+              inScope={inScope}
+              active={Boolean(info) && !sending}
+              focusKey={`${universe}:${mode}`}
+              onSubmit={submit}
+            />
+          </>
         )}
 
-        <HintsTable universe={schema} rows={progress.rows} />
+        <HintsTable universe={schema} rows={progress.rows} hints={!picture} />
       </main>
     </>
   );

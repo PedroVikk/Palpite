@@ -2,12 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { getUniverse, scopeFilter, sanitizeScope } from '@shared/universes.js';
 import { socket } from '../socket.js';
 import { useDataset } from '../hooks/useDataset.js';
+import { canPlayPicture, hasPicture } from '../lib/picture.js';
 import Avatar from './Avatar.jsx';
 import UniverseSelect from './UniverseSelect.jsx';
 import UniverseIcon from './UniverseIcon.jsx';
 import Stepper from './Stepper.jsx';
 import {
-  CalendarIcon, CheckIcon, ClockIcon, CopyIcon, ExitIcon, SearchIcon,
+  CalendarIcon, CheckIcon, ClockIcon, CopyIcon, ExitIcon, ImageIcon, SearchIcon,
   ShareIcon, SwordsIcon, TargetIcon, UsersIcon,
 } from './Icon.jsx';
 
@@ -27,6 +28,7 @@ const fromSettings = (s) => ({
   turnSeconds: s.turnSeconds,
   guessesPerPlayer: s.guessesPerPlayer || 6,
   untilRight: s.guessesPerPlayer === 0,
+  picture: Boolean(s.picture),
 });
 
 const toSettings = (f) => ({
@@ -37,6 +39,7 @@ const toSettings = (f) => ({
   rounds: f.rounds,
   turnSeconds: f.turnSeconds,
   guessesPerPlayer: f.untilRight ? 0 : f.guessesPerPlayer,
+  picture: f.picture,
 });
 
 /**
@@ -58,19 +61,29 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
 
   const universe = getUniverse(form.universe);
   const items = useDataset(form.universe);
+  const comImagem = canPlayPicture(items);
 
+  // quantos podem sair no sorteio com a selecao atual. A imagem entra na
+  // conta: com a chave ligada, quem nao tem figura nao e sorteavel
   const poolSize = useMemo(() => {
     if (!items) return null;
     const groups = new Set(form.groups);
     const inScope = scopeFilter(universe, form.scope);
-    return items.filter(item => item.eligible && groups.has(item.group) && inScope(item)).length;
-  }, [items, form.groups, form.scope, universe]);
+    return items.filter(item =>
+      item.eligible
+      && groups.has(item.group)
+      && inScope(item)
+      && (!form.picture || hasPicture(item))).length;
+  }, [items, form.groups, form.scope, form.picture, universe]);
 
   function change(patch) {
     const next = { ...form, ...patch };
     // no duelo o "ate acertar" nao existe: quem esconde o segredo so pontua
     // quando os chutes dos outros acabam
     if (next.mode === 'duel') next.untilRight = false;
+    // universo sem figura espelhada nao joga de imagem; trocar para um deles
+    // com a chave ligada desliga ela, em vez de sortear um segredo invisivel
+    if (!comImagem) next.picture = false;
     setForm(next);
     if (isHost) socket.emit('room:settings', toSettings(next));
   }
@@ -280,6 +293,28 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
 
           <div className="field">
             <div className="f-label">Regras da partida</div>
+
+            {/* a chave da imagem vale para as rodadas que ainda vao comecar:
+                como toda regra da sala, ela so e editavel aqui na espera */}
+            <button
+              type="button"
+              className={`switch-row ${form.picture && comImagem ? 'on' : ''}`}
+              disabled={!isHost || !comImagem}
+              style={{ marginBottom: 10 }}
+              onClick={() => change({ picture: !form.picture })}
+            >
+              <span className="ico"><ImageIcon width={18} height={18} /></span>
+              <span className="txt">
+                <b>Jogar pela imagem</b>
+                <small>
+                  {comImagem
+                    ? 'Sem tabela de dicas: a figura do segredo clareia a cada chute errado da mesa.'
+                    : `${universe.label} não tem figuras para jogar assim.`}
+                </small>
+              </span>
+              <span className="switch"><i /></span>
+            </button>
+
             <button
               type="button"
               className={`switch-row ${form.untilRight ? 'on' : ''}`}

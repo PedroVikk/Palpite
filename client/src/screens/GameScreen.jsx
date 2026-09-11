@@ -1,17 +1,19 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { getUniverse, scopeFilter, scopeReach } from '@shared/universes.js';
 import { socket } from '../socket.js';
 import { useDataset } from '../hooks/useDataset.js';
 import { useCountdown } from '../hooks/useCountdown.js';
+import { hasPicture } from '../lib/picture.js';
 import { universeMeta } from '../lib/universeMeta.js';
 import Ambient from '../components/Ambient.jsx';
 import GameSidebar from '../components/GameSidebar.jsx';
 import UniverseIcon from '../components/UniverseIcon.jsx';
 import GuessBar from '../components/GuessBar.jsx';
 import HintsTable from '../components/HintsTable.jsx';
+import SecretImage from '../components/SecretImage.jsx';
 import Reveal from '../components/Reveal.jsx';
 import GameOver from '../components/GameOver.jsx';
-import { ClockIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
+import { ClockIcon, ImageIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
 
 export default function GameScreen({ state, myId, toast, onLeave }) {
   const universe = getUniverse(state.settings.universe);
@@ -37,9 +39,22 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
 
   const isHost = state.hostId === myId;
   const untilRight = state.settings.guessesPerPlayer === 0;
+  const byPicture = Boolean(state.settings.picture);
   const isMyTurn = state.phase === 'playing' && state.turnPlayerId === myId;
   const isMyChoice = state.phase === 'choosing' && state.chooserId === myId;
   const nameOf = (id) => state.players.find(p => p.id === id)?.name ?? 'alguém';
+
+  /**
+   * O que a busca do chute oferece. Jogando pela imagem, quem nao tem figura
+   * ficou fora do sorteio do segredo (ver `pool` em src/rooms.js) — oferecer o
+   * nome seria vender um chute que nunca poderia ser a resposta, e num jogo de
+   * um turno por vez isso custa a vez de alguem.
+   */
+  const inScope = useMemo(() => {
+    const noRecorte = scopeFilter(universe, state.settings.scope);
+    if (!byPicture) return noRecorte;
+    return (item) => noRecorte(item) && hasPicture(item);
+  }, [universe, state.settings.scope, byPicture]);
 
   const me = state.players.find(p => p.id === myId);
   const budget = state.settings.guessesPerPlayer;
@@ -133,11 +148,24 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
             </>
           ) : (
             <>
+              {/* jogando pela imagem, a figura fica onde a tabela ficaria: em
+                  cima do campo de chute, que e para onde o olho vai antes de
+                  digitar. Quem escondeu o segredo no duelo ja sabe quem e, mas
+                  ve o mesmo quadro dos outros — e assim acompanha o quanto a
+                  mesa ja arrancou dele */}
+              {byPicture && state.picture && (
+                <SecretImage
+                  universe={universe.id}
+                  picture={state.picture}
+                  caption={`Um nome de ${universe.label}, atrás de poucos pixels. Cada chute errado da mesa revela mais um pedaço.`}
+                />
+              )}
+
               <GuessBar
                 items={items}
                 guessedIds={state.rows.map(row => row.id)}
                 groups={state.settings.groups}
-                inScope={scopeFilter(universe, state.settings.scope)}
+                inScope={inScope}
                 active={isMyTurn || isMyChoice}
                 choosing={isMyChoice}
                 focusKey={state.phase}
@@ -168,7 +196,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
             </>
           )}
 
-          <HintsTable universe={universe} rows={state.rows} />
+          <HintsTable universe={universe} rows={state.rows} hints={!byPicture} />
 
           <div className="game-actions" ref={actionsRef}>
             {/* rodada "ate acertar" nao fecha sozinha: o host pode encerrar */}
@@ -197,6 +225,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
 }
 
 function TopBar({ state, universe, meta, onBack }) {
+  const rules = state.settings.mode === 'duel' ? 'Duelo' : 'Caça ao segredo';
   return (
     <header className="topbar">
       <div className="inner">
@@ -206,8 +235,11 @@ function TopBar({ state, universe, meta, onBack }) {
         <span className="pill"><ClockIcon width={14} height={14} />Rodada <b>{state.round}</b>/{state.settings.rounds}</span>
         <span className="pill">
           <UniverseIcon universe={universe.id} size="xs" />
-          {universe.label} · {state.settings.mode === 'duel' ? 'Duelo' : 'Caça ao segredo'}
+          {universe.label} · {rules}
         </span>
+        {state.settings.picture && (
+          <span className="pill"><ImageIcon width={14} height={14} />Pela imagem</span>
+        )}
         <span className="pill"><UsersIcon width={14} height={14} />{state.players.length}</span>
         <span className="spacer" />
         <span className="pill code">{state.code}</span>

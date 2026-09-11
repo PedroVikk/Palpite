@@ -5,6 +5,9 @@ Um secreto por rodada, todo mundo na mesma sala, **um chute por vez**. Cada
 chute vira uma linha de dicas visível para todos — verde acerta, amarelo chega
 perto, seta indica se o secreto é maior ou menor.
 
+Dá para jogar **pela imagem** também: aí não há tabela, e sim a figura do
+secreto reduzida a um punhado de pixels, ganhando nitidez a cada erro.
+
 Express + Socket.IO no servidor, React + Vite no navegador. Os dados são
 baixados **uma vez** de APIs públicas para arquivos JSON locais — em partida o
 jogo não depende delas, só as imagens vêm dos CDNs.
@@ -466,6 +469,13 @@ duas e 210 com três.
 | **Caça ao segredo** | O servidor sorteia o secreto e **ninguém** sabe qual é. Todos adivinham, um por turno, até alguém acertar (ou os chutes acabarem). |
 | **Duelo** | A cada rodada um jogador escolhe o secreto e assiste, **na vez dele numa fila**; os outros se revezam nos chutes. Se ninguém acertar, quem escolheu leva 50 pontos. |
 
+**Jogar pela imagem** é um interruptor, não um terceiro modo: ele atravessa os
+dois de cima. Ligado, a rodada não tem tabela de dicas — o que está na tela é a
+figura do secreto, e ela clareia um degrau a cada chute errado da mesa. Vale
+para as rodadas que ainda vão começar, como toda regra da sala. Universo sem
+miniatura espelhada (os Carros) mostra a chave apagada, e no duelo quem esconde
+o segredo só pode escolher alguém que tenha figura.
+
 Quantos jogadores quiser (até 12 por sala) — não é 1v1, é todo mundo contra todo
 mundo, com placar acumulado ao longo das rodadas.
 
@@ -487,6 +497,9 @@ volta a ser o próximo quando reconecta.
 - **Universo** e **grupos** — quais fatias entram no sorteio.
 - **Recorte** — onde o universo tem um (só Hunter × Hunter hoje): elenco
   completo ou só o que foi animado.
+- **Jogar pela imagem** (desligado por padrão) — a rodada passa a ser jogada
+  pela figura do secreto, sem tabela de dicas. Só aparece em universo que tenha
+  miniatura espelhada.
 - **Até acertar** (ligado por padrão na caça ao segredo) — a rodada só fecha
   quando alguém acerta, sem teto de chutes; o host pode cortar pelo botão
   **Encerrar partida**. Mexer em *Chutes por jogador* desliga essa opção. No
@@ -577,6 +590,7 @@ src/rooms.js               salas, turnos, timers e eventos Socket.IO
 src/game.js                comparação e pontuação — puro, guiado pelo schema
 src/catalog.js             datasets em memória + índice enxuto do cliente
 src/daily.js               o segredo do dia: recorte, sorteio e tempero
+src/picture.js             a escada da imagem: o segredo reduzido, degrau a degrau
 src/limits.js              o freio do chute do dia (ritmo e teto por dia)
 src/auth.js                entrar com o Google e a sessão que sai disso
 src/db.js                  Postgres opcional: contas, sequência e placar do dia
@@ -633,8 +647,14 @@ npm test
 
 Sobe o servidor de verdade, conecta jogadores falsos e joga partidas completas
 nos dois modos e **nos vinte e dois universos**, verificando turnos, dicas, timeout,
-pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 260
+pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 389
 verificações.
+
+O modo imagem tem seção própria, e ela testa o que o modo promete: que a escada
+sobe um degrau por chute e nenhum a mais, que bilhete forjado (ou de outro
+universo) não pula nenhum, que o quadro do degrau 0 é pequeno demais para
+entregar alguém, e que a tabela de dicas não viaja junto de quem escolheu jogar
+sem ela.
 
 ## Atualizar os dados
 
@@ -700,10 +720,19 @@ build:data`). As respostas ficam em `.cache/`, que não vai para o git.
 
 ## O desafio do dia, e o que protege ele
 
-Um segredo por universo, igual para todo mundo, trocando à meia-noite de
-Brasília. Não há sorteio guardado em lugar nenhum: o item sai de um `sha256` de
-(tempero, data, universo), então o servidor reiniciado — ou uma segunda
-instância — chega no mesmo resultado sem combinar nada com ninguém.
+**Dois** segredos por universo, iguais para todo mundo, trocando à meia-noite de
+Brasília: um para a tabela de dicas, outro para a imagem. Não há sorteio
+guardado em lugar nenhum: o item sai de um `sha256` de (tempero, data,
+universo, modo), então o servidor reiniciado — ou uma segunda instância — chega
+no mesmo resultado sem combinar nada com ninguém.
+
+Os segredos são separados de propósito. A imagem só pode sortear quem tem
+miniatura espelhada, e a tabela não tem esse problema; um segredo só para os
+dois obrigaria a escolher entre estreitar o clássico à toa ou deixar o dia sem
+imagem quando o sorteio caísse num item sem figura. Separados, cada modo pega o
+melhor do seu pedaço — e resolver um não estraga o outro. Os dois contam para o
+mesmo universo no placar do dia: resolver a imagem do Pokémon já é ter dado
+conta do Pokémon hoje.
 
 O chute do dia é um oráculo: `/api/daily/<universo>/guess/<id>` responde
 "acertou" ou "errou" para qualquer id. Ele **precisa** existir (a resposta não
@@ -727,7 +756,59 @@ isso onde não há proxy seria pior que não ter freio — o cliente escreveria 
 próprio `X-Forwarded-For` e trocaria de identidade a cada chute.
 
 O `npm test` cobre os dois lados: que o chute normal passa e que a varredura de
-vinte requisições paralelas leva `429`.
+vinte requisições paralelas leva `429`. O teto é por (chave, universo, **modo**):
+quem jogou a tabela de manhã não chega sem fichas na imagem à noite.
+
+### A imagem que não dá para espiar
+
+O modo imagem tem um problema que a tabela não tem: a figura **é** a resposta.
+O caminho fácil seria mandar a miniatura inteira e escondê-la no navegador —
+um `blur` de CSS, uma máscara, um canvas. Todos fazem a mesma coisa: entregam a
+resposta e pedem para o jogador não olhar. Um F12 desfaz qualquer um deles, e aí
+o desafio do dia acaba para todo mundo, não só para quem abriu o inspetor.
+
+Então a redução mora no servidor (`src/picture.js`) e é destrutiva. O degrau 0
+é uma imagem de **cinco pixels de largura de verdade**; o navegador só amplia o
+que recebeu (`image-rendering: pixelated`). Não há o que revelar porque não há o
+que esconder — a informação que não foi ganha não viajou. São nove degraus, de 5
+a 44 pixels, e o topo ainda é menos da metade da resolução original: a imagem
+inteira é prêmio de acerto, e quem mostra ela é a tela do reveal.
+
+**A escada é colorida desde o primeiro degrau, e isso custou uma versão.** A
+primeira segurava a cor pelos quatro degraus iniciais, para ela "também se
+pagar". Na prática o modo ficou com dois estados e nenhum meio-termo: em preto e
+branco o Pikachu, o Naruto e o Goku são a mesma mancha cinza, impossível de
+nomear; no degrau em que a cor entrava, os três estavam entregues de uma vez.
+Não havia dedução no meio, só um precipício. A cor de longe é justamente o que
+faz o jogo andar — um borrão laranja e amarelo reduz o elenco à paleta certa sem
+dizer quem é —, então quem segura a dificuldade passou a ser só a resolução, que
+começa bem mais baixa do que dava para começar em cinza. Para apertar o modo,
+**desça o primeiro degrau, não tire a cor.**
+
+Falta saber em que degrau cada pessoa está, e nenhum dos lugares óbvios serve.
+No navegador, o degrau vira um número que o próprio jogador edita — e pedir o
+degrau 8 de saída é pedir a resposta. Na memória do servidor, ele não sobrevive:
+o plano free hiberna a cada quinze minutos parados, e voltar de um café com a
+imagem de novo borrada seria castigo por nada.
+
+Então o degrau viaja com o jogador, **assinado**. O bilhete é um HMAC do mesmo
+tempero sobre (quem, dia, universo, degrau): quem tem o bilhete do degrau 3 não
+consegue escrever o do 4 — para isso tem de gastar um chute e receber o próximo
+das mãos do servidor, pela mesma resposta que traz a dica. Não há rota de
+imagem para apontar nem parâmetro de nitidez para torcer. A assinatura leva a
+chave do freio junto (a conta de quem entrou, o IP de quem não entrou), então
+um degrau 8 publicado num grupo não adianta para quem receber. O preço é que
+trocar de rede sem conta invalida o bilhete e o jogador volta ao degrau 0, com
+os chutes todos de pé — é o erro que a gente prefere: ele aperta o jogo, nunca
+afrouxa.
+
+Na sala nada disso é preciso: o servidor empurra o estado e o degrau é o número
+de chutes já dados na mesa. Ninguém consegue pedir um degrau que a rodada ainda
+não alcançou porque ninguém pede coisa nenhuma.
+
+Nos dois casos a **tabela de dicas não é calculada** quando se joga pela
+imagem. Não é economia: mandar a comparação que a tela não mostra seria deixar
+a tabela inteira no devtools de quem escolheu jogar sem ela.
 
 ## Deploy grátis
 
@@ -756,6 +837,14 @@ O servidor respeita a variável `PORT` e responde em `/healthz`.
   (ver [Se você cair no meio da partida](#se-você-cair-no-meio-da-partida)).
 - Quem entra com a rodada em andamento assiste e começa a jogar na rodada
   seguinte.
+- **O modo imagem só enxerga a miniatura espelhada** em `data/sprites/`, nunca a
+  da CDN: o segredo do dia é um só e não dá para trocar, então deixá-lo na mão
+  de um Fandom fora do ar derrubaria o universo inteiro pelo dia. Quem não foi
+  espelhado fica de fora do modo — nem de segredo, nem de chute —, e por isso a
+  conta de "nomes possíveis hoje" é menor ali do que na tabela de dicas. Os
+  **Carros** não têm nenhuma miniatura, então não têm o modo. Rode
+  `npm run mirror:sprites` depois de reconstruir um dataset, senão o modo encolhe
+  sem aviso.
 - Se o host cair, o cargo passa para o próximo jogador conectado.
 - **Os dados são das APIs, com os defeitos delas.** No Bleach, Ichigo aparece
   como "Humano" e Yhwach não existe na base.

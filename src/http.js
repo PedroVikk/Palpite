@@ -12,7 +12,11 @@ import { fileURLToPath } from 'node:url';
 import { UNIVERSES, getUniverse, scopeReach } from '../shared/universes.js';
 import { datasetOf, indexOf } from './catalog.js';
 import { compareGuess } from './game.js';
-import { inSlice, isKnownUniverse, poolSizeOf, secretOf, sliceOf, today } from './daily.js';
+import {
+  DEFAULT_MODE, hasPictureChallenge, inSlice, isKnownMode, isKnownUniverse, nextPictureLevel,
+  pictureLevel, pictureTicket, poolSizeOf, secretOf, sliceOf, today,
+} from './daily.js';
+import { TOP as PICTURE_TOP, frameFor } from './picture.js';
 import { spendDailyGuess } from './limits.js';
 import * as db from './db.js';
 import { attachAuth } from './auth.js';
@@ -53,6 +57,26 @@ function sendIndex(req, res, index) {
   const gzip = /\bgzip\b/.test(req.headers['accept-encoding'] ?? '');
   if (gzip) res.set('Content-Encoding', 'gzip');
   res.send(gzip ? index.gzip : index.body);
+}
+
+/**
+ * Quem esta pedindo, para o freio e para o bilhete da imagem: a conta de quem
+ * entrou, o IP de quem nao entrou. Logado ganha orcamento proprio de proposito
+ * — ver o cabecalho de limits.js.
+ */
+const playerKey = (req) => (req.user ? `conta:${req.user.id}` : `ip:${req.ip}`);
+
+/** O desafio pedido. Modo desconhecido cai no classico, em vez de dar erro. */
+const modeOf = (req) => (isKnownMode(req.query.modo) ? req.query.modo : DEFAULT_MODE);
+
+/** O quadro do degrau + o bilhete que devolve o jogador a ele no proximo pedido. */
+async function frameOf(universe, secret, level, key, day) {
+  return {
+    level,
+    top: PICTURE_TOP,
+    src: await frameFor(universe, secret, level),
+    ticket: pictureTicket(key, universe, level, day),
+  };
 }
 
 export function createApp() {
@@ -132,11 +156,34 @@ export function createApp() {
    * cliente: sem isso a tela ofereceria nomes que o servidor recusa. Cada eixo
    * vem null quando o universo nao tem fatia grande o bastante para recortar.
    */
-  app.get('/api/daily/:universe', (req, res) => {
+  app.get('/api/daily/:universe', async (req, res) => {
     const { universe } = req.params;
     if (!isKnownUniverse(universe)) return res.status(404).json({ error: 'Universo desconhecido.' });
+
+    const mode = modeOf(req);
     res.set('Cache-Control', 'no-store');   // vira a meia-noite; cachear atrasaria a troca
-    res.json({ date: today(), universe, poolSize: poolSizeOf(universe), ...sliceOf(universe) });
+
+    const day = today();
+    const info = {
+      date: day,
+      universe,
+      mode,
+      poolSize: poolSizeOf(universe, day, mode),
+      ...sliceOf(universe, day, mode),
+      // o seletor de modo precisa saber disso antes de trocar de aba: universo
+      // sem miniatura espelhada (os carros) nao tem desafio de imagem nenhum
+      hasPicture: hasPictureChallenge(universe, day),
+    };
+
+    if (mode !== 'imagem') return res.json(info);
+
+    const secret = secretOf(universe, day, mode);
+    if (!secret) return res.status(503).json({ error: 'Sem desafio de imagem hoje neste universo.', date: day });
+
+    // o bilhete devolve o jogador ao degrau em que ele parou: e o que faz um F5
+    // (ou o servidor hibernar) nao reembacar a imagem ja conquistada
+    const level = pictureLevel(playerKey(req), universe, req.query.t, day);
+    res.json({ ...info, picture: await frameOf(universe, secret, level, playerKey(req), day) });
   });
 
   /**
@@ -148,12 +195,13 @@ export function createApp() {
    * informacao de graca. Quem paga a ficha e a conta de quem esta logado, ou o
    * IP de quem nao esta.
    */
-  app.get('/api/daily/:universe/guess/:id', (req, res) => {
+  app.get('/api/daily/:universe/guess/:id', async (req, res) => {
     const { universe, id } = req.params;
     if (!isKnownUniverse(universe)) return res.status(404).json({ error: 'Universo desconhecido.' });
 
+    const mode = modeOf(req);
     res.set('Cache-Control', 'no-store');
-    const freio = spendDailyGuess(req.user ? `conta:${req.user.id}` : `ip:${req.ip}`, universe, today());
+    const freio = spendDailyGuess(playerKey(req), universe, today(), mode);
     if (!freio.ok) {
       res.set('Retry-After', String(freio.retryAfter));
       return res.status(429).json({ error: freio.error, retryAfter: freio.retryAfter, date: today() });
@@ -162,20 +210,28 @@ export function createApp() {
     const guess = datasetOf(universe).byId.get(Number(id));
     if (!guess) return res.status(404).json({ error: 'Chute inválido.' });
 
-    const secret = secretOf(universe);
+    const secret = secretOf(universe, today(), mode);
     if (!secret) return res.status(503).json({ error: 'Sem desafio para hoje neste universo.' });
 
     // fora do recorte do dia nem vira dica: a busca do cliente ja esconde esses
     // nomes, entao aqui so chega aba velha — a data vai junto para ela se achar
-    if (!inSlice(universe, guess)) {
+    if (!inSlice(universe, guess, today(), mode)) {
       return res.status(409).json({ error: 'Esse nome está fora do desafio de hoje.', date: today() });
     }
 
     // o recorte tambem manda nas colunas: numa quinta-feira de Shippuden o
     // Naruto ja e sabio, e a dica tem de responder por essa epoca
     const schema = getUniverse(universe);
-    const row = compareGuess(guess, secret, schema, scopeReach(schema, sliceOf(universe).scope));
     const day = today();
+    /**
+     * No modo imagem a tabela de dicas nao existe — o que se le e a figura —,
+     * entao as celulas nem sao calculadas. Nao e economia: mandar a comparacao
+     * que a tela nao mostra seria deixar a tabela inteira no devtools de quem
+     * escolheu jogar sem ela.
+     */
+    const row = mode === 'imagem'
+      ? { id: guess.id, name: guess.name, sprite: guess.sprite, correct: guess.id === secret.id }
+      : compareGuess(guess, secret, schema, scopeReach(schema, sliceOf(universe, day, mode).scope));
 
     /**
      * Quem esta logado tem o chute anotado na conta — e aqui, nao no cliente:
@@ -189,8 +245,17 @@ export function createApp() {
         .catch(err => console.error('[api] não anotei o chute na conta:', err.message));
     }
 
+    const answer = { date: day, row, correct: row.correct, secret: row.correct ? secret : null };
+
+    // chute gasto, degrau ganho: o proximo quadro (e o bilhete que prova ele)
+    // sai junto da dica, pela mesma porta
+    if (mode === 'imagem') {
+      const level = nextPictureLevel(pictureLevel(playerKey(req), universe, req.query.t, day));
+      answer.picture = await frameOf(universe, secret, level, playerKey(req), day);
+    }
+
     // o segredo so viaja depois que a pessoa acertou
-    res.json({ date: day, row, correct: row.correct, secret: row.correct ? secret : null });
+    res.json(answer);
   });
 
   // sem isto uma rota /api errada cairia no index.html do SPA

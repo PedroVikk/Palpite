@@ -1205,6 +1205,9 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
 .tscroll::-webkit-scrollbar { height: 10px; }
 .tscroll::-webkit-scrollbar-thumb { background: #FFFFFF1F; border: 3px solid transparent; background-clip: content-box; border-radius: 99px; }
 .hints { display: flex; flex-direction: column; gap: 6px; min-width: var(--hint-min, 840px); }
+/* jogando pela imagem so sobra a coluna do chute: as mesmas celulas, mas lado a
+   lado, senao cada linha seria um trilho vazio a direita do nome */
+.hints.bare { display: grid; grid-template-columns: repeat(auto-fill, minmax(228px, 1fr)); gap: 8px; }
 .hints-row { display: grid; grid-template-columns: var(--hint-cols); gap: 6px; }
 .hints-row.correct .cell.guess { border-color: #1FA46B7A; background: linear-gradient(90deg, #0E2A20, var(--surface-2)); }
 .hints-row.newest .cell { animation: flip .32s ease both; }
@@ -1401,6 +1404,98 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
   font-weight: 600;
 }
 .reveal .fact.dim { border-color: var(--line); background: #FFFFFF08; color: var(--muted); }
+
+/* ------------------------------------------------------- segredo em imagem */
+
+/*
+ * A figura chega do servidor já reduzida (ver src/picture.js), então o trabalho
+ * aqui é só ampliar sem suavizar: `pixelated` manda o navegador repetir o pixel
+ * em vez de inventar o meio do caminho. Suavizar seria fingir uma definição que
+ * o arquivo não tem — e justamente a definição é o que se está jogando para
+ * ganhar.
+ */
+.secret-image {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 18px 22px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line-2);
+  background: radial-gradient(420px 220px at 12% 0%, #FF4E5B16, transparent 70%), var(--surface);
+  box-shadow: var(--shadow);
+}
+.secret-image .frame {
+  position: relative;
+  width: 188px;
+  height: 188px;
+  flex: none;
+  border-radius: var(--r-md);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: radial-gradient(120px 120px at 50% 45%, #FF4E5B1F, transparent 70%), #070C1B;
+  border: 1px solid var(--line);
+}
+.secret-image .frame .art { position: absolute; width: 150px; opacity: .07; }
+.secret-image .pix {
+  position: relative;
+  /* a caixa é fixa, não um teto: a figura do degrau 0 tem seis pixels de
+     largura de verdade, e com `max-width` ela apareceria do tamanho de uma
+     unha. É `object-fit` que a amplia guardando a proporção */
+  width: 168px;
+  height: 168px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 6px 16px #00000073);
+  /* o degrau novo entra por cima do antigo em vez de trocar seco */
+  animation: pix-in .45s ease-out;
+}
+.secret-image .frame .qm {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: 56px;
+  font-weight: 800;
+  color: #FFFFFF26;
+}
+@keyframes pix-in { from { opacity: .35; transform: scale(.96); } to { opacity: 1; transform: none; } }
+/* o clarão do ganho: dura o suficiente para o olho ir até a imagem */
+.secret-image .frame.sharper { animation: sharper .62s ease-out; }
+@keyframes sharper {
+  0% { border-color: var(--coral); box-shadow: 0 0 0 3px var(--coral-glow); }
+  100% { border-color: var(--line); box-shadow: none; }
+}
+
+.secret-image .meta { min-width: 0; }
+.secret-image .k {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.secret-image .meta p { font-size: 15px; color: var(--text-dim); margin: 8px 0 16px; max-width: 46ch; }
+.secret-image .meta small { display: block; font-size: 12.5px; color: var(--muted); margin-top: 9px; }
+.secret-image .meta small b { color: var(--text-dim); }
+
+/* a escada em pastilhas: o que já foi ganho acende */
+.secret-image .ladder { display: flex; gap: 5px; }
+.secret-image .ladder i {
+  width: 26px;
+  height: 6px;
+  border-radius: var(--pill);
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  transition: background .25s, border-color .25s;
+}
+.secret-image .ladder i.on { background: var(--coral); border-color: var(--coral-hi); }
+
+@media (max-width: 720px) {
+  .secret-image { flex-direction: column; align-items: stretch; padding: 16px; }
+  .secret-image .frame { width: 100%; height: 210px; }
+}
 
 /* --------------------------------------------------------- fim de partida */
 

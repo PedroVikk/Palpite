@@ -5,7 +5,10 @@ ENV NODE_ENV=production
 
 COPY package*.json ./
 COPY client/package*.json ./client/
-# o cliente precisa das devDependencies (Vite) para ser construido
+# o servidor roda so com as dependencias de producao — o sharp esta entre elas
+# porque o modo imagem reduz a miniatura do segredo em tempo de request
+# (src/picture.js), e nao so nos scripts de build. O cliente, esse precisa das
+# devDependencies (Vite) para ser construido.
 RUN npm ci --omit=dev && npm --prefix client ci --include=dev
 
 COPY . .

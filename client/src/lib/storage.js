@@ -57,23 +57,40 @@ export const forgetSession = () => safe(() => localStorage.removeItem(LAST_KEY))
  * O progresso do diario mora so no navegador — o servidor nao guarda nada.
  * A chave leva a data, entao virar o dia comeca do zero sozinho, e as chaves
  * de dias passados sao varridas para o storage nao crescer sem fim.
+ *
+ * Cada modo do dia (a tabela de dicas, a imagem) tem segredo proprio, entao tem
+ * chave propria. So o modo imagem carrega o sufixo: o classico segue na chave
+ * que sempre teve, para quem estava jogando quando o modo novo subiu nao perder
+ * a pilha do dia por causa de uma renomeacao.
  */
 const DAILY_PREFIX = 'palpite:daily:';
-const dailyKey = (date, universe) => `${DAILY_PREFIX}${date}:${universe}`;
+const dailyKey = (date, universe, mode) =>
+  `${DAILY_PREFIX}${date}:${universe}${mode && mode !== 'dicas' ? `:${mode}` : ''}`;
 
-export function loadDaily(date, universe) {
-  const raw = safe(() => localStorage.getItem(dailyKey(date, universe)));
-  if (!raw) return { rows: [], secret: null };
+const EMPTY = { rows: [], secret: null, ticket: null };
+
+export function loadDaily(date, universe, mode = 'dicas') {
+  const raw = safe(() => localStorage.getItem(dailyKey(date, universe, mode)));
+  if (!raw) return { ...EMPTY };
   try {
     const saved = JSON.parse(raw);
-    return { rows: Array.isArray(saved.rows) ? saved.rows : [], secret: saved.secret ?? null };
+    return {
+      rows: Array.isArray(saved.rows) ? saved.rows : [],
+      secret: saved.secret ?? null,
+      // o bilhete do degrau da imagem (ver src/daily.js): guardado com o
+      // progresso porque e ele que devolve a nitidez ja ganha depois de um F5
+      ticket: saved.ticket ?? null,
+    };
   } catch {
-    return { rows: [], secret: null };
+    return { ...EMPTY };
   }
 }
 
-export const saveDaily = (date, universe, progress) =>
-  safe(() => localStorage.setItem(dailyKey(date, universe), JSON.stringify(progress)));
+export const saveDaily = (date, universe, progress, mode = 'dicas') =>
+  safe(() => localStorage.setItem(dailyKey(date, universe, mode), JSON.stringify(progress)));
+
+/** O universo de uma chave do diario, seja ela do classico ou de um modo novo. */
+const universeOfKey = (key) => key.slice(DAILY_PREFIX.length).split(':')[1] ?? null;
 
 /** Apaga o que sobrou de outros dias. */
 export function pruneDaily(date) {
@@ -94,7 +111,15 @@ export function pruneDaily(date) {
  */
 export function dailySnapshot() {
   return safe(() => {
-    let solved = 0, started = 0, guesses = 0;
+    /**
+     * A conta e por universo, nao por chave: os dois modos de um universo sao
+     * dois desafios, mas a home fala em "resolvidos de 22" e resolver a imagem
+     * do Pokemon ja e ter dado conta do Pokemon hoje. Contar as chaves soltas
+     * mostraria 30 de 22. O banco anota do mesmo jeito, numa linha por (pessoa,
+     * dia, universo), entao logado e deslogado contam a mesma coisa.
+     */
+    const byUniverse = new Map();
+    let guesses = 0;
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (!key?.startsWith(DAILY_PREFIX)) continue;
@@ -102,12 +127,16 @@ export function dailySnapshot() {
         const saved = JSON.parse(localStorage.getItem(key));
         const rows = Array.isArray(saved?.rows) ? saved.rows : [];
         if (!rows.length && !saved?.secret) continue;
-        started += 1;
         guesses += rows.length;
-        if (saved?.secret) solved += 1;
+        const universe = universeOfKey(key);
+        byUniverse.set(universe, (byUniverse.get(universe) ?? false) || Boolean(saved?.secret));
       } catch { /* chave estranha nao derruba a contagem */ }
     }
-    return { solved, started, guesses };
+    return {
+      solved: [...byUniverse.values()].filter(Boolean).length,
+      started: byUniverse.size,
+      guesses,
+    };
   }, { solved: 0, started: 0, guesses: 0 });
 }
 
@@ -116,11 +145,12 @@ export function dailySnapshot() {
  * que e de outro dia, basta procurar a chave que termina no universo pedido —
  * a data que sobrou e a de hoje, sem precisar perguntar ao servidor.
  */
-export function lastDaily(universe) {
+export function lastDaily(universe, mode = 'dicas') {
   return safe(() => {
+    const wanted = dailyKey('', universe, mode).slice(DAILY_PREFIX.length);  // ":<universo>[:<modo>]"
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (!key?.startsWith(DAILY_PREFIX) || !key.endsWith(`:${universe}`)) continue;
+      if (!key?.startsWith(DAILY_PREFIX) || !key.endsWith(wanted)) continue;
       const saved = JSON.parse(localStorage.getItem(key));
       return {
         rows: Array.isArray(saved?.rows) ? saved.rows : [],

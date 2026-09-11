@@ -788,6 +788,147 @@ try {
   check('a tabela de dicas sobreviveu a queda', retomou.state.rows.length === 1);
   check('a vez volta para quem voltou', retomou.state.turnPlayerId === salaSo.playerId);
 
+  // ------------------------------------------------------ desafio de imagem
+  /**
+   * O modo imagem (src/picture.js) entrega a figura do segredo ja reduzida, um
+   * degrau por chute gasto. O que se confere aqui e o que o modo promete: que a
+   * escada so sobe pagando, que ela nao da para pular, e que a tabela de dicas
+   * nao viaja junto — jogar sem ela e o modo.
+   */
+  console.log('\n== Desafio de imagem ==');
+
+  const abertura = await (await fetch(`${URL}/api/daily/pokemon?modo=imagem`)).json();
+  check('o desafio de imagem abre no pe da escada', abertura.picture?.level === 0);
+  check('e a figura vem embutida, sem rota de imagem',
+    String(abertura.picture?.src ?? '').startsWith('data:image/webp;base64,'));
+  check('com o bilhete que prova o degrau', /^0\./.test(abertura.picture?.ticket ?? ''));
+
+  /**
+   * O degrau 0 tem de ser pequeno de verdade. Nao e capricho de bytes: se a
+   * figura viajasse inteira e o borrao fosse do navegador, um F12 entregaria o
+   * segredo do dia — que e a razao de a reducao morar no servidor.
+   */
+  const bytes = (src) => Math.floor((String(src).split(',')[1] ?? '').length * 3 / 4);
+  check('e o quadro do degrau 0 e pequeno demais para entregar alguem', bytes(abertura.picture.src) < 400);
+
+  // a escada sobe um degrau por chute, e nao mais que isso
+  let bilhete = abertura.picture.ticket;
+  let anterior = bytes(abertura.picture.src);
+  let subiuSempre = true;
+  let cresceuSempre = true;
+  const semCelulas = [];
+  for (let i = 0; i < 4; i++) {
+    const r = await (await fetch(
+      `${URL}/api/daily/pokemon/guess/${160 + i}?modo=imagem&t=${encodeURIComponent(bilhete)}`)).json();
+    if (r.picture?.level !== i + 1) subiuSempre = false;
+    const agora = bytes(r.picture?.src);
+    if (!(agora > anterior)) cresceuSempre = false;
+    anterior = agora;
+    bilhete = r.picture.ticket;
+    semCelulas.push(r.row && !('cells' in r.row));
+  }
+  check('cada chute sobe exatamente um degrau', subiuSempre);
+  check('e cada degrau traz mais pixels que o anterior', cresceuSempre);
+  check('a linha do chute vem sem a tabela de dicas', semCelulas.every(Boolean));
+
+  // pular a escada e o unico jeito de o modo virar entrega da resposta
+  const forjado = await (await fetch(
+    `${URL}/api/daily/pokemon/guess/170?modo=imagem&t=${encodeURIComponent('8.aaaaaaaaaaaaaaaaaaaaaa')}`)).json();
+  check('bilhete forjado nao pula degrau', forjado.picture?.level === 1);
+  const deOutro = await (await fetch(
+    `${URL}/api/daily/naruto/guess/1?modo=imagem&t=${encodeURIComponent(bilhete)}`)).json();
+  check('nem bilhete legitimo de outro universo', deOutro.picture?.level === 1);
+
+  // os dois desafios do dia sao sorteios separados: o teto de chutes de um nao
+  // pode ser o do outro, e o progresso de um nao adianta no outro
+  const daTabela = await (await fetch(`${URL}/api/daily/pokemon`)).json();
+  check('a tabela e a imagem sao desafios distintos do mesmo universo',
+    daTabela.mode === 'dicas' && abertura.mode === 'imagem' && !daTabela.picture);
+
+  /**
+   * Quem nao tem miniatura espelhada nao entra no modo imagem — nem de segredo,
+   * nem de chute. Oferecer o nome seria vender um palpite que nunca poderia ser
+   * a resposta, e o recorte anunciado ("nomes possiveis hoje") passaria a mentir.
+   */
+  /**
+   * Quem tem figura se descobre pelo espelho em disco, e nao pelo `sprite` do
+   * dataset: o JSON guarda o endereco de origem, e a troca pelo arquivo local
+   * acontece na leitura do catalogo (ver src/catalog.js). Olhar o dataset aqui
+   * diria que ninguem tem miniatura local.
+   */
+  const espelho = async (id) => {
+    try {
+      return new Set(await fs.readdir(path.join('data', 'sprites', id)));
+    } catch {
+      return new Set();
+    }
+  };
+
+  let semFigura = null;
+  for (const [id, dia] of recortes) {
+    const arquivos = await espelho(id);
+    const fora = elencos.get(id)
+      .filter(item => !dia.group || item.group === dia.group)
+      .filter(scopeFilter(UNIVERSES[id], dia.scope))
+      .find(item => !arquivos.has(`${item.id}.webp`));
+    if (fora) { semFigura = [id, fora]; break; }
+  }
+
+  if (semFigura) {
+    const [universoId, item] = semFigura;
+    const fora = await fetch(`${URL}/api/daily/${universoId}/guess/${item.id}?modo=imagem`);
+    const dentro = await fetch(`${URL}/api/daily/${universoId}/guess/${item.id}`);
+    check(`quem nao tem figura fica fora do modo imagem (${item.name})`, fora.status === 409);
+    check('mas segue valendo na tabela de dicas', dentro.status === 200);
+  } else {
+    check('achei alguem sem figura para testar o recorte da imagem', false);
+  }
+
+  // universo sem miniatura nenhuma nao tem o modo, e diz isso em vez de quebrar
+  const carros = await fetch(`${URL}/api/daily/cars?modo=imagem`);
+  const semImagem = await (await fetch(`${URL}/api/daily/cars`)).json();
+  check('universo sem figura nenhuma nao abre o modo imagem', carros.status === 503);
+  check('e a tela sabe disso antes de trocar de aba', semImagem.hasPicture === false);
+
+  // ------------------------------------------------------- sala pela imagem
+  /**
+   * Na sala a escada nao usa bilhete: o servidor empurra o estado, e o degrau e
+   * o numero de chutes ja dados na mesa. Nao ha o que forjar porque nao ha o que
+   * pedir.
+   */
+  const pintor = await connect('Pintor');
+  const salaImg = await new Promise(res => pintor.socket.emit('room:create', {
+    name: 'Pintor',
+    settings: {
+      mode: 'hunt', universe: 'pokemon', groups: ['1'],
+      rounds: 1, turnSeconds: 120, guessesPerPlayer: 2, picture: true,
+    },
+  }, res));
+  check('a sala guarda a regra da imagem', salaImg.state.settings.picture === true);
+
+  pintor.socket.emit('game:start');
+  await until(pintor, s => s.phase === 'playing' && s.picture, 'rodada pela imagem');
+  check('a rodada comeca com a figura no pe da escada', pintor.state.picture.level === 0);
+
+  /**
+   * O quadro pode chegar um instante depois do estado: `publicState` e sincrono
+   * e nao segura o turno de todo mundo esperando o sharp. Quando a escada fica
+   * pronta, um broadcast extra a entrega — e e esse que se espera aqui.
+   */
+  await until(pintor, s => s.picture?.src, 'a escada da rodada ficar pronta');
+  check('e o quadro chega junto do estado da sala',
+    String(pintor.state.picture.src ?? '').startsWith('data:image/webp;base64,'));
+
+  pintor.socket.emit('game:guess', { pokemonId: 1 });
+  await until(pintor, s => s.rows.length === 1, 'primeiro chute pela imagem');
+  check('o chute da mesa clareia a figura', pintor.state.picture?.level === 1);
+  check('e a linha da mesa vem sem a tabela de dicas', !('cells' in pintor.state.rows[0]));
+
+  pintor.socket.emit('game:guess', { pokemonId: 4 });
+  await until(pintor, s => s.phase === 'roundEnd' || s.phase === 'gameOver', 'fim da rodada pela imagem');
+  check('o segredo sorteado tinha figura para mostrar',
+    String(pintor.state.secret?.sprite ?? '').startsWith('/sprites/'));
+
   // ------------------------------------------------- freio do desafio do dia
   /**
    * O chute do dia responde "acertou ou nao" para qualquer id: com o dataset na
@@ -857,7 +998,7 @@ try {
     guarda.kill();
   }
 
-  for (const p of [ash, misty, brock, ...squad, gary, may, ...fila, ...arena, inf1, inf2, ini1, ini2, solo, duelista, back, ...trio, voltou, arrependido, depoisDoF5]) p.socket.close();
+  for (const p of [ash, misty, brock, ...squad, gary, may, ...fila, ...arena, inf1, inf2, ini1, ini2, solo, duelista, back, ...trio, voltou, arrependido, depoisDoF5, pintor]) p.socket.close();
 } catch (err) {
   console.error('\nERRO NO TESTE:', err.message);
   failures++;

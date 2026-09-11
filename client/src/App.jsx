@@ -20,6 +20,7 @@ const NEW_ROOM = {
   rounds: 5,
   turnSeconds: 45,
   guessesPerPlayer: 0, // 0 = "ate acertar", o padrao da caca ao segredo
+  picture: false,      // rodada pela imagem, ligada pelo host no lobby
 };
 
 export default function App() {
@@ -190,8 +191,13 @@ export default function App() {
 
   // o endereco e quem carrega o universo escolhido: a tela do dia le dele ao
   // abrir, e assim o link continua compartilhavel
-  const openDaily = (universe) => {
-    if (universe) history.replaceState(null, '', `?diario=${universe}`);
+  const openDaily = (universe, mode) => {
+    // o modo tambem mora no endereco: e o que deixa "manda o de imagem de hoje"
+    // virar um link, e o que a tela do dia le para abrir na aba certa
+    if (universe) {
+      const modo = mode === 'imagem' ? '&modo=imagem' : '';
+      history.replaceState(null, '', `?diario=${universe}${modo}`);
+    }
     setDaily(true);
   };
   const closeDaily = () => {
