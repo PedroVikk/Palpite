@@ -17,7 +17,7 @@ export function MySecretCard({ secret, sunkBy }) {
         <div>
           <h2>Seu segredo está virado</h2>
           <small className="muted">
-            {sunkBy ? 'Ele já afundou — mas você continua atirando.' : 'Só você deve ver o que escondeu.'}
+            {sunkBy ? 'Você afundou: agora é só assistir.' : 'Só você deve ver o que escondeu.'}
           </small>
         </div>
         <button type="button" className="btn ghost small reveal-toggle" onClick={() => setShown(true)}>

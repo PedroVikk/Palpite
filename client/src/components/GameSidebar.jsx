@@ -121,6 +121,9 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
                 {state.phase === 'voting' && state.voted.includes(player.id) && <span className="state">Votou</span>}
                 {state.sunk?.[player.id] && !isTurn && <span className="state">Afundou</span>}
                 {state.phase === 'choosing' && state.chosen?.includes(player.id) && <span className="state">Escondeu</span>}
+                {/* modo cartas: quantas cartas na mão (nunca quais) e quem está congelado */}
+                {player.cards > 0 && <span className="cards-n" title="Cartas na mão">🃏 {player.cards}</span>}
+                {player.frozen && <span className="state">Congelado</span>}
               </li>
             );
           })}

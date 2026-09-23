@@ -16,6 +16,7 @@ export const MODES = {
   IMPOSTOR: 'impostor', // todos SABEM o segredo, menos um; a mesa chuta sem entregar e vota em quem nao sabia
   BATTLE: 'battle', // cada um ESCONDE o proprio segredo e ataca o dos outros; ganha quem ficar de pe
   QUIZ: 'quiz', // "Qual deles?": pergunta de multipla escolha, todos respondem juntos, rapidez pontua
+  CARDS: 'cards', // caca ao segredo com draft de cartas de efeito a cada N rodadas
 };
 
 /** "Qual deles?": quantas opcoes cada pergunta pode ter. */
@@ -38,6 +39,7 @@ export const DEFAULT_SETTINGS = {
   picture: false,      // rodada jogada pela imagem, sem tabela de dicas
   card: false,         // impostor: a linha mostra a ficha do chutado (sem cor)
   choices: 3,          // "Qual deles?": opcoes por pergunta
+  draftEvery: 2,       // cartas: a cada quantas rodadas sai um draft
 };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -61,6 +63,7 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
   const impostor = mode === MODES.IMPOSTOR;
   const battle = mode === MODES.BATTLE;
   const quiz = mode === MODES.QUIZ;
+  const cards = mode === MODES.CARDS;
 
   // "ate acertar" (guessesPerPlayer 0): a rodada so fecha quando alguem acerta,
   // sem teto de chutes. So vale no modo caca ao segredo — no duelo quem esconde
@@ -74,7 +77,8 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
   //
   // Na batalha naval e o contrario: ela so acaba quando sobra um segredo de pe,
   // entao nao ha teto — com ele a batalha podia travar com tres navios boiando.
-  const untilRight = battle || (mode === MODES.HUNT && (!Number.isFinite(rawGuesses) || rawGuesses <= 0));
+  // (o modo cartas e a caca ao segredo com draft: vale a mesma regra dela)
+  const untilRight = battle || ((mode === MODES.HUNT || cards) && (!Number.isFinite(rawGuesses) || rawGuesses <= 0));
   const fallbackGuesses = impostor ? 2 : 6;
 
   return {
@@ -98,9 +102,12 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
     //
     // Na batalha naval cada tabuleiro teria a propria figura, e a tela viraria
     // um mosaico de quadros borrados: por ora ela joga so pela tabela.
-    picture: !impostor && !battle && !quiz && Boolean(raw.picture ?? base.picture),
+    // No modo cartas a figura tambem fica de fora: Raio-X e Peneira falam das
+    // colunas e dos nomes, e a figura clareando por chute embaralharia as duas.
+    picture: !impostor && !battle && !quiz && !cards && Boolean(raw.picture ?? base.picture),
     card: Boolean(raw.card ?? base.card),
     choices: clamp(Math.round(Number(raw.choices ?? base.choices)) || QUIZ_CHOICES.fallback, QUIZ_CHOICES.min, QUIZ_CHOICES.max),
+    draftEvery: clamp(Math.round(Number(raw.draftEvery ?? base.draftEvery)) || 2, 1, 5),
   };
 }
 

@@ -1867,3 +1867,48 @@ button.suspect:disabled { cursor: default; }
 .quiz.who .quiz-opt img { width: 64px; height: 64px; }
 @media (prefers-reduced-motion: reduce) { .quiz-silhouette img.lit { animation: none; } }
 .quiz-q h2.whole { font-size: 26px; }
+
+/* ------------------------------------------------------------ modo cartas */
+
+.card-offer { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.card-face {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 12px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-2);
+  background: linear-gradient(180deg, var(--surface-3), var(--surface-2));
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: transform .15s, border-color .15s, box-shadow .15s;
+}
+.card-face:hover:not(:disabled) { transform: translateY(-3px); box-shadow: 0 10px 24px -12px #000; }
+.card-face:disabled { cursor: default; opacity: .55; }
+.card-face .rar { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.card-face .ico { font-size: 34px; line-height: 1; }
+.card-face b { font-family: var(--font-display); font-size: 16px; }
+.card-face small { font-size: 12.5px; color: var(--text-dim); line-height: 1.4; }
+.card-face.rare { border-color: #6FA8FF66; }
+.card-face.rare .rar { color: #8FBBFF; }
+.card-face.epic { border-color: #B98CFF80; background: linear-gradient(180deg, #2A1B4A, var(--surface-2)); }
+.card-face.epic .rar { color: var(--purple-hi); }
+.card-face.compact { flex-direction: row; gap: 8px; padding: 8px 12px; }
+.card-face.compact .ico { font-size: 20px; }
+.card-face.compact .rar { display: none; }
+.card-face.compact b { font-size: 13.5px; }
+
+.hand { border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); padding: 12px 14px; box-shadow: var(--shadow); }
+.hand-cards { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.hand-cards .k { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.hand-intel { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+.hand-intel .fact { font-size: 12.5px; padding: 4px 10px; border-radius: var(--pill); border: 1px solid #7C5CFF38; background: #7C5CFF14; }
+.hand-intel .fact.dim { border-color: var(--line); background: #FFFFFF08; color: var(--text-dim); }
+.hand .f-help { margin: 8px 0 0; }
+.queue .cards-n { font-size: 11px; font-weight: 700; color: var(--muted); }
+/* no draft a escolha e obrigatoria: o X nao teria o que fazer */
+.modal.draft .close { display: none; }

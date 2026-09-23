@@ -8,7 +8,7 @@ import UniverseIcon from './UniverseIcon.jsx';
 import Stepper from './Stepper.jsx';
 import ModePick from './ModePick.jsx';
 import {
-  BulbIcon, CalendarIcon, CardIcon, CheckIcon, ClockIcon, ImageIcon,
+  BulbIcon, CalendarIcon, CardIcon, CardsIcon, CheckIcon, ClockIcon, ImageIcon,
   InfoIcon, SearchIcon, SparkIcon, TargetIcon,
 } from './Icon.jsx';
 
@@ -31,6 +31,7 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
   const [picture, setPicture] = useState(false);
   const [card, setCard] = useState(false);
   const [choices, setChoices] = useState(3);
+  const [draftEvery, setDraftEvery] = useState(2);
 
   const universe = getUniverse(universeId);
   const meta = universeMeta(universeId);
@@ -38,6 +39,7 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
   const impostor = mode === 'impostor';
   const battle = mode === 'battle';
   const quiz = mode === 'quiz';
+  const cardsMode = mode === 'cards';
 
   // o interruptor da imagem so existe onde ha figura espelhada: os carros nao
   // tem nenhuma, e universo assim mostra a chave apagada em vez de escondida —
@@ -108,9 +110,10 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
     rounds,
     turnSeconds,
     guessesPerPlayer: untilRight && !impostor ? 0 : guessesPerPlayer,
-    picture: picture && comImagem && !impostor && !battle && !quiz,
+    picture: picture && comImagem && !impostor && !battle && !quiz && !cardsMode,
     card,
     choices,
+    draftEvery,
   });
 
   return (
@@ -127,6 +130,8 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
               ? 'Na batalha naval, os tabuleiros são públicos: dá para aproveitar os tiros dos outros e roubar o afundamento.'
               : quiz
               ? 'No "Qual deles?", as perguntas saem das colunas do tema: qual tem tal tipo, qual é o mais pesado, qual estreou primeiro.'
+              : cardsMode
+              ? 'No modo cartas, cada um escolhe 1 de 3 cartas a cada poucas rodadas. Quem está em último tira cartas melhores.'
               : picture
               ? 'Pela imagem, a rodada não tem tabela: a figura do segredo abre irreconhecível e ganha nitidez a cada chute errado da mesa.'
               : duel
@@ -231,8 +236,8 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
             {!quiz && <>
             <button
               type="button"
-              className={`switch-row ${picture && comImagem && !impostor && !battle ? 'on' : ''}`}
-              disabled={!comImagem || impostor || battle}
+              className={`switch-row ${picture && comImagem && !impostor && !battle && !cardsMode ? 'on' : ''}`}
+              disabled={!comImagem || impostor || battle || cardsMode}
               style={{ marginBottom: 10 }}
               onClick={() => setPicture(v => !v)}
             >
@@ -244,6 +249,8 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
                     ? 'No impostor, cada chute clarearia a figura para quem não sabe o segredo.'
                     : battle
                     ? 'Na batalha naval cada tabuleiro teria a própria figura: por ora ela é só pela tabela.'
+                    : cardsMode
+                    ? 'No modo cartas o Raio-X e a Peneira falam da tabela: aqui a figura fica de fora.'
                     : comImagem
                       ? 'Sem tabela de dicas: a figura do segredo clareia a cada chute errado.'
                       : `${universe.label} não tem figuras para jogar assim.`}
@@ -309,6 +316,16 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
                     ? 'Um chute de cada por volta'
                     : untilRight ? '“Até acertar” ignora o teto' : 'Máximo por rodada'}
                   onChange={(v) => { setGuessesPerPlayer(v); setUntilRight(false); }}
+                />
+              )}
+              {cardsMode && (
+                <Stepper
+                  label="Draft a cada"
+                  icon={<CardsIcon width={14} height={14} />}
+                  value={draftEvery} min={1} max={5}
+                  suffix={draftEvery === 1 ? ' rodada' : ' rodadas'}
+                  hint="Cada um escolhe 1 de 3 cartas"
+                  onChange={setDraftEvery}
                 />
               )}
             </div>

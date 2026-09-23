@@ -16,9 +16,10 @@ import GameOver from '../components/GameOver.jsx';
 import { ImpostorModal, RoleCard } from '../components/ImpostorPanels.jsx';
 import { BattleTabs, MySecretCard } from '../components/BattlePanels.jsx';
 import QuizPanel from '../components/QuizPanel.jsx';
-import { AnchorIcon, ClockIcon, ImageIcon, MaskIcon, QuestionIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
+import { DraftModal, HandBar } from '../components/CardPanels.jsx';
+import { AnchorIcon, CardsIcon, ClockIcon, ImageIcon, MaskIcon, QuestionIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
 
-const RULES = { hunt: 'Caça ao segredo', duel: 'Duelo', impostor: 'Impostor', battle: 'Batalha naval', quiz: 'Qual deles?' };
+const RULES = { hunt: 'Caça ao segredo', duel: 'Duelo', impostor: 'Impostor', battle: 'Batalha naval', quiz: 'Qual deles?', cards: 'Cartas' };
 
 export default function GameScreen({ state, myId, toast, onLeave }) {
   const universe = getUniverse(state.settings.universe);
@@ -60,6 +61,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   const isMyTurn = (state.phase === 'playing' && state.turnPlayerId === myId) || isMyLastGuess;
   const battle = state.settings.mode === 'battle';
   const quiz = state.settings.mode === 'quiz';
+  const cardsMode = state.settings.mode === 'cards';
   // na batalha naval todo mundo da batalha esconde, ao mesmo tempo
   const isMyChoice = state.phase === 'choosing'
     && (battle ? state.cast.includes(myId) : state.chooserId === myId);
@@ -85,15 +87,19 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
    * um turno por vez isso custa a vez de alguem.
    */
   const secretId = state.secret?.id ?? null;
+  // modo cartas: o que a Peneira tirou da busca de quem usou
+  const sieveKey = (state.mySieve ?? []).join(',');
   const inScope = useMemo(() => {
     const noRecorte = scopeFilter(universe, state.settings.scope);
     // no impostor quem sabe o segredo nao pode chuta-lo (o servidor recusa):
     // ele some da busca em vez de custar uma recusa na hora da vez
     const hideSecret = impostorRound && secretId !== null;
+    const sieved = new Set(sieveKey ? sieveKey.split(',').map(Number) : []);
     return (item) => noRecorte(item)
       && (!byPicture || hasPicture(item))
-      && !(hideSecret && item.id === secretId);
-  }, [universe, state.settings.scope, byPicture, impostorRound, secretId]);
+      && !(hideSecret && item.id === secretId)
+      && !sieved.has(item.id);
+  }, [universe, state.settings.scope, byPicture, impostorRound, secretId, sieveKey]);
 
   const me = state.players.find(p => p.id === myId);
   const budget = state.settings.guessesPerPlayer;
@@ -117,6 +123,13 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
       ? battleBanner({ state, myId, universe, isMyTurn, target, canShoot, nameOf })
       : quiz
       ? quizBanner({ state, myId })
+      : cardsMode && state.phase === 'drafting'
+      ? {
+        title: 'Draft de cartas',
+        text: `Cada um escolhe 1 de 3 cartas. ${state.drafting.length ? `Faltam ${state.drafting.length}.` : ''}`,
+        tone: 'warn',
+        icon: <CardsIcon width={22} height={22} />,
+      }
       : buildBanner({ state, myId, universe, isMyTurn, isMyChoice, nameOf });
   const urgent = left !== null && left <= 10 && state.phase !== 'roundEnd';
   const roundOver = state.phase === 'roundEnd';
@@ -264,6 +277,11 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
                 />
               )}
 
+              {/* modo cartas: a mão, que só acende na sua vez */}
+              {cardsMode && state.phase === 'playing' && (
+                <HandBar state={state} universe={universe} myTurn={isMyTurn} />
+              )}
+
               {state.phase !== 'voting' && !quiz && <GuessBar
                 items={items}
                 guessedIds={battle && isMyChoice ? [] : shownRows.map(row => row.id)}
@@ -326,6 +344,8 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
           onLeave={() => (leaving ? onLeave() : backToMenu())}
         />
       </div>
+
+      {cardsMode && state.phase === 'drafting' && <DraftModal state={state} />}
 
       {showModal && (
         <ImpostorModal
@@ -407,6 +427,16 @@ function battleBanner({ state, myId, universe, isMyTurn, target, canShoot, nameO
   }
 
   if (state.phase === 'playing') {
+    // afundou: sai da batalha e so assiste ate sobrar um
+    const sunk = state.sunk[myId];
+    if (sunk) {
+      return {
+        title: 'Você afundou',
+        text: state.message ?? `${nameOf(sunk.by)} achou o seu segredo. Agora é só assistir quem vai sobrar.`,
+        tone: '',
+        icon: anchor,
+      };
+    }
     if (isMyTurn) {
       return {
         title: canShoot ? `Sua vez — atire em ${nameOf(target)}` : 'Sua vez — escolha um alvo',

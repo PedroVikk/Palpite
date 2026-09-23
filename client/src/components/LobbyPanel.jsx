@@ -9,7 +9,7 @@ import UniverseIcon from './UniverseIcon.jsx';
 import Stepper from './Stepper.jsx';
 import ModePick from './ModePick.jsx';
 import {
-  CalendarIcon, CardIcon, CheckIcon, ClockIcon, CopyIcon, ExitIcon, ImageIcon,
+  CalendarIcon, CardIcon, CardsIcon, CheckIcon, ClockIcon, CopyIcon, ExitIcon, ImageIcon,
   ShareIcon, TargetIcon, UsersIcon,
 } from './Icon.jsx';
 
@@ -35,6 +35,7 @@ const fromSettings = (s) => ({
   picture: Boolean(s.picture),
   card: Boolean(s.card),
   choices: s.choices || 3,
+  draftEvery: s.draftEvery || 2,
 });
 
 const toSettings = (f) => ({
@@ -48,6 +49,7 @@ const toSettings = (f) => ({
   picture: f.picture,
   card: f.card,
   choices: f.choices,
+  draftEvery: f.draftEvery,
 });
 
 /**
@@ -148,6 +150,7 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
   const impostor = form.mode === 'impostor';
   const battle = form.mode === 'battle';
   const quiz = form.mode === 'quiz';
+  const cardsMode = form.mode === 'cards';
   const minPlayers = impostor ? IMPOSTOR_MIN : duel || battle ? 2 : 1;
   const enoughPlayers = state.players.length >= minPlayers;
   const seatsLeft = Math.max(0, MAX_SEATS - state.players.length);
@@ -316,8 +319,8 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
             {!quiz && <>
             <button
               type="button"
-              className={`switch-row ${form.picture && comImagem && !impostor && !battle ? 'on' : ''}`}
-              disabled={!isHost || !comImagem || impostor || battle}
+              className={`switch-row ${form.picture && comImagem && !impostor && !battle && !cardsMode ? 'on' : ''}`}
+              disabled={!isHost || !comImagem || impostor || battle || cardsMode}
               style={{ marginBottom: 10 }}
               onClick={() => change({ picture: !form.picture })}
             >
@@ -329,6 +332,8 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
                     ? 'No impostor, cada chute clarearia a figura para quem não sabe o segredo.'
                     : battle
                     ? 'Na batalha naval cada tabuleiro teria a própria figura: por ora ela é só pela tabela.'
+                    : cardsMode
+                    ? 'No modo cartas o Raio-X e a Peneira falam da tabela: aqui a figura fica de fora.'
                     : comImagem
                       ? 'Sem tabela de dicas: a figura do segredo clareia a cada chute errado da mesa.'
                       : `${universe.label} não tem figuras para jogar assim.`}
@@ -399,6 +404,17 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
                 /* mexer aqui desliga o "ate acertar" */
                 onChange={(v) => change({ guessesPerPlayer: v, untilRight: false })}
               />}
+              {cardsMode && (
+                <Stepper
+                  label="Draft a cada"
+                  icon={<CardsIcon width={14} height={14} />}
+                  value={form.draftEvery} min={1} max={5}
+                  suffix={form.draftEvery === 1 ? ' rodada' : ' rodadas'}
+                  hint="Cada um escolhe 1 de 3 cartas"
+                  disabled={!isHost}
+                  onChange={(v) => change({ draftEvery: v })}
+                />
+              )}
             </div>
           </div>
         </div>
