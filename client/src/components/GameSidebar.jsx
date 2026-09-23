@@ -119,6 +119,8 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
                 {isTurn && <span className="state">Agora</span>}
                 {isChooser && !isTurn && <span className="state">Escondeu</span>}
                 {state.phase === 'voting' && state.voted.includes(player.id) && <span className="state">Votou</span>}
+                {state.sunk?.[player.id] && !isTurn && <span className="state">Afundou</span>}
+                {state.phase === 'choosing' && state.chosen?.includes(player.id) && <span className="state">Escondeu</span>}
               </li>
             );
           })}
@@ -128,7 +130,9 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
             Vez de <b>{nextUp.name}</b>.{' '}
             {state.settings.mode === 'impostor'
               ? 'Quando as voltas acabarem, a mesa vota.'
-              : 'Quem acerta primeiro fecha a rodada.'}
+              : state.settings.mode === 'battle'
+                ? 'A batalha acaba quando sobrar um segredo de pé.'
+                : 'Quem acerta primeiro fecha a rodada.'}
           </p>
         )}
       </section>

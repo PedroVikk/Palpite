@@ -1,5 +1,6 @@
 import Avatar from './Avatar.jsx';
 import Reveal from './Reveal.jsx';
+import { BattleSecrets } from './BattlePanels.jsx';
 import {
   CalendarIcon, ExitIcon, RestartIcon, TargetIcon, TrophyIcon, UsersIcon,
 } from './Icon.jsx';
@@ -32,6 +33,8 @@ export default function GameOver({ state, universe, myId, isHost, onRestart, onL
       {state.secret && (
         <Reveal universe={universe} secret={state.secret} caption="O segredo da última rodada era" />
       )}
+
+      {state.settings.mode === 'battle' && <BattleSecrets state={state} myId={myId} />}
 
       <section className="result">
         {someoneScored && <div className="trophy"><TrophyIcon /></div>}

@@ -138,7 +138,8 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
 
   const duel = form.mode === 'duel';
   const impostor = form.mode === 'impostor';
-  const minPlayers = impostor ? IMPOSTOR_MIN : duel ? 2 : 1;
+  const battle = form.mode === 'battle';
+  const minPlayers = impostor ? IMPOSTOR_MIN : duel || battle ? 2 : 1;
   const enoughPlayers = state.players.length >= minPlayers;
   const seatsLeft = Math.max(0, MAX_SEATS - state.players.length);
 
@@ -308,8 +309,8 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
 
             <button
               type="button"
-              className={`switch-row ${form.picture && comImagem && !impostor ? 'on' : ''}`}
-              disabled={!isHost || !comImagem || impostor}
+              className={`switch-row ${form.picture && comImagem && !impostor && !battle ? 'on' : ''}`}
+              disabled={!isHost || !comImagem || impostor || battle}
               style={{ marginBottom: 10 }}
               onClick={() => change({ picture: !form.picture })}
             >
@@ -319,6 +320,8 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
                 <small>
                   {impostor
                     ? 'No impostor, cada chute clarearia a figura para quem não sabe o segredo.'
+                    : battle
+                    ? 'Na batalha naval cada tabuleiro teria a própria figura: por ora ela é só pela tabela.'
                     : comImagem
                       ? 'Sem tabela de dicas: a figura do segredo clareia a cada chute errado da mesa.'
                       : `${universe.label} não tem figuras para jogar assim.`}
@@ -329,8 +332,8 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
 
             <button
               type="button"
-              className={`switch-row ${form.untilRight ? 'on' : ''}`}
-              disabled={!isHost || duel || impostor}
+              className={`switch-row ${form.untilRight || battle ? 'on' : ''}`}
+              disabled={!isHost || duel || impostor || battle}
               onClick={() => change({ untilRight: !form.untilRight })}
             >
               <span className="ico"><TargetIcon width={18} height={18} /></span>
@@ -339,6 +342,8 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
                 <small>
                   {impostor
                     ? 'No impostor ninguém da mesa pode acertar: as voltas acabam na votação.'
+                    : battle
+                    ? 'A batalha só acaba quando sobra um segredo de pé, sem teto de chutes.'
                     : duel
                       ? 'O duelo precisa de teto de chutes para quem esconde pontuar.'
                       : 'A rodada só fecha quando alguém acerta, sem teto de chutes.'}
@@ -352,7 +357,8 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
                 label="Rodadas"
                 icon={<CalendarIcon width={14} height={14} />}
                 value={form.rounds} min={1} max={20}
-                hint="Total da partida"
+                off={battle} offValue="1"
+                hint={battle ? 'Uma batalha por partida' : 'Total da partida'}
                 disabled={!isHost}
                 onChange={(v) => change({ rounds: v })}
               />
@@ -368,7 +374,7 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
                 label={impostor ? 'Voltas' : 'Chutes por jogador'}
                 icon={<TargetIcon width={14} height={14} />}
                 value={form.guessesPerPlayer} min={1} max={impostor ? 5 : 20}
-                off={form.untilRight}
+                off={form.untilRight || battle}
                 hint={impostor
                   ? 'Um chute de cada por volta'
                   : form.untilRight ? '“Até acertar” ignora o teto' : 'Máximo por rodada'}
@@ -402,7 +408,7 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
           <p className="f-help center-text" style={{ marginTop: 10 }}>
             {enoughPlayers
               ? 'Todo mundo cai direto na primeira rodada.'
-              : `O modo ${impostor ? 'impostor' : 'duelo'} precisa de pelo menos ${minPlayers} jogadores.`}
+              : `O modo ${impostor ? 'impostor' : battle ? 'batalha naval' : 'duelo'} precisa de pelo menos ${minPlayers} jogadores.`}
           </p>
         )}
       </div>

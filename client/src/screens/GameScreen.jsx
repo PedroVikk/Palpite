@@ -13,10 +13,11 @@ import HintsTable from '../components/HintsTable.jsx';
 import SecretImage from '../components/SecretImage.jsx';
 import Reveal from '../components/Reveal.jsx';
 import GameOver from '../components/GameOver.jsx';
-import { ImpostorCard, VotePanel, VoteResult } from '../components/ImpostorPanels.jsx';
-import { ClockIcon, ImageIcon, MaskIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
+import { ImpostorModal, RoleCard } from '../components/ImpostorPanels.jsx';
+import { BattleTabs, MySecretCard } from '../components/BattlePanels.jsx';
+import { AnchorIcon, ClockIcon, ImageIcon, MaskIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
 
-const RULES = { hunt: 'Caça ao segredo', duel: 'Duelo', impostor: 'Impostor' };
+const RULES = { hunt: 'Caça ao segredo', duel: 'Duelo', impostor: 'Impostor', battle: 'Batalha naval' };
 
 export default function GameScreen({ state, myId, toast, onLeave }) {
   const universe = getUniverse(state.settings.universe);
@@ -27,6 +28,14 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   // sair e a unica saida que nao guarda a cadeira; com a partida rolando o
   // botao pede confirmacao, senao um toque errado custa o placar
   const [leaving, setLeaving] = useState(false);
+  // impostor: a carta nasce virada a cada rodada; guarda so em qual rodada o
+  // jogador a desvirou, e a proxima ja chega escondida de novo
+  const [shownRound, setShownRound] = useState(null);
+  // a janela da votacao/gabarito fechada nesta fase; na fase seguinte ela abre
+  // de novo sozinha (fechar a urna nao pode esconder o gabarito)
+  const [closedModal, setClosedModal] = useState(null);
+  // batalha naval: o tabuleiro que o jogador abriu (ver `target` abaixo)
+  const [pickedTarget, setPickedTarget] = useState(null);
   const actionsRef = useRef(null);
 
   /**
@@ -48,10 +57,24 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   // o chute final de quem foi pego passa pelo mesmo campo do chute de sempre
   const isMyLastGuess = state.phase === 'lastGuess' && state.turnPlayerId === myId;
   const isMyTurn = (state.phase === 'playing' && state.turnPlayerId === myId) || isMyLastGuess;
-  const isMyChoice = state.phase === 'choosing' && state.chooserId === myId;
+  const battle = state.settings.mode === 'battle';
+  // na batalha naval todo mundo da batalha esconde, ao mesmo tempo
+  const isMyChoice = state.phase === 'choosing'
+    && (battle ? state.cast.includes(myId) : state.chooserId === myId);
   const nameOf = (id) => state.players.find(p => p.id === id)?.name ?? 'alguém';
   // impostor: a rodada ainda esta aberta (voltas, urna ou chute final)
   const impostorRound = impostorMode && ['playing', 'voting', 'lastGuess'].includes(state.phase);
+
+  /**
+   * Batalha naval: o tabuleiro aberto na tela e o alvo do proximo tiro. Da para
+   * abrir o proprio ou o de quem ja afundou para olhar, mas o tiro so vai em
+   * quem esta de pe — sem escolha valida, cai no primeiro adversario de pe.
+   */
+  const shootable = (id) => battle && state.cast.includes(id) && id !== myId && !state.sunk[id];
+  const firstTarget = state.cast.find(shootable) ?? null;
+  const target = battle && state.cast.includes(pickedTarget) ? pickedTarget : firstTarget;
+  const canShoot = shootable(target);
+  const shownRows = battle ? state.rows.filter(row => row.targetId === target) : state.rows;
 
   /**
    * O que a busca do chute oferece. Jogando pela imagem, quem nao tem figura
@@ -79,15 +102,31 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   function submit(chosen) {
     if (!chosen) return toast('Escolha um nome da lista.');
     if (isMyChoice) socket.emit('game:choose', { pokemonId: chosen.id });
-    else if (isMyTurn) socket.emit('game:guess', { pokemonId: chosen.id });
+    else if (isMyTurn && battle) {
+      if (!canShoot) return toast('Escolha um alvo que ainda esteja de pé.');
+      socket.emit('game:guess', { pokemonId: chosen.id, targetId: target });
+    } else if (isMyTurn) socket.emit('game:guess', { pokemonId: chosen.id });
     else toast('Não é a sua vez.');
   }
 
   const banner = impostorMode
-    ? impostorBanner({ state, myId, universe, isMyTurn, isImpostor, nameOf })
-    : buildBanner({ state, myId, universe, isMyTurn, isMyChoice, nameOf });
+    ? impostorBanner({ state, myId, universe, isMyTurn, nameOf })
+    : battle
+      ? battleBanner({ state, myId, universe, isMyTurn, target, canShoot, nameOf })
+      : buildBanner({ state, myId, universe, isMyTurn, isMyChoice, nameOf });
   const urgent = left !== null && left <= 10 && state.phase !== 'roundEnd';
   const roundOver = state.phase === 'roundEnd';
+
+  /**
+   * A janela do impostor: urna, espera do chute final e gabarito. Quem foi
+   * pego fica sem ela no chute final — precisa do campo de chute livre.
+   */
+  const modalKey = `${state.round}:${state.phase}`;
+  const modalPhase = impostorMode && (state.phase === 'voting'
+    || roundOver
+    || (state.phase === 'lastGuess' && !isMyLastGuess));
+  const showModal = modalPhase && closedModal !== modalKey;
+  const reopenLabel = state.phase === 'voting' ? 'Abrir a votação' : 'Ver o gabarito';
 
   if (state.phase === 'gameOver') {
     return (
@@ -147,8 +186,10 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
                   scope={scopeReach(universe, state.settings.scope)}
                 />
               )}
-              {impostorMode && <VoteResult state={state} myId={myId} />}
               <div className="game-actions">
+                {modalPhase && !showModal && (
+                  <button className="btn violet" onClick={() => setClosedModal(null)}>{reopenLabel}</button>
+                )}
                 {isHost ? (
                   <>
                     <button className="btn primary lg" onClick={() => socket.emit('game:next')}>
@@ -166,19 +207,42 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
           ) : (
             <>
               {/* impostor: a mesa ve o segredo que precisa proteger, o impostor
-                  ve so a mascara. E o que cada um tem nas maos para jogar */}
-              {impostorRound && (isImpostor
-                ? <ImpostorCard universe={universe} />
-                : state.secret && (
-                  <Reveal
-                    universe={universe}
-                    secret={state.secret}
-                    scope={scopeReach(universe, state.settings.scope)}
-                    caption="O segredo — o impostor não sabe qual é"
-                  />
-                ))}
+                  ve so a mascara. Os dois comecam com a carta virada */}
+              {impostorRound && (
+                <RoleCard
+                  state={state}
+                  universe={universe}
+                  isImpostor={isImpostor}
+                  hidden={shownRound !== state.round}
+                  onToggle={() => setShownRound(r => (r === state.round ? null : state.round))}
+                />
+              )}
 
-              {state.phase === 'voting' && <VotePanel state={state} myId={myId} />}
+              {modalPhase && !showModal && (
+                <div className="game-actions">
+                  <button className="btn violet lg" onClick={() => setClosedModal(null)}>{reopenLabel}</button>
+                </div>
+              )}
+
+              {/* batalha naval: o seu segredo (virado) e os tabuleiros, que sao
+                  tambem a escolha do alvo */}
+              {battle && (
+                <MySecretCard
+                  secret={state.secrets[myId]}
+                  sunkBy={state.sunk[myId] ? nameOf(state.sunk[myId].by) : null}
+                />
+              )}
+              {battle && state.phase === 'playing' && (
+                <BattleTabs state={state} myId={myId} targetId={target} onPick={setPickedTarget} />
+              )}
+              {battle && state.phase === 'playing' && state.sunk[target] && state.secrets[target] && (
+                <Reveal
+                  universe={universe}
+                  secret={state.secrets[target]}
+                  scope={scopeReach(universe, state.settings.scope)}
+                  caption={`${nameOf(target)} afundou — o segredo era`}
+                />
+              )}
 
               {/* jogando pela imagem, a figura fica onde a tabela ficaria: em
                   cima do campo de chute, que e para onde o olho vai antes de
@@ -195,10 +259,10 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
 
               {state.phase !== 'voting' && <GuessBar
                 items={items}
-                guessedIds={state.rows.map(row => row.id)}
+                guessedIds={battle && isMyChoice ? [] : shownRows.map(row => row.id)}
                 groups={state.settings.groups}
                 inScope={inScope}
-                active={isMyTurn || isMyChoice}
+                active={(isMyTurn && (!battle || canShoot)) || isMyChoice}
                 choosing={isMyChoice}
                 focusKey={state.phase}
                 onSubmit={submit}
@@ -228,7 +292,10 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
             </>
           )}
 
-          <HintsTable universe={universe} rows={state.rows} hints={!byPicture} counts={impostorRound} />
+          {/* na escolha da batalha ainda nao ha tabuleiro para mostrar */}
+          {!(battle && state.phase === 'choosing') && (
+            <HintsTable universe={universe} rows={shownRows} hints={!byPicture} counts={impostorRound} />
+          )}
 
           <div className="game-actions" ref={actionsRef}>
             {/* rodada "ate acertar" nao fecha sozinha: o host pode encerrar */}
@@ -252,6 +319,16 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
           onLeave={() => (leaving ? onLeave() : backToMenu())}
         />
       </div>
+
+      {showModal && (
+        <ImpostorModal
+          state={state}
+          myId={myId}
+          universe={universe}
+          isHost={isHost}
+          onClose={() => setClosedModal(modalKey)}
+        />
+      )}
     </>
   );
 }
@@ -281,30 +358,70 @@ function TopBar({ state, universe, meta, onBack }) {
 }
 
 /** A bola da vez no impostor: o aviso muda com o papel de quem olha. */
-function impostorBanner({ state, myId, universe, isMyTurn, isImpostor, nameOf }) {
-  const mask = <MaskIcon width={22} height={22} />;
+function battleBanner({ state, myId, universe, isMyTurn, target, canShoot, nameOf }) {
+  const anchor = <AnchorIcon width={22} height={22} />;
+
+  if (state.phase === 'choosing') {
+    const mine = state.chosen.includes(myId);
+    const done = `${state.chosen.length} de ${state.cast.length} já esconderam.`;
+    if (!state.cast.includes(myId)) {
+      return { title: 'Batalha começando', text: `Você entrou depois: assiste a esta. ${done}`, tone: '', icon: anchor };
+    }
+    return mine
+      ? {
+        title: 'Segredo escondido',
+        text: `${done} Dá para trocar enquanto os outros escolhem.`,
+        tone: '',
+        icon: <ClockIcon width={22} height={22} />,
+      }
+      : {
+        title: 'Esconda o seu segredo',
+        text: `Escolha ${universe.secretLabel} que os outros vão ter de afundar. ${done}`,
+        tone: 'warn',
+        icon: anchor,
+      };
+  }
 
   if (state.phase === 'playing') {
     if (isMyTurn) {
-      return isImpostor
-        ? {
-          title: 'Sua vez — finja que sabe',
-          text: state.message ?? `Chute ${universe.secretLabel} que pareça perto. A contagem de acertos também te ajuda a descobrir.`,
-          tone: 'warn',
-          icon: mask,
-        }
-        : {
-          title: 'Sua vez — prove que sabe',
-          text: state.message ?? 'Chute algo parecido com o segredo, mas sem entregar ao impostor.',
-          tone: 'you',
-          icon: <TargetIcon width={22} height={22} />,
-        };
+      return {
+        title: canShoot ? `Sua vez — atire em ${nameOf(target)}` : 'Sua vez — escolha um alvo',
+        text: state.message ?? 'Toque num tabuleiro para trocar de alvo. As dicas dos outros tiros valem para você também.',
+        tone: 'you',
+        icon: <TargetIcon width={22} height={22} />,
+      };
     }
     return {
       title: `Vez de ${nameOf(state.turnPlayerId)}`,
-      text: state.message ?? (isImpostor
-        ? 'Observe as contagens: cada chute da mesa é uma pista do segredo.'
-        : 'Esse chute faz sentido para quem sabe o segredo?'),
+      text: state.message ?? 'Abra os tabuleiros e veja quem está perto de afundar.',
+      tone: '',
+      icon: <ClockIcon width={22} height={22} />,
+    };
+  }
+
+  return { title: '', text: state.message ?? '', tone: '', icon: anchor };
+}
+
+function impostorBanner({ state, myId, universe, isMyTurn, nameOf }) {
+  const mask = <MaskIcon width={22} height={22} />;
+
+  /**
+   * Durante as voltas o aviso e o mesmo para a mesa e para o impostor: mesma
+   * frase, mesma cor, mesmo icone. O papel mora so na carta, que nasce virada
+   * — um aviso diferente entregaria quem e o impostor a quem olhasse a tela.
+   */
+  if (state.phase === 'playing') {
+    if (isMyTurn) {
+      return {
+        title: 'Sua vez',
+        text: state.message ?? `Chute ${universe.secretLabel} que convença a mesa de que você sabe.`,
+        tone: 'you',
+        icon: <TargetIcon width={22} height={22} />,
+      };
+    }
+    return {
+      title: `Vez de ${nameOf(state.turnPlayerId)}`,
+      text: state.message ?? 'Esse chute convence? Fique de olho na contagem de acertos.',
       tone: '',
       icon: <ClockIcon width={22} height={22} />,
     };

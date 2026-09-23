@@ -10,6 +10,7 @@ import {
   MODES, getUniverse, sanitizeSettings, isUntilRight, scopeFilter, scopeReach, scopeLabel,
   compareGuess, scoreForWin, SCORE_CHOOSER_SURVIVED, pickSecret,
   IMPOSTOR_MIN_PLAYERS, SCORE_IMPOSTOR_WINS, SCORE_CREW_WINS, SCORE_RIGHT_VOTE, hitsOf, tallyVotes,
+  BATTLE_MIN_PLAYERS, SCORE_BATTLE_SURVIVOR,
 } from './game.js';
 import { datasetOf as datasetFor } from './catalog.js';
 import { TOP as PICTURE_TOP, frameOf, hasPicture, prepare as preparePicture } from './picture.js';
@@ -63,6 +64,8 @@ function createRoom(settings) {
     cast: [],           // impostor: quem estava na mesa quando a rodada abriu (e so estes votam)
     votes: {},          // impostor: eleitor -> suspeito
     outcome: null,      // impostor: como a rodada fechou, para a tela contar
+    secrets: {},        // batalha naval: jogador -> o segredo que ele escondeu
+    sunk: {},           // batalha naval: jogador afundado -> { by } (quem acertou)
     rows: [],
     turnPlayerId: null,
     pausedAfter: null,  // de quem era a vez quando a rodada parou (ver pauseRound)
@@ -124,6 +127,22 @@ const pictureOf = (room) => {
 const activePlayers = (room) => room.order.map(id => room.players.get(id)).filter(p => p && p.connected);
 
 const isImpostorMode = (room) => room.settings.mode === MODES.IMPOSTOR;
+const isBattle = (room) => room.settings.mode === MODES.BATTLE;
+
+/** Batalha naval: quem esta na batalha e ainda tem o segredo de pe. */
+const afloat = (room) => room.cast.filter(id => !room.sunk[id]);
+
+/**
+ * Os segredos da batalha que cada um pode ver: o proprio, e os que ja foram
+ * afundados (esses viram de todo mundo). No fim da partida, todos.
+ */
+function battleSecretsFor(room, viewerId, over) {
+  const out = {};
+  for (const [id, item] of Object.entries(room.secrets)) {
+    if (over || id === viewerId || room.sunk[id]) out[id] = { id: item.id, name: item.name, sprite: item.sprite, artwork: item.artwork };
+  }
+  return out;
+}
 
 /**
  * A linha do jeito que a mesa pode ver. Fora do impostor, e a linha inteira.
@@ -180,7 +199,12 @@ function publicState(room, viewerId = null) {
     // (ou na hora do chute final, quando a mesa ja apontou para ele)
     role: inRound ? (isImpostor ? 'impostor' : 'crew') : null,
     impostorId: impostorMode && (over || room.phase === 'lastGuess') ? room.impostorId : null,
-    cast: impostorMode ? room.cast : [],
+    cast: impostorMode || isBattle(room) ? room.cast : [],
+    // batalha naval: quem ja escondeu (na escolha), quem afundou, e os segredos
+    // que quem olha tem direito de ver
+    chosen: isBattle(room) && room.phase === 'choosing' ? Object.keys(room.secrets) : [],
+    sunk: isBattle(room) ? room.sunk : {},
+    secrets: isBattle(room) ? battleSecretsFor(room, viewerId, over) : {},
     // com a urna aberta so aparece quem ja votou; em quem, so quando ela fecha
     voted: room.phase === 'voting' ? Object.keys(room.votes) : [],
     myVote: room.phase === 'voting' && viewerId ? room.votes[viewerId] ?? null : null,
@@ -229,6 +253,8 @@ function armTimer(room, seconds, onExpire) {
  */
 function canGuess(room, id) {
   const p = room.players.get(id);
+  // na batalha so atira quem esta nela — afundado ou nao, segue atirando
+  if (isBattle(room) && !room.cast.includes(id)) return false;
   return Boolean(p && p.connected && id !== room.chooserId && hasGuessLeft(guessesOf(room, id)));
 }
 
@@ -313,8 +339,29 @@ function startRound(room) {
   room.cast = [];
   room.votes = {};
   room.outcome = null;
+  room.secrets = {};
+  room.sunk = {};
   room.guessesLeft = {};
   for (const p of room.players.values()) room.guessesLeft[p.id] = guessBudget(room);
+
+  if (isBattle(room)) {
+    // todo mundo esconde ao mesmo tempo; quem nao escolher a tempo ganha um
+    // segredo sorteado, como no duelo
+    room.chooserId = null;
+    room.cast = activePlayers(room).map(p => p.id);
+    room.phase = 'choosing';
+    room.turnPlayerId = null;
+    room.message = 'Cada um esconde o seu segredo. Quando todos esconderem, a batalha começa.';
+    broadcast(room);
+    armTimer(room, 40, () => {
+      if (room.phase !== 'choosing') return;
+      const missing = room.cast.filter(id => !room.secrets[id]);
+      for (const id of missing) room.secrets[id] = pickFreeSecret(room);
+      if (missing.length) room.message = 'Tempo esgotado: quem não escondeu recebeu um segredo sorteado.';
+      startBattle(room);
+    });
+    return;
+  }
 
   if (room.settings.mode === MODES.DUEL) {
     // a cadeira de quem esconde circula pela fila, em vez de ser sorteada
@@ -525,6 +572,127 @@ function endImpostorRound(room, how, finalGuess = null, leaverName = null) {
   });
 }
 
+// ---------------------------------------------------------------- batalha naval
+
+/**
+ * Por que um item nao pode ser segredo nesta sala, ou null se pode. Vale para
+ * quem esconde no duelo e para cada um na batalha naval.
+ */
+function secretProblem(room, mon) {
+  if (!mon) return 'Escolha inválida.';
+  if (!room.settings.groups.includes(mon.group)) return `${mon.name} está fora das opções ligadas nesta sala.`;
+  if (!mon.eligible) return `${mon.name} não tem dados completos o bastante para ser o segredo.`;
+  if (room.settings.picture && !hasPicture(mon)) return `Esta sala joga pela imagem, e ${mon.name} não tem figura.`;
+  if (!scopeFilter(universeOf(room), room.settings.scope)(mon)) {
+    return `Esta sala está em "${scopeLabel(universeOf(room), room.settings.scope)}", e ${mon.name} fica de fora.`;
+  }
+  return null;
+}
+
+/**
+ * Um segredo que ninguem da batalha escondeu ainda. Dois navios no mesmo
+ * segredo fariam um chute afundar dois de uma vez — e um jogador descobriria
+ * o do outro so de olhar para o proprio.
+ */
+function pickFreeSecret(room) {
+  const taken = new Set(Object.values(room.secrets).map(item => item.id));
+  const free = pool(room).filter(item => !taken.has(item.id));
+  return pickSecret(free.length ? free : pool(room));
+}
+
+/** Todo mundo da batalha que esta conectado ja escondeu: comeca. */
+function maybeStartBattle(room) {
+  if (room.phase !== 'choosing' || !isBattle(room)) return;
+  const waiting = room.cast.filter(id => room.players.get(id)?.connected && !room.secrets[id]);
+  if (!waiting.length) {
+    // quem caiu na escolha nao trava a batalha: fica com um segredo sorteado
+    for (const id of room.cast) if (!room.secrets[id]) room.secrets[id] = pickFreeSecret(room);
+    startBattle(room);
+  }
+}
+
+function startBattle(room) {
+  clearTimer(room);
+  if (afloat(room).length < 2) {
+    room.message = 'Sobrou gente de menos para a batalha.';
+    return endBattle(room);
+  }
+  room.message = 'Todos esconderam. Escolha um alvo e atire!';
+  beginGuessing(room);
+}
+
+/** Afunda o segredo de `targetId`: quem acertou pontua, e talvez a batalha acabe. */
+function sink(room, attacker, targetId) {
+  const target = room.players.get(targetId);
+  const board = room.rows.filter(row => row.targetId === targetId).length;
+  const points = scoreForWin(board);
+  attacker.score += points;
+  room.sunk[targetId] = { by: attacker.id };
+  room.message = `${attacker.name} afundou ${target?.name ?? 'alguém'}: era ${room.secrets[targetId].name}! +${points} pontos.`;
+  if (afloat(room).length <= 1) return endBattle(room);
+  advance(room);
+}
+
+/**
+ * Fim da batalha: quem ficou de pe leva o bonus. A partida e de uma batalha
+ * so, entao daqui vai direto para o placar final.
+ */
+function endBattle(room) {
+  clearTimer(room);
+  const [survivorId] = afloat(room);
+  const survivor = survivorId ? room.players.get(survivorId) : null;
+  room.winnerId = survivorId ?? null;
+  if (survivor) {
+    survivor.score += SCORE_BATTLE_SURVIVOR;
+    room.message = `${room.message ?? ''} ${survivor.name} terminou com o segredo de pé: +${SCORE_BATTLE_SURVIVOR} pontos.`.trim();
+  }
+  finishMatch(room);
+}
+
+/**
+ * Um tiro da batalha naval: o chute vai contra o segredo de um alvo so, e a
+ * linha entra no tabuleiro dele (`targetId`). Cada tabuleiro tem a propria
+ * lista de nomes ja chutados — o mesmo nome pode cair em dois alvos.
+ */
+function battleShot(room, player, guess, targetId, socket) {
+  const target = room.players.get(targetId);
+  if (!target || !room.cast.includes(targetId)) return socket.emit('room:error', 'Escolha em quem atirar.');
+  if (targetId === player.id) return socket.emit('room:error', 'Não dá para atirar no próprio segredo.');
+  if (room.sunk[targetId]) return socket.emit('room:error', `${target.name} já afundou. Escolha outro alvo.`);
+  if (room.rows.some(r => r.targetId === targetId && r.id === guess.id)) {
+    return socket.emit('room:error', `${guess.name} já foi chutado no tabuleiro de ${target.name}.`);
+  }
+  if (!scopeFilter(universeOf(room), room.settings.scope)(guess)) {
+    const epocas = scopeLabel(universeOf(room), room.settings.scope);
+    return socket.emit('room:error', `Esta sala está em "${epocas}", e ${guess.name} fica de fora.`);
+  }
+
+  const comparison = compareGuess(guess, room.secrets[targetId], universeOf(room), scopeReach(universeOf(room), room.settings.scope));
+  room.rows.push({
+    ...comparison,
+    hits: hitsOf(comparison),
+    playerId: player.id,
+    playerName: player.name,
+    targetId,
+    targetName: target.name,
+  });
+  room.message = null;
+  if (comparison.correct) return sink(room, player, targetId);
+  advance(room);
+}
+
+/**
+ * Tira da batalha quem saiu de vez. O tabuleiro dele some junto — nao conta
+ * como afundado, porque ninguem acertou —, e a batalha segue sem ele.
+ */
+function leaveBattle(room, id) {
+  room.cast = room.cast.filter(x => x !== id);
+  delete room.secrets[id];
+  delete room.sunk[id];
+  if (room.phase === 'choosing') return maybeStartBattle(room);
+  if (room.phase === 'playing' && afloat(room).length <= 1) return endBattle(room);
+}
+
 /** Chute final do impostor pego: acerto vira a rodada, erro a entrega a mesa. */
 function finalGuess(room, player, pokemonId, socket) {
   if (player.id !== room.impostorId) return socket.emit('room:error', 'Só o impostor chuta agora.');
@@ -671,6 +839,13 @@ function handleDisconnect(socket, permanent) {
     && ['playing', 'voting', 'lastGuess'].includes(room.phase)) {
     return endImpostorRound(room, 'left', null, player.name);
   }
+  // saiu de vez da batalha naval: o tabuleiro dele some, e a batalha pode ter
+  // acabado (sobrou um so) ou comecado (era o ultimo que faltava esconder)
+  if (!keepSeat && isBattle(room) && room.cast.includes(player.id)) {
+    room.message = `${player.name} saiu da batalha.`;
+    leaveBattle(room, player.id);
+    if (room.phase !== 'playing') return broadcast(room);
+  }
   if (room.phase === 'playing' && room.turnPlayerId === player.id) {
     room.message = `${player.name} ${verb} no meio do turno.${seat}`;
     return advance(room);
@@ -686,6 +861,11 @@ function handleDisconnect(socket, permanent) {
     room.secret = pickSecret(pool(room));
     room.message = `${player.name} ${verb}: o segredo foi sorteado.`;
     return beginGuessing(room);
+  }
+  // na escolha da batalha, cair nao segura os outros: se so faltava ele, comeca
+  if (room.phase === 'choosing' && isBattle(room)) {
+    broadcast(room);
+    return maybeStartBattle(room);
   }
   // roundEnd e gameOver ficam de fora: la `message` e o resultado da rodada
   if (room.phase === 'playing') room.message = `${player.name} ${verb}.${seat}`;
@@ -725,6 +905,9 @@ function onConnection(socket) {
     if (room.settings.mode === MODES.IMPOSTOR && activePlayers(room).length < IMPOSTOR_MIN_PLAYERS) {
       return socket.emit('room:error', `O impostor precisa de pelo menos ${IMPOSTOR_MIN_PLAYERS} jogadores.`);
     }
+    if (isBattle(room) && activePlayers(room).length < BATTLE_MIN_PLAYERS) {
+      return socket.emit('room:error', `A batalha naval precisa de pelo menos ${BATTLE_MIN_PLAYERS} jogadores.`);
+    }
     for (const p of room.players.values()) p.score = 0;
     room.round = 0;
     // embaralhada na largada: em ordem de chegada o host esconderia sempre primeiro
@@ -734,29 +917,31 @@ function onConnection(socket) {
 
   socket.on('game:choose', ({ pokemonId }) => {
     const { room, player } = findPlayerRoom(socket);
-    if (!room || !player || room.phase !== 'choosing' || room.chooserId !== player.id) return;
+    if (!room || !player || room.phase !== 'choosing') return;
     const mon = itemById(room, pokemonId);
-    if (!mon) return socket.emit('room:error', 'Escolha inválida.');
-    if (!room.settings.groups.includes(mon.group)) {
-      return socket.emit('room:error', `${mon.name} está fora das opções ligadas nesta sala.`);
+    const problem = secretProblem(room, mon);
+
+    // batalha naval: cada um esconde o proprio, ao mesmo tempo, e da para
+    // trocar enquanto a escolha nao fecha
+    if (isBattle(room)) {
+      if (!room.cast.includes(player.id)) return socket.emit('room:error', 'Você entrou depois: espera a próxima batalha.');
+      if (problem) return socket.emit('room:error', problem);
+      const takenBy = Object.entries(room.secrets).find(([id, item]) => id !== player.id && item.id === mon.id);
+      if (takenBy) return socket.emit('room:error', `${mon.name} já foi escondido por outra pessoa. Escolha outro.`);
+      room.secrets[player.id] = mon;
+      broadcast(room);
+      return maybeStartBattle(room);
     }
-    if (!mon.eligible) {
-      return socket.emit('room:error', `${mon.name} não tem dados completos o bastante para ser o segredo.`);
-    }
-    if (room.settings.picture && !hasPicture(mon)) {
-      return socket.emit('room:error', `Esta sala joga pela imagem, e ${mon.name} não tem figura.`);
-    }
-    if (!scopeFilter(universeOf(room), room.settings.scope)(mon)) {
-      const epocas = scopeLabel(universeOf(room), room.settings.scope);
-      return socket.emit('room:error', `Esta sala está em "${epocas}", e ${mon.name} fica de fora.`);
-    }
+
+    if (room.chooserId !== player.id) return;
+    if (problem) return socket.emit('room:error', problem);
     clearTimer(room);
     room.secret = mon;
     room.message = `${player.name} escolheu o segredo.`;
     beginGuessing(room);
   });
 
-  socket.on('game:guess', ({ pokemonId }) => {
+  socket.on('game:guess', ({ pokemonId, targetId }) => {
     const { room, player } = findPlayerRoom(socket);
     if (!room || !player) return;
     if (room.phase === 'lastGuess') return finalGuess(room, player, pokemonId, socket);
@@ -766,6 +951,7 @@ function onConnection(socket) {
 
     const guess = itemById(room, pokemonId);
     if (!guess) return socket.emit('room:error', 'Chute inválido.');
+    if (isBattle(room)) return battleShot(room, player, guess, targetId, socket);
     if (room.rows.some(r => r.id === guess.id)) return socket.emit('room:error', `${guess.name} já foi chutado.`);
     // a busca do chute ja esconde quem esta fora do recorte, mas quem esconde e
     // o navegador: com uma aba de antes da troca de recorte o nome ainda chega
@@ -851,6 +1037,8 @@ setInterval(() => {
         .filter(p => !p.connected && p.leftAt && now - p.leftAt > RECONNECT_MS);
       for (const p of expired) {
         dropPlayer(room, p.id);
+        // a vaga venceu no meio da batalha: sai dela como quem saiu de vez
+        if (isBattle(room) && room.cast.includes(p.id)) leaveBattle(room, p.id);
         if (room.hostId === p.id) room.hostId = activePlayers(room)[0]?.id ?? null;
       }
       if (expired.length) {

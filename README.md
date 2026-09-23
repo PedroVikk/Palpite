@@ -469,6 +469,7 @@ duas e 210 com três.
 | **Caça ao segredo** | O servidor sorteia o secreto e **ninguém** sabe qual é. Todos adivinham, um por turno, até alguém acertar (ou os chutes acabarem). |
 | **Duelo** | A cada rodada um jogador escolhe o secreto e assiste, **na vez dele numa fila**; os outros se revezam nos chutes. Se ninguém acertar, quem escolheu leva 50 pontos. |
 | **Impostor** | Todo mundo vê o secreto, **menos um** jogador, tirado da mesma fila do duelo. Cada um chuta por um número fixo de voltas, e a mesa vê só **quantas colunas** cada chute acertou em cheio, não quais. Quem sabe não pode chutar o secreto; se o impostor chutar, ganha na hora. Quando as voltas acabam, todos votam. Empate salva o impostor, e quem for pego ainda tem **um chute final** para dizer o secreto. Precisa de 3 jogadores. |
+| **Batalha naval** | **Cada um esconde o próprio secreto**, todos ao mesmo tempo (dois não escondem o mesmo). Na sua vez você escolhe o **alvo** e chuta contra o secreto dele; cada jogador tem um tabuleiro próprio, e os tabuleiros são públicos. Quem tem o secreto descoberto **afunda**, sai como alvo mas continua atirando. A partida é **uma batalha só**, sem teto de chutes, e acaba quando sobra um secreto de pé. Precisa de 2 jogadores. |
 
 **Jogar pela imagem** é um interruptor, não um terceiro modo: ele atravessa os
 dois de cima. Ligado, a rodada não tem tabela de dicas — o que está na tela é a
@@ -556,6 +557,7 @@ esperar a hora de `max-age`.
   Acertar cedo vale mais.
 - No duelo, quem escolheu o segredo ganha 50 se ninguém acertar.
 - No impostor, ele leva 100 se escapar da votação, acertar o chute final ou chutar o segredo nas voltas. Pego e errando, cada um da mesa leva 50, e quem votou nele leva mais 20.
+- Na batalha naval, afundar alguém vale `100 - 5 × (tiros já dados naquele tabuleiro)`, com piso de 25, e quem termina com o segredo de pé leva mais 50.
 
 ## Como ler as dicas
 

@@ -34,6 +34,7 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
   const meta = universeMeta(universeId);
   const duel = mode === 'duel';
   const impostor = mode === 'impostor';
+  const battle = mode === 'battle';
 
   // o interruptor da imagem so existe onde ha figura espelhada: os carros nao
   // tem nenhuma, e universo assim mostra a chave apagada em vez de escondida —
@@ -98,7 +99,7 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
     rounds,
     turnSeconds,
     guessesPerPlayer: untilRight && !impostor ? 0 : guessesPerPlayer,
-    picture: picture && comImagem && !impostor,
+    picture: picture && comImagem && !impostor && !battle,
     card,
   });
 
@@ -112,6 +113,8 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
           <p>
             {impostor
               ? 'No impostor, a mesa vê só quantas colunas cada chute acertou. Funciona melhor com 4 ou mais pessoas e um recorte de 50 a 200 opções.'
+              : battle
+              ? 'Na batalha naval, os tabuleiros são públicos: dá para aproveitar os tiros dos outros e roubar o afundamento.'
               : picture
               ? 'Pela imagem, a rodada não tem tabela: a figura do segredo abre irreconhecível e ganha nitidez a cada chute errado da mesa.'
               : duel
@@ -214,8 +217,8 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
                 no impostor cada chute clarearia a figura para quem nao sabe */}
             <button
               type="button"
-              className={`switch-row ${picture && comImagem && !impostor ? 'on' : ''}`}
-              disabled={!comImagem || impostor}
+              className={`switch-row ${picture && comImagem && !impostor && !battle ? 'on' : ''}`}
+              disabled={!comImagem || impostor || battle}
               style={{ marginBottom: 10 }}
               onClick={() => setPicture(v => !v)}
             >
@@ -225,6 +228,8 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
                 <small>
                   {impostor
                     ? 'No impostor, cada chute clarearia a figura para quem não sabe o segredo.'
+                    : battle
+                    ? 'Na batalha naval cada tabuleiro teria a própria figura: por ora ela é só pela tabela.'
                     : comImagem
                       ? 'Sem tabela de dicas: a figura do segredo clareia a cada chute errado.'
                       : `${universe.label} não tem figuras para jogar assim.`}
@@ -235,8 +240,8 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
 
             <button
               type="button"
-              className={`switch-row ${untilRight && !impostor ? 'on' : ''}`}
-              disabled={duel || impostor}
+              className={`switch-row ${(untilRight && !impostor) || battle ? 'on' : ''}`}
+              disabled={duel || impostor || battle}
               onClick={() => setUntilRight(v => !v)}
             >
               <span className="ico"><TargetIcon width={18} height={18} /></span>
@@ -245,6 +250,8 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
                 <small>
                   {impostor
                     ? 'No impostor ninguém da mesa pode acertar: as voltas acabam na votação.'
+                    : battle
+                    ? 'A batalha só acaba quando sobra um segredo de pé, sem teto de chutes.'
                     : duel
                       ? 'O duelo precisa de teto de chutes para quem esconde pontuar.'
                       : 'A rodada só fecha quando alguém acerta, sem teto de chutes.'}
@@ -258,7 +265,8 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
                 label="Rodadas"
                 icon={<CalendarIcon width={14} height={14} />}
                 value={rounds} min={1} max={20}
-                hint="Total da partida"
+                off={battle} offValue="1"
+                hint={battle ? 'Uma batalha por partida' : 'Total da partida'}
                 onChange={setRounds}
               />
               <Stepper
@@ -272,7 +280,7 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
                 label={impostor ? 'Voltas' : 'Chutes por jogador'}
                 icon={<TargetIcon width={14} height={14} />}
                 value={guessesPerPlayer} min={1} max={impostor ? 5 : 20}
-                off={untilRight && !impostor}
+                off={(untilRight && !impostor) || battle}
                 hint={impostor
                   ? 'Um chute de cada por volta'
                   : untilRight ? '“Até acertar” ignora o teto' : 'Máximo por rodada'}

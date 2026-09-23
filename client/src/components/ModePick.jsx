@@ -1,4 +1,4 @@
-import { MaskIcon, SearchIcon, SwordsIcon } from './Icon.jsx';
+import { AnchorIcon, MaskIcon, SearchIcon, SwordsIcon } from './Icon.jsx';
 
 const MODES = [
   {
@@ -18,6 +18,12 @@ const MODES = [
     label: 'Impostor',
     help: 'Todos sabem o segredo, menos um. Chute sem entregar.',
     Icon: MaskIcon,
+  },
+  {
+    id: 'battle',
+    label: 'Batalha naval',
+    help: 'Cada um esconde o seu e ataca o dos outros. Fica quem sobra.',
+    Icon: AnchorIcon,
   },
 ];
 

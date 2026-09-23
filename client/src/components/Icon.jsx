@@ -147,6 +147,27 @@ export const MaskIcon = (props) => (
   </svg>
 );
 
+/** Âncora da batalha naval. */
+export const AnchorIcon = (props) => (
+  <svg {...base} {...props}>
+    <circle cx="12" cy="5" r="2" />
+    <path d="M12 7v14M8 11h8M4.5 13.5A7.5 7.5 0 0 0 12 21a7.5 7.5 0 0 0 7.5-7.5" />
+  </svg>
+);
+
+export const EyeIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+export const EyeOffIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M10.6 5.6A9.8 9.8 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a17 17 0 0 1-2.6 3.4M6.3 6.9C3.9 8.6 2.5 12 2.5 12S6 18.5 12 18.5c1.8 0 3.3-.6 4.6-1.4M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" />
+  </svg>
+);
+
 /** Ficha: um cartão com linhas, para a opção de mostrar os dados do chutado. */
 export const CardIcon = (props) => (
   <svg {...base} {...props}>

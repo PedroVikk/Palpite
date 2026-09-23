@@ -1,7 +1,22 @@
 import { revealChips } from '../lib/format.js';
+import { EyeOffIcon } from './Icon.jsx';
 
-/** O segredo, mostrado so quando a rodada fecha. */
-export default function Reveal({ universe, secret, scope = null, caption = 'O segredo era' }) {
+/** O botao que vira a carta para baixo (ver RoleCard em ImpostorPanels). */
+export function HideButton({ onClick }) {
+  return (
+    <button type="button" className="btn ghost small reveal-toggle" onClick={onClick}>
+      <EyeOffIcon width={15} height={15} /> Esconder
+    </button>
+  );
+}
+
+/**
+ * O segredo, mostrado quando a rodada fecha — e, no impostor, durante a rodada
+ * para quem sabe. Com `onHide`, o cartao ganha o botao de esconder.
+ */
+export default function Reveal({
+  universe, secret, scope = null, caption = 'O segredo era', onHide = null,
+}) {
   const art = secret.artwork ?? secret.sprite ?? null;   // ha universos sem imagem (LOTR)
 
   /**
@@ -14,6 +29,8 @@ export default function Reveal({ universe, secret, scope = null, caption = 'O se
     if (!secret.sprite || e.currentTarget.src.endsWith(secret.sprite)) return;
     e.currentTarget.src = secret.sprite;
   };
+
+  const toggle = onHide && <HideButton onClick={onHide} />;
 
   return (
     <section className="reveal">
@@ -31,6 +48,7 @@ export default function Reveal({ universe, secret, scope = null, caption = 'O se
           ))}
         </div>
       </div>
+      {toggle}
     </section>
   );
 }

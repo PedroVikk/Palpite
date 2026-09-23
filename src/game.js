@@ -14,7 +14,11 @@ export const MODES = {
   HUNT: 'hunt', // servidor sorteia o segredo, NINGUEM sabe, todos adivinham em turnos
   DUEL: 'duel', // um jogador sorteado ESCONDE o segredo e assiste; o resto adivinha em turnos
   IMPOSTOR: 'impostor', // todos SABEM o segredo, menos um; a mesa chuta sem entregar e vota em quem nao sabia
+  BATTLE: 'battle', // cada um ESCONDE o proprio segredo e ataca o dos outros; ganha quem ficar de pe
 };
+
+/** Batalha naval: com um jogador so nao ha em quem atirar. */
+export const BATTLE_MIN_PLAYERS = 2;
 
 /** Impostor: a mesa precisa de gente para desconfiar de alguem. */
 export const IMPOSTOR_MIN_PLAYERS = 3;
@@ -50,6 +54,7 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
 
   const mode = Object.values(MODES).includes(raw.mode) ? raw.mode : MODES.HUNT;
   const impostor = mode === MODES.IMPOSTOR;
+  const battle = mode === MODES.BATTLE;
 
   // "ate acertar" (guessesPerPlayer 0): a rodada so fecha quando alguem acerta,
   // sem teto de chutes. So vale no modo caca ao segredo — no duelo quem esconde
@@ -60,7 +65,10 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
   // No impostor o saldo de chutes e o numero de voltas da mesa: a rodada nao
   // fecha em acerto (quem sabe nao pode chutar o segredo), entao sem teto ela
   // nunca chegaria na votacao.
-  const untilRight = mode === MODES.HUNT && (!Number.isFinite(rawGuesses) || rawGuesses <= 0);
+  //
+  // Na batalha naval e o contrario: ela so acaba quando sobra um segredo de pe,
+  // entao nao ha teto — com ele a batalha podia travar com tres navios boiando.
+  const untilRight = battle || (mode === MODES.HUNT && (!Number.isFinite(rawGuesses) || rawGuesses <= 0));
   const fallbackGuesses = impostor ? 2 : 6;
 
   return {
@@ -68,7 +76,8 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
     universe: universeId,
     groups: groups.length ? [...new Set(groups)] : [...universe.defaultGroups],
     scope,
-    rounds: clamp(Math.round(Number(raw.rounds ?? base.rounds)) || 5, 1, 20),
+    // a batalha naval e uma partida de uma batalha so
+    rounds: battle ? 1 : clamp(Math.round(Number(raw.rounds ?? base.rounds)) || 5, 1, 20),
     turnSeconds: clamp(Math.round(Number(raw.turnSeconds ?? base.turnSeconds)) || 45, 5, 180),
     guessesPerPlayer: untilRight ? 0 : clamp(rawGuesses > 0 ? rawGuesses : fallbackGuesses, 1, 20),
     /**
@@ -80,7 +89,10 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
     // O impostor e a excecao: a figura clareia a cada chute, e ai todo chute
     // da mesa entregaria pixels a quem nao sabe o segredo, sem ninguem poder
     // evitar. Sem tabela tambem nao ha contagem de acertos para desconfiar.
-    picture: !impostor && Boolean(raw.picture ?? base.picture),
+    //
+    // Na batalha naval cada tabuleiro teria a propria figura, e a tela viraria
+    // um mosaico de quadros borrados: por ora ela joga so pela tabela.
+    picture: !impostor && !battle && Boolean(raw.picture ?? base.picture),
     card: Boolean(raw.card ?? base.card),
   };
 }
@@ -201,6 +213,12 @@ export const SCORE_CHOOSER_SURVIVED = 50;
 export const SCORE_IMPOSTOR_WINS = 100;
 export const SCORE_CREW_WINS = 50;
 export const SCORE_RIGHT_VOTE = 20;
+
+/**
+ * Batalha naval. Afundar vale o acerto de sempre, contado pelos chutes daquele
+ * tabuleiro (ver scoreForWin). Quem termina com o segredo de pe leva o bonus.
+ */
+export const SCORE_BATTLE_SURVIVOR = 50;
 
 /**
  * Quantas colunas o chute acertou em cheio. E tudo o que a mesa ve da linha

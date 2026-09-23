@@ -989,7 +989,7 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
 }
 
 /* modo de jogo: dois cartões, porque a escolha muda o resto das regras */
-.mode-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .mode-pick button {
   display: flex;
   align-items: flex-start;
@@ -1400,30 +1400,50 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
 .role-card h2 { font-size: 20px; font-weight: 800; margin: 0 0 4px; }
 .role-card p { margin: 0; font-size: 13.5px; color: var(--text-dim); line-height: 1.5; }
 
-.vote { border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); padding: 16px; box-shadow: var(--shadow); }
-.vote h3 { margin: 0 0 4px; font-size: 16px; font-weight: 750; }
-.vote > p { margin: 0 0 12px; font-size: 13px; color: var(--muted); }
-.vote-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
-.vote-grid button {
+/* a janela da votacao e do gabarito: uma coluna so, sem a lateral do lobby */
+.modal.impostor { width: min(820px, 100%); grid-template-columns: 1fr; }
+.modal.impostor .modal-main { border-radius: var(--r-lg); }
+.modal.impostor .modal-title { padding-right: 52px; }
+.modal.impostor .stack { display: flex; flex-direction: column; gap: 14px; }
+.modal.impostor .lede { margin: 0; font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+.clock-pill {
+  margin-left: auto;
+  padding: 6px 12px;
+  border-radius: var(--pill);
+  border: 1px solid var(--line-2);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* cada suspeito com os proprios chutes: e o que a mesa olha para votar */
+.suspects { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.suspect {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--r-sm);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--r-md);
   border: 1px solid var(--line);
   background: var(--surface-2);
   color: var(--text);
   font: inherit;
-  font-weight: 600;
   text-align: left;
-  cursor: pointer;
 }
-.vote-grid button:hover:not(:disabled) { border-color: var(--line-2); }
-.vote-grid button.on { border-color: #FF4E5B8C; background: #FF4E5B1A; }
-.vote-grid button:disabled { cursor: default; }
-.vote-grid .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vote-grid .n { font-size: 12px; font-weight: 700; color: var(--muted); }
-.vote-grid .imp { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; padding: 3px 8px; border-radius: var(--pill); background: #FF4E5B24; color: var(--coral-hi); }
+button.suspect { cursor: pointer; transition: border-color .15s, background .15s; }
+button.suspect:hover:not(:disabled) { border-color: var(--line-2); }
+button.suspect:disabled { cursor: default; }
+.suspect.on { border-color: #FF4E5B8C; background: #FF4E5B14; }
+.suspect .who { display: flex; align-items: center; gap: 10px; }
+.suspect .nm { flex: 1; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suspect .n { font-size: 12px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.suspect .tag-vote { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; padding: 3px 8px; border-radius: var(--pill); background: #FF4E5B24; color: var(--coral-hi); white-space: nowrap; }
+.guesses { display: flex; flex-direction: column; gap: 5px; }
+.guesses .g { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-dim); }
+.guesses .g img { width: 26px; height: 26px; object-fit: contain; }
+.guesses .g b { margin-left: auto; font-family: var(--font-display); color: var(--purple-hi); font-variant-numeric: tabular-nums; }
 
 /* ------------------------------------------------------------- revelação */
 
@@ -1437,6 +1457,11 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
   background: radial-gradient(420px 220px at 12% 0%, #7C5CFF1A, transparent 70%), var(--surface);
   box-shadow: var(--shadow);
 }
+/* o botao de esconder fica no canto, fora do fluxo do nome e das fichas */
+.reveal-toggle { margin-left: auto; align-self: flex-start; flex: none; }
+.reveal.hidden { padding: 14px 22px; }
+.reveal.hidden h2 { font-size: 18px; margin: 0 0 2px; color: var(--text-dim); }
+.reveal.hidden .reveal-toggle { align-self: center; }
 .reveal .portrait {
   width: 148px;
   height: 148px;
@@ -1716,6 +1741,10 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
   .turn-banner .clock { margin-left: 0; }
   .reveal { flex-direction: column; text-align: center; }
   .reveal .facts { justify-content: center; }
+  /* escondido nao ha retrato nem fichas: o cartao fica numa linha so */
+  .reveal.hidden { flex-direction: row; text-align: left; }
+  .reveal .reveal-toggle { align-self: center; }
+  .reveal.hidden .reveal-toggle { margin-left: auto; }
   .codecard .v { font-size: 34px; }
   .field-row > .field { min-width: 100%; }
 }
@@ -1723,3 +1752,33 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
 }
+
+/* ------------------------------------------------------------ batalha naval */
+
+/* as abas de tabuleiro: cada uma e um alvo, e a marcada recebe o proximo tiro */
+.fleet { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.ship {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.ship:hover { border-color: var(--line-2); }
+.ship.on { border-color: #7C5CFF8C; background: #7C5CFF17; }
+.ship.mine { border-style: dashed; }
+.ship.sunk { opacity: .6; }
+.ship.sunk.on { opacity: 1; }
+.ship .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ship .txt b { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ship .txt small { font-size: 12px; color: var(--muted); }
+.ship .tag-sunk { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; padding: 3px 8px; border-radius: var(--pill); background: #A3263333; color: #FF8C95; }
+.reveal .portrait.small { width: 64px; height: 64px; }
+.reveal.mine h2 { font-size: 22px; margin: 2px 0 0; }

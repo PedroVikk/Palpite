@@ -635,6 +635,105 @@ try {
   check('impostor nao tem "ate acertar"', salaImpImagem.state.settings.guessesPerPlayer === 2);
   for (const g of [...mesa1, ...mesa2, ...sozinhos]) g.socket.close();
 
+  // ----------------------------------------------------------- batalha naval
+  // Cada um esconde o proprio segredo, todos ao mesmo tempo; o tiro vai num
+  // alvo so, quem afunda segue atirando, e ganha quem ficar de pe.
+  console.log('\n== Batalha naval ==');
+  const frota = await Promise.all(['Nami', 'Zoro', 'Luffy'].map(connect));
+  const salaFrota = await new Promise(res => frota[0].socket.emit('room:create', {
+    name: 'Nami', settings: { mode: 'battle', universe: 'pokemon', groups: ['1'], rounds: 5, turnSeconds: 30 },
+  }, res));
+  frota[0].id = salaFrota.playerId;
+  for (const [i, g] of frota.slice(1).entries()) {
+    const r = await new Promise(res => g.socket.emit('room:join', { code: salaFrota.code, name: ['Zoro', 'Luffy'][i] }, res));
+    g.id = r.playerId;
+  }
+  check('a batalha e uma partida de uma batalha so', salaFrota.state.settings.rounds === 1);
+  check('e sem teto de chutes', salaFrota.state.settings.guessesPerPlayer === 0);
+  frota[0].socket.emit('game:start');
+  await Promise.all(frota.map(g => until(g, s => s.phase === 'choosing', 'escolha da batalha')));
+  check('todo mundo entra na batalha', frota[0].state.cast.length === 3);
+
+  const escondidos = [25, 4, 7];   // Pikachu, Charmander, Squirtle
+  frota[0].socket.emit('game:choose', { pokemonId: 25 });
+  await until(frota[0], s => s.chosen.length === 1, 'primeiro escondeu');
+  frota[1].socket.emit('game:choose', { pokemonId: 25 });
+  await sleep(150);
+  check('dois nao escondem o mesmo segredo', frota[1].errors.some(e => /já foi escondido/.test(e)));
+  check('na escolha ninguem ve o segredo do outro', !frota[1].state.secrets[frota[0].id]);
+  frota[1].socket.emit('game:choose', { pokemonId: 4 });
+  frota[2].socket.emit('game:choose', { pokemonId: 7 });
+  await Promise.all(frota.map(g => until(g, s => s.phase === 'playing', 'batalha comecou')));
+  check('cada um ve so o proprio segredo', frota.every((g, i) =>
+    Object.keys(g.state.secrets).length === 1 && g.state.secrets[g.id]?.id === escondidos[i]));
+
+  const daVezFrota = () => frota.find(g => g.id === frota[0].state.turnPlayerId);
+  let atirador = daVezFrota();
+  atirador.socket.emit('game:guess', { pokemonId: 1, targetId: atirador.id });
+  await sleep(150);
+  check('nao da para atirar no proprio segredo', atirador.errors.some(e => /próprio/.test(e)));
+  atirador.socket.emit('game:guess', { pokemonId: 1 });
+  await sleep(150);
+  check('o tiro precisa de alvo', atirador.errors.some(e => /em quem atirar/.test(e)));
+
+  // tiro errado: a linha entra no tabuleiro do alvo, com as cores
+  const alvo1 = frota.find(g => g !== atirador);
+  atirador.socket.emit('game:guess', { pokemonId: 1, targetId: alvo1.id });
+  await until(frota[0], s => s.rows.length === 1, 'primeiro tiro');
+  check('a linha sabe de quem e o tabuleiro', frota[0].state.rows[0].targetId === alvo1.id && frota[0].state.rows[0].cells);
+
+  // o proximo afunda alguem que nao e ele
+  atirador = daVezFrota();
+  const vitima = frota.find(g => g !== atirador);
+  const segredoVitima = escondidos[frota.indexOf(vitima)];
+  atirador.socket.emit('game:guess', { pokemonId: segredoVitima, targetId: vitima.id });
+  await until(frota[0], s => s.sunk[vitima.id], 'afundou');
+  check('afundar pontua quem acertou', frota[0].state.players.find(p => p.id === atirador.id).score > 0);
+  check('o segredo afundado vira de todo mundo', frota.every(g => g.state.secrets[vitima.id]?.id === segredoVitima));
+  check('a batalha segue com dois de pe', frota[0].state.phase === 'playing');
+
+  // quem afundou continua atirando; e ninguem atira no afundado
+  await until(frota[0], s => s.turnPlayerId, 'proxima vez');
+  const naVezAgora = daVezFrota();
+  if (naVezAgora !== vitima) {
+    naVezAgora.socket.emit('game:guess', { pokemonId: 2, targetId: vitima.id });
+    await sleep(150);
+    check('nao da para atirar em quem ja afundou', naVezAgora.errors.some(e => /já afundou/.test(e)));
+  }
+  // a vez roda ate chegar no afundado (os de pe erram de proposito), e ele atira
+  const erros = [150, 149, 148, 147];
+  for (let guarda = 0; guarda < 4 && daVezFrota() !== vitima; guarda++) {
+    const vez = daVezFrota();
+    const alvo = frota.find(g => g !== vez && !frota[0].state.sunk[g.id]);
+    const antes = frota[0].state.rows.length;
+    vez.socket.emit('game:guess', { pokemonId: erros[guarda], targetId: alvo.id });
+    await until(frota[0], s => s.rows.length > antes, 'tiro de quem esta de pe');
+  }
+  const deP = frota.filter(g => g !== vitima);
+  const antesDoAfundado = frota[0].state.rows.length;
+  vitima.socket.emit('game:guess', { pokemonId: 146, targetId: deP[0].id });
+  await until(frota[0], s => s.rows.length > antesDoAfundado, 'afundado atira');
+  check('o afundado continua atirando', frota[0].state.rows.at(-1).playerId === vitima.id);
+
+  // o ultimo tiro: sobra um de pe e a partida fecha
+  atirador = daVezFrota();
+  const ultimo = frota.find(g => g !== atirador && !frota[0].state.sunk[g.id]);
+  atirador.socket.emit('game:guess', { pokemonId: escondidos[frota.indexOf(ultimo)], targetId: ultimo.id });
+  await until(frota[0], s => s.phase === 'gameOver', 'fim da batalha');
+  const sobrevivente = frota.find(g => !frota[0].state.sunk[g.id]);
+  check('sobra um de pe e a partida acaba', Boolean(sobrevivente) && frota[0].state.winnerId === sobrevivente.id);
+  check('no fim todos os segredos aparecem', Object.keys(frota[0].state.secrets).length === 3);
+  check('quem ficou de pe leva o bonus', /de pé: \+50/.test(frota[0].state.message ?? ''));
+
+  const sozinhoNaFrota = await connect('Usopp');
+  const salaUsopp = await new Promise(res => sozinhoNaFrota.socket.emit('room:create', {
+    name: 'Usopp', settings: { mode: 'battle' },
+  }, res));
+  sozinhoNaFrota.socket.emit('game:start');
+  await sleep(150);
+  check('batalha recusa sala de um so', sozinhoNaFrota.errors.some(e => /pelo menos 2/.test(e)) && salaUsopp.state.phase === 'lobby');
+  for (const g of [...frota, sozinhoNaFrota]) g.socket.close();
+
   // ----------------------------------------------------------- padroes e duelo
   console.log('\n== Padrao e cronometro ==');
   const solo = await connect('Solo');

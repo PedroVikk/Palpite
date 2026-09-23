@@ -60,13 +60,21 @@ export default function HintsTable({ universe, rows, hints = true, counts = fals
    */
   const withSheet = !counts || Boolean(rows[0].cells);
   const hintColumns = hints && withSheet ? universe.columns : [];
+  /**
+   * So contagem, sem os dados: sobram o nome e o numero. O nome estica e a
+   * contagem fica numa coluna estreita a direita — com `repeat(0, ...)` a
+   * grade inteira ficava invalida e cada celula caia numa linha propria.
+   */
+  const countsOnly = counts && !hintColumns.length;
   const lead = counts ? 176 + 6 + 104 : 176;
-  const columns = hints
-    ? `176px ${counts ? '104px ' : ''}repeat(${hintColumns.length}, minmax(88px, 1fr))`
-    : 'minmax(0, 1fr)';
+  const columns = !hints
+    ? 'minmax(0, 1fr)'
+    : countsOnly
+      ? 'minmax(0, 1fr) 132px'
+      : `176px ${counts ? '104px ' : ''}repeat(${hintColumns.length}, minmax(88px, 1fr))`;
   // a largura minima acompanha o numero de colunas: universo enxuto nao precisa
   // rolar de lado, universo largo rola em vez de espremer a celula
-  const minWidth = hints ? `${lead + hintColumns.length * 94}px` : '0';
+  const minWidth = hints && !countsOnly ? `${lead + hintColumns.length * 94}px` : '0';
   const newest = rows[rows.length - 1];
 
   return (
