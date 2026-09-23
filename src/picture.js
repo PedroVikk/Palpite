@@ -9,14 +9,14 @@
  * desafio do dia acaba para todo mundo, não só para quem abriu o inspetor.
  *
  * Então a redução acontece aqui, e é destrutiva: o degrau 0 é uma imagem de
- * cinco pixels de largura de verdade, com cinco colunas de pixel dentro do
+ * doze pixels de largura de verdade, com doze colunas de pixel dentro do
  * arquivo. Não há o que revelar no navegador porque não há o que esconder — a
  * informação que não foi ganha simplesmente não viajou. O jogador amplia o que
  * recebeu, e é só isso que existe.
  *
- * Os degraus saem prontos em WebP e cabem no JSON da resposta (141 bytes no
- * degrau 0, 1,2 KB no topo), então não há rota de imagem para apontar: a
- * figura chega junto com a dica, pela mesma porta e com as mesmas regras.
+ * Os degraus saem prontos em WebP e cabem no JSON da resposta (300 bytes no
+ * degrau 0, 2 KB no topo), então não há rota de imagem para apontar: a figura
+ * chega junto com a dica, pela mesma porta e com as mesmas regras.
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -28,28 +28,32 @@ const SPRITES = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'd
 /**
  * A escada da nitidez: a largura máxima, em pixels, do que o navegador recebe
  * em cada degrau. As miniaturas do jogo têm de 96 a 128 pixels, então o topo
- * (44) ainda é menos da metade da resolução original — reconhecível para quem
- * já gastou oito chutes, e nunca a imagem inteira. A imagem inteira é prêmio
- * de acerto, e quem mostra ela é o `Reveal`.
+ * (56) não chega à resolução original — reconhecível para quem já gastou seis
+ * chutes, e nunca a imagem inteira. A imagem inteira é prêmio de acerto, e quem
+ * mostra ela é o `Reveal`.
  *
- * **A escada é colorida desde o primeiro degrau, e isso é o resultado de um
- * erro.** A primeira versão começava em 6 pixels e segurava a cor pelos quatro
- * degraus iniciais, para "a cor também se pagar". Na prática a escada virou
- * dois estados e nenhum meio-termo: em preto e branco o Pikachu, o Naruto e o
- * Goku são a mesma mancha cinza, impossível de nomear; no degrau em que a cor
- * entrava, todos os três estavam entregues de uma vez. Não havia dedução no
- * meio, só um precipício.
+ * **O começo da escada já errou duas vezes, sempre para o mesmo lado: duro
+ * demais.** A primeira versão abria em 6 pixels e ainda segurava a cor pelos
+ * quatro degraus iniciais; em preto e branco o Pikachu, o Naruto e o Goku são a
+ * mesma mancha cinza, e no degrau em que a cor entrava os três estavam
+ * entregues de uma vez — dois estados, nenhum meio-termo. Tirada a cor da
+ * conta, o começo ficou em 5 pixels, e continuou impossível: cinco pixels de um
+ * elenco de duzentos nomes não formam hipótese nenhuma, só queimam dois ou três
+ * chutes no escuro antes de a figura dizer a primeira coisa.
  *
- * A cor de longe é justamente a dica que faz o jogo andar — um borrão laranja
- * e amarelo reduz o elenco à paleta certa sem dizer quem é. Então ela fica, e
- * quem segura a dificuldade é só a resolução, que começa bem mais baixa (5) do
- * que dava para começar em cinza. Assim cada degrau é um ganho visível: paleta,
- * silhueta, contorno, rosto.
+ * O erro de julgamento foi sempre o mesmo, e vale registrar: **olhar um degrau
+ * sabendo a resposta não mede nada**. Sabendo que é o Pikachu, 12 pixels
+ * parecem entregar tudo; sem saber, 12 pixels dizem "bicho amarelo de orelha
+ * pontuda" e deixam uma dezena de candidatos de pé — que é exatamente o que um
+ * primeiro degrau deve fazer. Quem decide isso é quem joga sem saber, não quem
+ * escreveu o código.
  *
- * Se um dia quiser apertar o modo, **desça o primeiro degrau, não tire a cor** —
- * já foi tentado.
+ * Daí a escada de hoje: começa em 12, sobe em sete degraus até 56, e cada um é
+ * um ganho visível — silhueta, contorno, roupa, rosto. Se for mexer de novo,
+ * **erre para o lado fácil**: o degrau que não dá para nomear não é difícil, é
+ * turno jogado fora.
  */
-const LADDER = [5, 7, 9, 11, 14, 18, 24, 32, 44];
+const LADDER = [12, 16, 20, 26, 34, 44, 56];
 
 /** O último degrau. Chutar além dele não clareia mais nada. */
 export const TOP = LADDER.length - 1;
@@ -68,7 +72,7 @@ export const hasPicture = (item) => Boolean(item?.sprite?.startsWith('/sprites/'
 
 /**
  * Os quadros prontos, por item. São poucos e minúsculos: um dia inteiro de
- * desafio são 21 universos × 9 degraus, e uma sala gasta 9 por rodada. O teto
+ * desafio são 21 universos × 7 degraus, e uma sala gasta 7 por rodada. O teto
  * existe só para uma maratona de salas não crescer sem fim; a fila é de
  * chegada, que é boa o bastante para um cache de coisa barata de refazer.
  */
@@ -83,7 +87,7 @@ const keyOf = (universeId, item, level) => `${universeId}:${item.id}:${level}`;
  * Tira a moldura vazia antes de reduzir. As miniaturas vêm de fontes que não
  * combinaram nada entre si: o sprite do Pokémon é 96 × 96 com o bicho pequeno
  * no meio, e o retrato do elenco de One Piece já vem justo. Sem aparar, o
- * degrau 0 do Pokémon gastaria metade dos seus cinco pixels desenhando margem
+ * degrau 0 do Pokémon gastaria metade dos seus doze pixels desenhando margem
  * transparente — a mesma dica custaria mais chutes num universo do que no
  * outro, por um detalhe de como o dataset foi raspado.
  *

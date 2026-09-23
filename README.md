@@ -647,7 +647,7 @@ npm test
 
 Sobe o servidor de verdade, conecta jogadores falsos e joga partidas completas
 nos dois modos e **nos vinte e dois universos**, verificando turnos, dicas, timeout,
-pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 390
+pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 392
 verificações.
 
 O modo imagem tem seção própria, e ela testa o que o modo promete: que a escada
@@ -768,22 +768,29 @@ resposta e pedem para o jogador não olhar. Um F12 desfaz qualquer um deles, e a
 o desafio do dia acaba para todo mundo, não só para quem abriu o inspetor.
 
 Então a redução mora no servidor (`src/picture.js`) e é destrutiva. O degrau 0
-é uma imagem de **cinco pixels de largura de verdade**; o navegador só amplia o
+é uma imagem de **doze pixels de largura de verdade**; o navegador só amplia o
 que recebeu (`image-rendering: pixelated`). Não há o que revelar porque não há o
-que esconder — a informação que não foi ganha não viajou. São nove degraus, de 5
-a 44 pixels, e o topo ainda é menos da metade da resolução original: a imagem
-inteira é prêmio de acerto, e quem mostra ela é a tela do reveal.
+que esconder — a informação que não foi ganha não viajou. São sete degraus, de
+12 a 56 pixels, e o topo não chega à resolução original: a imagem inteira é
+prêmio de acerto, e quem mostra ela é a tela do reveal.
 
-**A escada é colorida desde o primeiro degrau, e isso custou uma versão.** A
-primeira segurava a cor pelos quatro degraus iniciais, para ela "também se
-pagar". Na prática o modo ficou com dois estados e nenhum meio-termo: em preto e
-branco o Pikachu, o Naruto e o Goku são a mesma mancha cinza, impossível de
-nomear; no degrau em que a cor entrava, os três estavam entregues de uma vez.
-Não havia dedução no meio, só um precipício. A cor de longe é justamente o que
-faz o jogo andar — um borrão laranja e amarelo reduz o elenco à paleta certa sem
-dizer quem é —, então quem segura a dificuldade passou a ser só a resolução, que
-começa bem mais baixa do que dava para começar em cinza. Para apertar o modo,
-**desça o primeiro degrau, não tire a cor.**
+**O começo da escada já errou duas vezes, sempre para o mesmo lado: duro
+demais.** A primeira versão abria em 6 pixels e ainda segurava a cor pelos
+quatro degraus iniciais, para ela "também se pagar" — em preto e branco o
+Pikachu, o Naruto e o Goku são a mesma mancha cinza, e no degrau em que a cor
+entrava os três estavam entregues de uma vez: dois estados, nenhum meio-termo. A
+cor de longe é justamente o que faz o jogo andar, então ela ficou. Só que o
+começo foi para 5 pixels, e continuou impossível: cinco pixels de um elenco de
+duzentos nomes não formam hipótese nenhuma, só queimam dois ou três chutes no
+escuro antes de a figura dizer a primeira coisa.
+
+O erro de julgamento foi o mesmo das duas vezes, e vale registrar: **olhar um
+degrau sabendo a resposta não mede nada.** Sabendo que é o Pikachu, 12 pixels
+parecem entregar tudo; sem saber, 12 pixels dizem "bicho amarelo de orelha
+pontuda" e deixam uma dezena de candidatos de pé — que é exatamente o que um
+primeiro degrau deve fazer. Quem decide isso é quem joga sem saber. Se for mexer
+de novo, **erre para o lado fácil**: o degrau que não dá para nomear não é
+difícil, é turno jogado fora.
 
 Falta saber em que degrau cada pessoa está, e nenhum dos lugares óbvios serve.
 No navegador, o degrau vira um número que o próprio jogador edita — e pedir o

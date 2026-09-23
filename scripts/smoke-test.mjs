@@ -801,6 +801,20 @@ try {
    * escada so sobe pagando, que ela nao da para pular, e que a tabela de dicas
    * nao viaja junto — jogar sem ela e o modo.
    */
+  /**
+   * Quem tem figura se descobre pelo espelho em disco, e nao pelo `sprite` do
+   * dataset: o JSON guarda o endereco de origem, e a troca pelo arquivo local
+   * acontece na leitura do catalogo (ver src/catalog.js). Olhar o dataset aqui
+   * diria que ninguem tem miniatura local.
+   */
+  const espelho = async (id) => {
+    try {
+      return new Set(await fs.readdir(path.join('data', 'sprites', id)));
+    } catch {
+      return new Set();
+    }
+  };
+
   console.log('\n== Desafio de imagem ==');
 
   const abertura = await (await fetch(`${URL}/api/daily/pokemon?modo=imagem`)).json();
@@ -809,13 +823,24 @@ try {
     String(abertura.picture?.src ?? '').startsWith('data:image/webp;base64,'));
   check('com o bilhete que prova o degrau', /^0\./.test(abertura.picture?.ticket ?? ''));
 
-  /**
-   * O degrau 0 tem de ser pequeno de verdade. Nao e capricho de bytes: se a
-   * figura viajasse inteira e o borrao fosse do navegador, um F12 entregaria o
-   * segredo do dia — que e a razao de a reducao morar no servidor.
-   */
   const bytes = (src) => Math.floor((String(src).split(',')[1] ?? '').length * 3 / 4);
-  check('e o quadro do degrau 0 e pequeno demais para entregar alguem', bytes(abertura.picture.src) < 400);
+  const noPeDaEscada = bytes(abertura.picture.src);
+
+  /**
+   * Os chutes saem do recorte de hoje, e nao de ids cravados. O desafio troca
+   * de geracao a cada dia: com ids fixos o teste passava na quinta e quebrava
+   * na sexta com 409, que e "fora do recorte" — parecendo defeito da escada
+   * quando era defeito do teste. E o modo imagem ainda exige miniatura local,
+   * entao o espelho em disco tambem filtra.
+   */
+  const espelhoPokemon = await espelho('pokemon');
+  const paraChutar = elencos.get('pokemon')
+    .filter(item => !abertura.group || item.group === abertura.group)
+    .filter(scopeFilter(UNIVERSES.pokemon, abertura.scope))
+    .filter(item => espelhoPokemon.has(`${item.id}.webp`))
+    .map(item => item.id);
+  check('ha chutes validos no recorte de imagem de hoje', paraChutar.length >= 10);
+  const proximoChute = (() => { let i = 0; return () => paraChutar[i++ % paraChutar.length]; })();
 
   // a escada sobe um degrau por chute, e nao mais que isso
   let bilhete = abertura.picture.ticket;
@@ -825,7 +850,7 @@ try {
   const semCelulas = [];
   for (let i = 0; i < 4; i++) {
     const r = await (await fetch(
-      `${URL}/api/daily/pokemon/guess/${160 + i}?modo=imagem&t=${encodeURIComponent(bilhete)}`)).json();
+      `${URL}/api/daily/pokemon/guess/${proximoChute()}?modo=imagem&t=${encodeURIComponent(bilhete)}`)).json();
     if (r.picture?.level !== i + 1) subiuSempre = false;
     const agora = bytes(r.picture?.src);
     if (!(agora > anterior)) cresceuSempre = false;
@@ -850,17 +875,37 @@ try {
     `${URL}/api/daily/pokemon/guess/${id}?modo=imagem&t=${encodeURIComponent(bilhete)}`,
     { headers: { 'X-Forwarded-For': ip } }).then(r => r.json());
 
+  const TOPO = abertura.picture.top;
   const trocandoDeIP = [];
   for (const [i, ip] of ['2804:14d:1::a1', '189.40.12.7', '2804:14d:1::a1'].entries()) {
-    const r = await porIP(171 + i, ip);
+    const r = await porIP(proximoChute(), ip);
     trocandoDeIP.push(r.picture?.level);
     bilhete = r.picture.ticket;
   }
-  check('o bilhete atravessa troca de IP', trocandoDeIP.join() === '5,6,7');
+  // ja foram 4 chutes antes destes tres; no topo a escada para de subir
+  const esperado = [5, 6, 7].map(n => Math.min(TOPO, n));
+  check('o bilhete atravessa troca de IP', trocandoDeIP.join() === esperado.join());
+
+  /**
+   * Chegado ao topo pagando os chutes, da para comparar as duas pontas: o
+   * degrau 0 tem de carregar uma fracao do que o topo carrega. Nao e capricho
+   * de bytes — se a figura viajasse inteira e o borrao fosse do navegador, um
+   * F12 entregaria o segredo do dia, que e a razao de a reducao morar no
+   * servidor. A conta e relativa de proposito, para a escada poder ser
+   * recalibrada (ja foi, duas vezes) sem o teste virar mentira.
+   *
+   * E note que so da para medir isto subindo: pedir o quadro do topo com um
+   * bilhete qualquer devolve o degrau 0, que e justamente a trava funcionando.
+   */
+  const noTopo = await porIP(proximoChute(), '189.40.12.7');
+  check('o quadro do topo foi alcancado pagando os chutes', noTopo.picture.level === TOPO);
+  check('e o degrau 0 carrega uma fracao do que o topo carrega',
+    noPeDaEscada * 3 < bytes(noTopo.picture.src));
+  bilhete = noTopo.picture.ticket;
 
   // pular a escada e o unico jeito de o modo virar entrega da resposta
   const forjado = await (await fetch(
-    `${URL}/api/daily/pokemon/guess/170?modo=imagem&t=${encodeURIComponent('8.aaaaaaaaaaaaaaaaaaaaaa')}`)).json();
+    `${URL}/api/daily/pokemon/guess/${proximoChute()}?modo=imagem&t=${encodeURIComponent('9.aaaaaaaaaaaaaaaaaaaaaa')}`)).json();
   check('bilhete forjado nao pula degrau', forjado.picture?.level === 1);
   const deOutro = await (await fetch(
     `${URL}/api/daily/naruto/guess/1?modo=imagem&t=${encodeURIComponent(bilhete)}`)).json();
@@ -877,20 +922,6 @@ try {
    * nem de chute. Oferecer o nome seria vender um palpite que nunca poderia ser
    * a resposta, e o recorte anunciado ("nomes possiveis hoje") passaria a mentir.
    */
-  /**
-   * Quem tem figura se descobre pelo espelho em disco, e nao pelo `sprite` do
-   * dataset: o JSON guarda o endereco de origem, e a troca pelo arquivo local
-   * acontece na leitura do catalogo (ver src/catalog.js). Olhar o dataset aqui
-   * diria que ninguem tem miniatura local.
-   */
-  const espelho = async (id) => {
-    try {
-      return new Set(await fs.readdir(path.join('data', 'sprites', id)));
-    } catch {
-      return new Set();
-    }
-  };
-
   let semFigura = null;
   for (const [id, dia] of recortes) {
     const arquivos = await espelho(id);
