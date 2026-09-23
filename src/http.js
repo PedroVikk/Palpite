@@ -150,7 +150,7 @@ export function createApp() {
 
   app.get('/api/dataset/:universe', (req, res) => {
     const index = indexOf(req.params.universe);
-    if (!index) return res.status(404).json({ error: 'Universo desconhecido.' });
+    if (!index) return res.status(404).json({ error: 'Tema desconhecido.' });
     sendIndex(req, res, index);
   });
 
@@ -162,7 +162,7 @@ export function createApp() {
    */
   app.get('/api/daily/:universe', async (req, res) => {
     const { universe } = req.params;
-    if (!isKnownUniverse(universe)) return res.status(404).json({ error: 'Universo desconhecido.' });
+    if (!isKnownUniverse(universe)) return res.status(404).json({ error: 'Tema desconhecido.' });
 
     const mode = modeOf(req);
     res.set('Cache-Control', 'no-store');   // vira a meia-noite; cachear atrasaria a troca
@@ -182,7 +182,7 @@ export function createApp() {
     if (mode !== 'imagem') return res.json(info);
 
     const secret = secretOf(universe, day, mode);
-    if (!secret) return res.status(503).json({ error: 'Sem desafio de imagem hoje neste universo.', date: day });
+    if (!secret) return res.status(503).json({ error: 'Sem desafio de imagem hoje neste tema.', date: day });
 
     // o bilhete devolve o jogador ao degrau em que ele parou: e o que faz um F5
     // (ou o servidor hibernar) nao reembacar a imagem ja conquistada
@@ -201,7 +201,7 @@ export function createApp() {
    */
   app.get('/api/daily/:universe/guess/:id', async (req, res) => {
     const { universe, id } = req.params;
-    if (!isKnownUniverse(universe)) return res.status(404).json({ error: 'Universo desconhecido.' });
+    if (!isKnownUniverse(universe)) return res.status(404).json({ error: 'Tema desconhecido.' });
 
     const mode = modeOf(req);
     res.set('Cache-Control', 'no-store');
@@ -215,7 +215,7 @@ export function createApp() {
     if (!guess) return res.status(404).json({ error: 'Chute inválido.' });
 
     const secret = secretOf(universe, today(), mode);
-    if (!secret) return res.status(503).json({ error: 'Sem desafio para hoje neste universo.' });
+    if (!secret) return res.status(503).json({ error: 'Sem desafio para hoje neste tema.' });
 
     // fora do recorte do dia nem vira dica: a busca do cliente ja esconde esses
     // nomes, entao aqui so chega aba velha — a data vai junto para ela se achar

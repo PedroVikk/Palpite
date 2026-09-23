@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getUniverse, sanitizeScope } from '@shared/universes.js';
+import { getUniverse, roomDefaults } from '@shared/universes.js';
 import { useDataset } from '../hooks/useDataset.js';
 import { canPlayPicture } from '../lib/picture.js';
 import { universeMeta } from '../lib/universeMeta.js';
@@ -21,20 +21,23 @@ import {
 export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
   const [mode, setMode] = useState('hunt');
   const [universeId, setUniverseId] = useState('pokemon');
-  const [groups, setGroups] = useState(() => [...getUniverse('pokemon').defaultGroups]);
-  const [scope, setScope] = useState(() => sanitizeScope(getUniverse('pokemon'), null));
+  // o formulario abre so com a primeira opcao marcada (ver roomDefaults)
+  const [groups, setGroups] = useState(() => roomDefaults(getUniverse('pokemon')).groups);
+  const [scope, setScope] = useState(() => roomDefaults(getUniverse('pokemon')).scope);
   const [rounds, setRounds] = useState(5);
   const [turnSeconds, setTurnSeconds] = useState(45);
   const [guessesPerPlayer, setGuessesPerPlayer] = useState(6);
   const [untilRight, setUntilRight] = useState(true);
   const [picture, setPicture] = useState(false);
   const [card, setCard] = useState(false);
+  const [choices, setChoices] = useState(3);
 
   const universe = getUniverse(universeId);
   const meta = universeMeta(universeId);
   const duel = mode === 'duel';
   const impostor = mode === 'impostor';
   const battle = mode === 'battle';
+  const quiz = mode === 'quiz';
 
   // o interruptor da imagem so existe onde ha figura espelhada: os carros nao
   // tem nenhuma, e universo assim mostra a chave apagada em vez de escondida —
@@ -42,9 +45,10 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
   const comImagem = canPlayPicture(useDataset(universeId));
 
   const changeUniverse = (id) => {
+    const start = roomDefaults(getUniverse(id));
     setUniverseId(id);
-    setGroups([...getUniverse(id).defaultGroups]);
-    setScope(sanitizeScope(getUniverse(id), null));
+    setGroups(start.groups);
+    setScope(start.scope);
   };
 
   const toggleGroup = (id) => {
@@ -89,6 +93,11 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
       setUntilRight(false);
       setGuessesPerPlayer(2);
     }
+    // "Qual deles?" e rapido: 10 perguntas de 15 s
+    if (next === 'quiz' && mode !== 'quiz') {
+      setRounds(10);
+      setTurnSeconds(15);
+    }
   };
 
   const create = () => onCreate({
@@ -99,8 +108,9 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
     rounds,
     turnSeconds,
     guessesPerPlayer: untilRight && !impostor ? 0 : guessesPerPlayer,
-    picture: picture && comImagem && !impostor && !battle,
+    picture: picture && comImagem && !impostor && !battle && !quiz,
     card,
+    choices,
   });
 
   return (
@@ -115,6 +125,8 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
               ? 'No impostor, a mesa vê só quantas colunas cada chute acertou. Funciona melhor com 4 ou mais pessoas e um recorte de 50 a 200 opções.'
               : battle
               ? 'Na batalha naval, os tabuleiros são públicos: dá para aproveitar os tiros dos outros e roubar o afundamento.'
+              : quiz
+              ? 'No "Qual deles?", as perguntas saem das colunas do tema: qual tem tal tipo, qual é o mais pesado, qual estreou primeiro.'
               : picture
               ? 'Pela imagem, a rodada não tem tabela: a figura do segredo abre irreconhecível e ganha nitidez a cada chute errado da mesa.'
               : duel
@@ -154,7 +166,7 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
 
           <div className="field">
             <div className="f-label">
-              Universo <span className="i" title="De onde sai o segredo"><InfoIcon /></span>
+              Tema <span className="i" title="De onde sai o segredo"><InfoIcon /></span>
             </div>
             <UniverseSelect value={universeId} onChange={changeUniverse} showDesc={false} />
           </div>
@@ -214,7 +226,9 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
             )}
 
             {/* o interruptor da imagem atravessa a caça ao segredo e o duelo;
-                no impostor cada chute clarearia a figura para quem nao sabe */}
+                no impostor cada chute clarearia a figura para quem nao sabe.
+                No "Qual deles?" nao ha segredo nem chute: os dois somem */}
+            {!quiz && <>
             <button
               type="button"
               className={`switch-row ${picture && comImagem && !impostor && !battle ? 'on' : ''}`}
@@ -259,10 +273,11 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
               </span>
               <span className="switch"><i /></span>
             </button>
+            </>}
 
-            <div className="steppers" style={{ marginTop: 12 }}>
+            <div className="steppers" style={{ marginTop: quiz ? 0 : 12 }}>
               <Stepper
-                label="Rodadas"
+                label={quiz ? 'Perguntas' : 'Rodadas'}
                 icon={<CalendarIcon width={14} height={14} />}
                 value={rounds} min={1} max={20}
                 off={battle} offValue="1"
@@ -270,22 +285,32 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
                 onChange={setRounds}
               />
               <Stepper
-                label="Tempo por turno"
+                label={quiz ? 'Tempo por pergunta' : 'Tempo por turno'}
                 icon={<ClockIcon width={14} height={14} />}
                 value={turnSeconds} min={5} max={180} step={5} suffix="s"
-                hint="Para mandar o chute"
+                hint={quiz ? 'Para todos responderem' : 'Para mandar o chute'}
                 onChange={setTurnSeconds}
               />
-              <Stepper
-                label={impostor ? 'Voltas' : 'Chutes por jogador'}
-                icon={<TargetIcon width={14} height={14} />}
-                value={guessesPerPlayer} min={1} max={impostor ? 5 : 20}
-                off={(untilRight && !impostor) || battle}
-                hint={impostor
-                  ? 'Um chute de cada por volta'
-                  : untilRight ? '“Até acertar” ignora o teto' : 'Máximo por rodada'}
-                onChange={(v) => { setGuessesPerPlayer(v); setUntilRight(false); }}
-              />
+              {quiz ? (
+                <Stepper
+                  label="Opções"
+                  icon={<TargetIcon width={14} height={14} />}
+                  value={choices} min={2} max={5}
+                  hint="Respostas por pergunta"
+                  onChange={setChoices}
+                />
+              ) : (
+                <Stepper
+                  label={impostor ? 'Voltas' : 'Chutes por jogador'}
+                  icon={<TargetIcon width={14} height={14} />}
+                  value={guessesPerPlayer} min={1} max={impostor ? 5 : 20}
+                  off={(untilRight && !impostor) || battle}
+                  hint={impostor
+                    ? 'Um chute de cada por volta'
+                    : untilRight ? '“Até acertar” ignora o teto' : 'Máximo por rodada'}
+                  onChange={(v) => { setGuessesPerPlayer(v); setUntilRight(false); }}
+                />
+              )}
             </div>
           </div>
         </div>

@@ -9,7 +9,7 @@ import { EyeIcon, MaskIcon } from './Icon.jsx';
 /** O que o impostor vê no lugar do segredo: a máscara e o que fazer com ela. */
 function ImpostorCard({ universe, onHide }) {
   return (
-    <section className="role-card">
+    <section className="role-card flip-in">
       <span className="ico"><MaskIcon width={28} height={28} /></span>
       <div>
         <h2>Você é o impostor</h2>
@@ -53,6 +53,7 @@ export function RoleCard({ state, universe, isImpostor, hidden, onToggle }) {
       scope={scopeReach(universe, state.settings.scope)}
       caption="O segredo — o impostor não sabe qual é"
       onHide={onToggle}
+      flip
     />
   );
 }

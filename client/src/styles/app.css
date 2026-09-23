@@ -1782,3 +1782,88 @@ button.suspect:disabled { cursor: default; }
 .ship .tag-sunk { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; padding: 3px 8px; border-radius: var(--pill); background: #A3263333; color: #FF8C95; }
 .reveal .portrait.small { width: 64px; height: 64px; }
 .reveal.mine h2 { font-size: 22px; margin: 2px 0 0; }
+
+/* ------------------------------------------------------- carta desvirada */
+
+/* o olho desvira a carta: ela gira de lado como carta de baralho e o retrato
+   chega com um pulo curto no fim. So toca ao desvirar — o gabarito do fim da
+   rodada usa o mesmo cartao e entra parado */
+.flip-in { transform-origin: center; animation: card-flip .55s cubic-bezier(.2, .75, .25, 1) both; }
+.flip-in .portrait img, .flip-in > .ico { animation: card-pop .38s .3s cubic-bezier(.3, 1.5, .5, 1) both; }
+@keyframes card-flip {
+  0% { transform: perspective(900px) rotateY(-90deg); opacity: 0; }
+  60% { transform: perspective(900px) rotateY(8deg); opacity: 1; }
+  100% { transform: perspective(900px) rotateY(0); opacity: 1; }
+}
+@keyframes card-pop {
+  0% { transform: scale(.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flip-in, .flip-in .portrait img, .flip-in > .ico { animation: none; }
+}
+
+/* ------------------------------------------------------------ qual deles? */
+
+.avatar.xs { width: 18px; height: 18px; font-size: 7px; }
+
+.quiz { border-radius: var(--r-lg); border: 1px solid var(--line-2); background: radial-gradient(520px 240px at 12% 0%, #7C5CFF1F, transparent 70%), var(--surface); padding: 22px; box-shadow: var(--shadow); }
+.quiz-q { text-align: center; margin-bottom: 18px; }
+.quiz-q .k { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.quiz-q h2 { font-size: 28px; font-weight: 800; margin: 6px 0 0; }
+.quiz-q h2 b { color: var(--purple-hi); }
+
+/* as opcoes sao os botoes de resposta; ate 3 por linha */
+.quiz-options { display: grid; grid-template-columns: repeat(var(--quiz-cols, 3), minmax(0, 1fr)); gap: 12px; }
+.quiz-opt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-2);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color .15s, background .15s, transform .12s;
+}
+.quiz-opt:hover:not(:disabled) { border-color: #7C5CFF8C; transform: translateY(-2px); }
+.quiz-opt:disabled { cursor: default; }
+.quiz-opt img { width: 88px; height: 88px; object-fit: contain; image-rendering: auto; }
+.quiz-opt .nm { font-size: 15px; font-weight: 700; text-align: center; }
+.quiz-opt .val { font-size: 13px; font-weight: 600; color: var(--text-dim); padding: 3px 10px; border-radius: var(--pill); background: #FFFFFF0D; }
+.quiz-opt .who { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 18px; }
+.quiz-opt .pick { display: inline-flex; align-items: center; gap: 3px; }
+.quiz-opt .pick small { font-size: 11px; font-weight: 700; color: var(--hit-hi); }
+.quiz-opt.mine { border-color: #7C5CFFB3; background: #7C5CFF1F; }
+.quiz-opt.right { border-color: #1FA46BB3; background: #1FA46B24; animation: quiz-right .45s ease both; }
+.quiz-opt.wrong { border-color: #A32633B3; background: #A326332E; }
+@keyframes quiz-right { 0% { transform: scale(.96); } 60% { transform: scale(1.03); } 100% { transform: scale(1); } }
+.quiz-foot { margin: 16px 0 0; text-align: center; font-size: 13.5px; color: var(--text-dim); }
+@media (max-width: 640px) {
+  .quiz-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .quiz-q h2 { font-size: 22px; }
+}
+
+/* com cinco modos, o ultimo ocupa a linha inteira em vez de ficar sozinho num canto */
+.mode-pick button:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+/* "Quem é esse Pokémon?": a silhueta grande, pixel art ampliada sem borrar, e
+   o acender da figura colorida quando a pergunta fecha */
+.quiz-q .who-title { font-size: 30px; font-style: italic; letter-spacing: .01em; color: var(--partial-hi); text-shadow: 0 2px 0 #0008; }
+.quiz-silhouette { display: grid; place-items: center; margin: 12px auto 0; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, #7C5CFF33, transparent 70%); }
+.quiz-silhouette img { width: 180px; height: 180px; object-fit: contain; image-rendering: pixelated; }
+.quiz-silhouette img.lit { animation: who-lit .5s ease-out both; }
+@keyframes who-lit {
+  0% { filter: brightness(0); transform: scale(.92); }
+  60% { filter: brightness(1.4); transform: scale(1.06); }
+  100% { filter: brightness(1); transform: scale(1); }
+}
+/* so nomes nas opcoes enquanto a pergunta esta aberta */
+.quiz.who .quiz-opt { min-height: 64px; justify-content: center; }
+.quiz.who .quiz-opt img { width: 64px; height: 64px; }
+@media (prefers-reduced-motion: reduce) { .quiz-silhouette img.lit { animation: none; } }
+.quiz-q h2.whole { font-size: 26px; }

@@ -225,7 +225,7 @@ export default function DailyScreen({ toast, onExit }) {
                   ? `Acertou em ${attempts} ${attempts === 1 ? 'chute' : 'chutes'}. Volte amanhã para o próximo.`
                   : picture
                     ? 'A figura começa irreconhecível e ganha nitidez a cada erro. Sem tabela de dicas.'
-                    : 'Um segredo por universo, o mesmo para todo mundo. Chutes ilimitados.'}
+                    : 'Um segredo por tema, o mesmo para todo mundo. Chutes ilimitados.'}
             </p>
           </div>
           <div className="clock" style={{ minWidth: 120 }}>
@@ -266,7 +266,7 @@ export default function DailyScreen({ toast, onExit }) {
 
         {/* trocar de universo aqui é trocar de desafio: cada um tem o seu */}
         <section className="progress-bar">
-          <span className="txt">Universo do dia</span>
+          <span className="txt">Tema do dia</span>
           <div style={{ width: 296, maxWidth: '100%' }}>
             <UniverseSelect value={universe} onChange={setUniverse} />
           </div>

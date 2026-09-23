@@ -95,10 +95,10 @@ export default function UniverseSelect({ value, onChange, disabled = false, show
             <input
               ref={searchRef}
               value={query}
-              placeholder="Buscar universo..."
+              placeholder="Buscar tema..."
               autoComplete="off"
               spellCheck={false}
-              aria-label="Buscar universo"
+              aria-label="Buscar tema"
               onChange={e => setQuery(e.target.value)}
               onKeyDown={onKeyDown}
             />
@@ -106,7 +106,7 @@ export default function UniverseSelect({ value, onChange, disabled = false, show
           </div>
 
           <ul className="ulist" role="listbox" ref={listRef}>
-            {matches.length === 0 && <li className="none">Nenhum universo com esse nome.</li>}
+            {matches.length === 0 && <li className="none">Nenhum tema com esse nome.</li>}
             {matches.map((universe, i) => {
               const item = universeMeta(universe.id);
               return (

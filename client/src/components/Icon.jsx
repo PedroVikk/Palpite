@@ -147,6 +147,14 @@ export const MaskIcon = (props) => (
   </svg>
 );
 
+/** Balão com interrogação, do "Qual deles?". */
+export const QuestionIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v9a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h0A2.5 2.5 0 0 1 4 14.5Z" />
+    <path d="M9.8 8.2a2.3 2.3 0 0 1 4.4.8c0 1.5-2.2 1.9-2.2 3.2M12 14.4v.1" />
+  </svg>
+);
+
 /** Âncora da batalha naval. */
 export const AnchorIcon = (props) => (
   <svg {...base} {...props}>

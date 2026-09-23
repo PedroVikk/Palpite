@@ -13,7 +13,9 @@ import {
   BATTLE_MIN_PLAYERS, SCORE_BATTLE_SURVIVOR,
 } from './game.js';
 import { datasetOf as datasetFor } from './catalog.js';
-import { TOP as PICTURE_TOP, frameOf, hasPicture, prepare as preparePicture } from './picture.js';
+import { makeQuestion, makeWhoQuestion, scoreForAnswer } from './quiz.js';
+import { valueOf } from '../shared/universes.js';
+import { TOP as PICTURE_TOP, frameOf, hasPicture, prepare as preparePicture, silhouetteOf } from './picture.js';
 
 /** Preenchido por attachRooms; broadcast e a unica coisa que depende dele. */
 let io = null;
@@ -66,6 +68,10 @@ function createRoom(settings) {
     outcome: null,      // impostor: como a rodada fechou, para a tela contar
     secrets: {},        // batalha naval: jogador -> o segredo que ele escondeu
     sunk: {},           // batalha naval: jogador afundado -> { by } (quem acertou)
+    question: null,     // "Qual deles?": a pergunta da rodada, com a resposta (so o servidor ve)
+    askedAt: 0,         // "Qual deles?": quando a pergunta saiu, para medir a rapidez
+    answers: {},        // "Qual deles?": jogador -> { index, ms }
+    quizResult: null,   // "Qual deles?": o gabarito da rodada, depois que ela fecha
     rows: [],
     turnPlayerId: null,
     pausedAfter: null,  // de quem era a vez quando a rodada parou (ver pauseRound)
@@ -128,6 +134,25 @@ const activePlayers = (room) => room.order.map(id => room.players.get(id)).filte
 
 const isImpostorMode = (room) => room.settings.mode === MODES.IMPOSTOR;
 const isBattle = (room) => room.settings.mode === MODES.BATTLE;
+const isQuiz = (room) => room.settings.mode === MODES.QUIZ;
+
+/** A pergunta do jeito que vai para a tela: sem a resposta. */
+function questionFor(room) {
+  const q = room.question;
+  if (!q) return null;
+  // "Quem é esse?": as opcoes vao sem figura — com ela, bastava casar a
+  // silhueta com o desenho. A figura de cada uma chega no gabarito
+  const who = q.kind === 'who';
+  return {
+    kind: q.kind,
+    prompt: q.prompt,
+    label: q.label,
+    value: q.value,
+    columnKey: q.columnKey,
+    image: who ? q.image : null,
+    options: q.options.map(o => ({ id: o.id, name: o.name, sprite: who ? null : o.sprite })),
+  };
+}
 
 /** Batalha naval: quem esta na batalha e ainda tem o segredo de pe. */
 const afloat = (room) => room.cast.filter(id => !room.sunk[id]);
@@ -139,7 +164,9 @@ const afloat = (room) => room.cast.filter(id => !room.sunk[id]);
 function battleSecretsFor(room, viewerId, over) {
   const out = {};
   for (const [id, item] of Object.entries(room.secrets)) {
-    if (over || id === viewerId || room.sunk[id]) out[id] = { id: item.id, name: item.name, sprite: item.sprite, artwork: item.artwork };
+    // o item inteiro, como o `secret` dos outros modos: o gabarito do afundado
+    // mostra as colunas dele, e so com o nome as fichas saiam todas em branco
+    if (over || id === viewerId || room.sunk[id]) out[id] = item;
   }
   return out;
 }
@@ -199,12 +226,18 @@ function publicState(room, viewerId = null) {
     // (ou na hora do chute final, quando a mesa ja apontou para ele)
     role: inRound ? (isImpostor ? 'impostor' : 'crew') : null,
     impostorId: impostorMode && (over || room.phase === 'lastGuess') ? room.impostorId : null,
-    cast: impostorMode || isBattle(room) ? room.cast : [],
+    cast: impostorMode || isBattle(room) || isQuiz(room) ? room.cast : [],
     // batalha naval: quem ja escondeu (na escolha), quem afundou, e os segredos
     // que quem olha tem direito de ver
     chosen: isBattle(room) && room.phase === 'choosing' ? Object.keys(room.secrets) : [],
     sunk: isBattle(room) ? room.sunk : {},
     secrets: isBattle(room) ? battleSecretsFor(room, viewerId, over) : {},
+    // "Qual deles?": a pergunta, quem ja respondeu (nao o que), a propria
+    // resposta, e o gabarito quando a rodada fecha
+    question: isQuiz(room) ? questionFor(room) : null,
+    answered: isQuiz(room) && room.phase === 'playing' ? Object.keys(room.answers) : [],
+    myAnswer: isQuiz(room) && viewerId ? room.answers[viewerId]?.index ?? null : null,
+    quizResult: isQuiz(room) && over ? room.quizResult : null,
     // com a urna aberta so aparece quem ja votou; em quem, so quando ela fecha
     voted: room.phase === 'voting' ? Object.keys(room.votes) : [],
     myVote: room.phase === 'voting' && viewerId ? room.votes[viewerId] ?? null : null,
@@ -341,8 +374,13 @@ function startRound(room) {
   room.outcome = null;
   room.secrets = {};
   room.sunk = {};
+  room.question = null;
+  room.answers = {};
+  room.quizResult = null;
   room.guessesLeft = {};
   for (const p of room.players.values()) room.guessesLeft[p.id] = guessBudget(room);
+
+  if (isQuiz(room)) return askQuestion(room);
 
   if (isBattle(room)) {
     // todo mundo esconde ao mesmo tempo; quem nao escolher a tempo ganha um
@@ -568,6 +606,108 @@ function endImpostorRound(room, how, finalGuess = null, leaverName = null) {
   if (room.round >= room.settings.rounds) return finishMatch(room);
   broadcast(room);
   armTimer(room, 15, () => {
+    if (room.phase === 'roundEnd') startRound(room);
+  });
+}
+
+// ---------------------------------------------------------------- qual deles?
+
+/**
+ * Solta a pergunta da rodada. Todo mundo responde ao mesmo tempo — nao ha vez
+ * —, e o relogio e o `turnSeconds` da sala. A pergunta sai dos sorteaveis da
+ * sala (grupos e recorte), entao "so a Gen 1" vale aqui tambem.
+ */
+/** Uma em quatro perguntas e a silhueta, onde o tema tem (ver `silhouette` no schema). */
+const WHO_SHARE = 0.25;
+
+async function askQuestion(room) {
+  const universe = universeOf(room);
+  const candidates = pool(room);
+  let question = null;
+
+  // "Quem é esse Pokémon?": a silhueta sai de arquivo, entao a pergunta espera
+  // por ela. `asking` segura o "proxima rodada" do host nesse meio tempo — sem
+  // isso, dois cliques pulariam uma pergunta
+  if (universe.silhouette && Math.random() < WHO_SHARE) {
+    room.asking = true;
+    for (let tries = 0; tries < 3 && !question; tries++) {
+      const who = makeWhoQuestion(universe, candidates, room.settings.choices, hasPicture);
+      const image = who && await silhouetteOf(universe.id, who.options[who.answerIndex]);
+      if (image) question = { ...who, image };
+    }
+    room.asking = false;
+    if (rooms.get(room.code) !== room) return;   // a sala acabou enquanto a figura saia
+  }
+
+  question ??= makeQuestion(universe, candidates, room.settings.choices, scopeReach(universe, room.settings.scope));
+  if (!question) {
+    room.message = 'Não deu para montar pergunta com essa seleção. Marque mais opções no lobby.';
+    return finishMatch(room);
+  }
+  room.question = question;
+  room.cast = activePlayers(room).map(p => p.id);
+  room.phase = 'playing';
+  room.turnPlayerId = null;
+  room.chooserId = null;
+  room.askedAt = Date.now();
+  armTimer(room, room.settings.turnSeconds, () => {
+    if (room.phase === 'playing') revealQuiz(room);
+  });
+  broadcast(room);
+}
+
+/** Todo mundo da rodada que esta conectado ja respondeu: nao precisa esperar o relogio. */
+function maybeRevealQuiz(room) {
+  if (room.phase !== 'playing' || !isQuiz(room)) return;
+  const waiting = room.cast.filter(id => room.players.get(id)?.connected && !(id in room.answers));
+  if (!waiting.length) revealQuiz(room);
+}
+
+/**
+ * Fecha a pergunta: paga quem acertou (mais rapido, mais perto de 100) e monta
+ * o gabarito — a resposta, o valor de cada opcao na coluna perguntada e o que
+ * cada um escolheu. O valor de cada opcao e o que ensina: errou o mais pesado,
+ * ve quanto cada um pesa.
+ */
+function revealQuiz(room) {
+  clearTimer(room);
+  const q = room.question;
+  const universe = universeOf(room);
+  const scope = scopeReach(universe, room.settings.scope);
+  const column = universe.columns.find(c => c.key === q.columnKey);
+  const total = room.settings.turnSeconds * 1000;
+
+  const picks = {};
+  let fastest = null;
+  for (const [id, answer] of Object.entries(room.answers)) {
+    const correct = answer.index === q.answerIndex;
+    const points = correct ? scoreForAnswer(answer.ms, total) : 0;
+    const player = room.players.get(id);
+    if (player) player.score += points;
+    picks[id] = { index: answer.index, correct, points, ms: answer.ms };
+    if (correct && (!fastest || answer.ms < fastest.ms)) fastest = { id, ms: answer.ms };
+  }
+
+  room.quizResult = {
+    answerIndex: q.answerIndex,
+    values: q.options.map(item => (!column ? null : column.kind === 'slot'
+      ? (column.slots ?? [column.key]).map(k => valueOf(item, k, scope)).filter(Boolean)
+      : valueOf(item, q.columnKey, scope) ?? null)),
+    // as figuras de todas as opcoes: no "Quem é esse?" elas so aparecem agora
+    sprites: q.options.map(item => item.sprite ?? null),
+    picks,
+  };
+  const right = Object.values(picks).filter(p => p.correct).length;
+  const answer = q.options[q.answerIndex].name;
+  room.message = right
+    ? `Era ${answer}. ${right === 1 ? 'Só 1 acertou' : `${right} acertaram`}; o mais rápido foi ${room.players.get(fastest.id)?.name ?? 'alguém'}.`
+    : `Era ${answer}. Ninguém acertou.`;
+  room.winnerId = fastest?.id ?? null;
+  room.phase = 'roundEnd';
+
+  if (room.round >= room.settings.rounds) return finishMatch(room);
+  broadcast(room);
+  armTimer(room, 8, () => {
     if (room.phase === 'roundEnd') startRound(room);
   });
 }
@@ -862,6 +1002,11 @@ function handleDisconnect(socket, permanent) {
     room.message = `${player.name} ${verb}: o segredo foi sorteado.`;
     return beginGuessing(room);
   }
+  // "Qual deles?": se so faltava ele responder, a pergunta fecha agora
+  if (isQuiz(room) && room.phase === 'playing') {
+    broadcast(room);
+    return maybeRevealQuiz(room);
+  }
   // na escolha da batalha, cair nao segura os outros: se so faltava ele, comeca
   if (room.phase === 'choosing' && isBattle(room)) {
     broadcast(room);
@@ -999,6 +1144,21 @@ function onConnection(socket) {
     maybeCloseVoting(room);
   });
 
+  // "Qual deles?": uma resposta por pergunta, sem troca — a rapidez e o ponto
+  socket.on('game:answer', ({ index }) => {
+    const { room, player } = findPlayerRoom(socket);
+    if (!room || !player || !isQuiz(room) || room.phase !== 'playing') return;
+    if (!room.cast.includes(player.id)) return socket.emit('room:error', 'Você entrou no meio da pergunta: responde a próxima.');
+    if (player.id in room.answers) return;
+    const choice = Number(index);
+    if (!Number.isInteger(choice) || choice < 0 || choice >= room.question.options.length) {
+      return socket.emit('room:error', 'Resposta inválida.');
+    }
+    room.answers[player.id] = { index: choice, ms: Date.now() - room.askedAt };
+    broadcast(room);
+    maybeRevealQuiz(room);
+  });
+
   // valvula de escape do host: uma rodada "ate acertar" nao fecha sozinha
   socket.on('game:end', () => {
     const { room, player } = findPlayerRoom(socket);
@@ -1013,7 +1173,7 @@ function onConnection(socket) {
   socket.on('game:next', () => {
     const { room, player } = findPlayerRoom(socket);
     if (!room || !player || room.hostId !== player.id) return;
-    if (room.phase === 'roundEnd') {
+    if (room.phase === 'roundEnd' && !room.asking) {
       clearTimer(room);
       startRound(room);
     }

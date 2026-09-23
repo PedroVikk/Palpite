@@ -15,7 +15,11 @@ export const MODES = {
   DUEL: 'duel', // um jogador sorteado ESCONDE o segredo e assiste; o resto adivinha em turnos
   IMPOSTOR: 'impostor', // todos SABEM o segredo, menos um; a mesa chuta sem entregar e vota em quem nao sabia
   BATTLE: 'battle', // cada um ESCONDE o proprio segredo e ataca o dos outros; ganha quem ficar de pe
+  QUIZ: 'quiz', // "Qual deles?": pergunta de multipla escolha, todos respondem juntos, rapidez pontua
 };
+
+/** "Qual deles?": quantas opcoes cada pergunta pode ter. */
+export const QUIZ_CHOICES = { min: 2, max: 5, fallback: 3 };
 
 /** Batalha naval: com um jogador so nao ha em quem atirar. */
 export const BATTLE_MIN_PLAYERS = 2;
@@ -33,6 +37,7 @@ export const DEFAULT_SETTINGS = {
   guessesPerPlayer: 0, // 0 = "ate acertar": sem teto de chutes (so no modo caca ao segredo)
   picture: false,      // rodada jogada pela imagem, sem tabela de dicas
   card: false,         // impostor: a linha mostra a ficha do chutado (sem cor)
+  choices: 3,          // "Qual deles?": opcoes por pergunta
 };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -55,6 +60,7 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
   const mode = Object.values(MODES).includes(raw.mode) ? raw.mode : MODES.HUNT;
   const impostor = mode === MODES.IMPOSTOR;
   const battle = mode === MODES.BATTLE;
+  const quiz = mode === MODES.QUIZ;
 
   // "ate acertar" (guessesPerPlayer 0): a rodada so fecha quando alguem acerta,
   // sem teto de chutes. So vale no modo caca ao segredo — no duelo quem esconde
@@ -92,8 +98,9 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
     //
     // Na batalha naval cada tabuleiro teria a propria figura, e a tela viraria
     // um mosaico de quadros borrados: por ora ela joga so pela tabela.
-    picture: !impostor && !battle && Boolean(raw.picture ?? base.picture),
+    picture: !impostor && !battle && !quiz && Boolean(raw.picture ?? base.picture),
     card: Boolean(raw.card ?? base.card),
+    choices: clamp(Math.round(Number(raw.choices ?? base.choices)) || QUIZ_CHOICES.fallback, QUIZ_CHOICES.min, QUIZ_CHOICES.max),
   };
 }
 

@@ -550,6 +550,9 @@ export const UNIVERSES = {
     id: 'pokemon',
     label: 'Pokémon',
     secretLabel: 'o Pokémon secreto',
+    // "Qual deles?": a pergunta da silhueta (so onde a figura e recortada e o
+    // corpo inteiro aparece — cabeca de retrato vira a mesma mancha para todos)
+    silhouette: 'Quem é esse Pokémon?!',
     dataFile: 'pokemon.json',
     // as geracoes sao a linha do tempo da Pokedex
     daily: { rotate: 'group' },
@@ -559,12 +562,12 @@ export const UNIVERSES = {
     columns: [
       { key: 'type1', label: 'Tipo 1', kind: 'slot', slots: ['type1', 'type2'], labels: TYPE_PT },
       { key: 'type2', label: 'Tipo 2', kind: 'slot', slots: ['type1', 'type2'], labels: TYPE_PT },
-      { key: 'generation', label: 'Ger.', kind: 'number', prefix: 'Gen ' },
+      { key: 'generation', label: 'Ger.', kind: 'number', prefix: 'Gen ', quiz: ['Qual deles é da geração mais recente?', 'Qual deles é da geração mais antiga?'] },
       // as cores saem do sprite, nao do rotulo unico da Pokedex (build-pokedex.mjs)
       { key: 'colors', label: 'Cores', kind: 'list', labels: COLOR_PT },
-      { key: 'stage', label: 'Evolução', kind: 'number', labels: { 1: '1ª forma', 2: '2ª forma', 3: '3ª forma' } },
-      { key: 'height', label: 'Altura', kind: 'number', unit: 'm', tolerance: 0.1 },
-      { key: 'weight', label: 'Peso', kind: 'number', unit: 'kg', tolerance: 0.1 },
+      { key: 'stage', label: 'Evolução', kind: 'number', labels: { 1: '1ª forma', 2: '2ª forma', 3: '3ª forma' }, quiz: ['Qual deles está no estágio de evolução mais avançado?', 'Qual deles está no estágio de evolução mais baixo?'] },
+      { key: 'height', label: 'Altura', kind: 'number', unit: 'm', tolerance: 0.1, quiz: ['Qual deles é o mais alto?', 'Qual deles é o mais baixo?'] },
+      { key: 'weight', label: 'Peso', kind: 'number', unit: 'kg', tolerance: 0.1, quiz: ['Qual deles é o mais pesado?', 'Qual deles é o mais leve?'] },
     ],
   },
 
@@ -599,9 +602,9 @@ export const UNIVERSES = {
       { key: 'gender', label: 'Gênero', kind: 'text', labels: { Male: 'Masculino', Female: 'Feminino' } },
       { key: 'affiliation', label: 'Afiliação', kind: 'list' },
       { key: 'bankai', label: 'Bankai', kind: 'text' },
-      { key: 'debutChapter', label: 'Estreia', kind: 'number', prefix: 'Cap. ', tolerance: 0.1 },
-      { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1 },
-      { key: 'weight', label: 'Peso', kind: 'number', unit: 'kg', tolerance: 0.1 },
+      { key: 'debutChapter', label: 'Estreia', kind: 'number', prefix: 'Cap. ', tolerance: 0.1, quiz: ['Qual deles estreou por último no mangá?', 'Qual deles estreou primeiro no mangá?'] },
+      { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1, quiz: ['Qual deles é o mais alto?', 'Qual deles é o mais baixo?'] },
+      { key: 'weight', label: 'Peso', kind: 'number', unit: 'kg', tolerance: 0.1, quiz: ['Qual deles é o mais pesado?', 'Qual deles é o mais leve?'] },
     ],
   },
 
@@ -628,8 +631,8 @@ export const UNIVERSES = {
         key: 'type', label: 'Tipo', kind: 'text',
         labels: { Troop: 'Tropa', Building: 'Construção', Spell: 'Feitiço' },
       },
-      { key: 'elixir', label: 'Elixir', kind: 'number' },
-      { key: 'arena', label: 'Arena', kind: 'number', prefix: 'Arena ' },
+      { key: 'elixir', label: 'Elixir', kind: 'number', quiz: ['Qual delas custa mais elixir?', 'Qual delas custa menos elixir?'] },
+      { key: 'arena', label: 'Arena', kind: 'number', prefix: 'Arena ', quiz: ['Qual delas é liberada numa arena mais avançada?', 'Qual delas é liberada mais cedo?'] },
       {
         key: 'target', label: 'Alvo', kind: 'text',
         labels: { ground: 'Terrestre', air: 'Aéreo', air_ground: 'Ar e terra', buildings: 'Construções', area: 'Área' },
@@ -639,8 +642,9 @@ export const UNIVERSES = {
       {
         key: 'speed', label: 'Velocidade', kind: 'number', blank: 'Não anda',
         labels: { 30: 'Muito lenta', 45: 'Lenta', 60: 'Média', 90: 'Rápida', 120: 'Muito rápida' },
+        quiz: ['Qual delas se move mais rápido?', 'Qual delas se move mais devagar?'],
       },
-      { key: 'hitpoints', label: 'Vida', kind: 'number', tolerance: 0.1, blank: 'Não tem' },
+      { key: 'hitpoints', label: 'Vida', kind: 'number', tolerance: 0.1, blank: 'Não tem', quiz: ['Qual delas tem mais vida?', 'Qual delas tem menos vida?'] },
     ],
   },
 
@@ -695,6 +699,7 @@ export const UNIVERSES = {
       {
         key: 'debutArc', label: 'Arco de estreia', kind: 'number',
         nearby: 1, labels: NARUTO_ARC_PT,
+        quiz: ['Qual deles estreou por último?', 'Qual deles estreou primeiro?'],
       },
     ],
   },
@@ -740,9 +745,9 @@ export const UNIVERSES = {
       { key: 'race', label: 'Raça', kind: 'text' },
       // magia e armadilha nao tem nivel nem ATK/DEF: `blank` diz que o vazio e
       // a resposta, entao duas magias fecham verde em vez de cinza
-      { key: 'level', label: 'Nível', kind: 'number', blank: 'Não tem' },
-      { key: 'atk', label: 'ATK', kind: 'number', tolerance: 0.1, blank: 'Não tem' },
-      { key: 'def', label: 'DEF', kind: 'number', tolerance: 0.1, blank: 'Não tem' },
+      { key: 'level', label: 'Nível', kind: 'number', blank: 'Não tem', quiz: ['Qual delas tem o nível mais alto?', 'Qual delas tem o nível mais baixo?'] },
+      { key: 'atk', label: 'ATK', kind: 'number', tolerance: 0.1, blank: 'Não tem', quiz: ['Qual delas tem mais ATK?', 'Qual delas tem menos ATK?'] },
+      { key: 'def', label: 'DEF', kind: 'number', tolerance: 0.1, blank: 'Não tem', quiz: ['Qual delas tem mais DEF?', 'Qual delas tem menos DEF?'] },
       { key: 'archetype', label: 'Arquétipo', kind: 'text' },
     ],
   },
@@ -775,7 +780,7 @@ export const UNIVERSES = {
         labels: { Melee: 'Corpo a corpo', Ranged: 'À distância' },
       },
       { key: 'regions', label: 'Região', kind: 'list', labels: LOL_REGION_PT },
-      { key: 'releaseYear', label: 'Lançamento', kind: 'number' },
+      { key: 'releaseYear', label: 'Lançamento', kind: 'number', quiz: ['Qual deles foi lançado por último?', 'Qual deles foi lançado primeiro?'] },
     ],
   },
 
@@ -805,7 +810,7 @@ export const UNIVERSES = {
       // pais e continente juntos: acertar o pais fecha verde, acertar so o
       // continente fecha amarelo
       { key: 'origin', label: 'Origem', kind: 'list', labels: VAL_ORIGIN_PT },
-      { key: 'releaseYear', label: 'Lançamento', kind: 'number' },
+      { key: 'releaseYear', label: 'Lançamento', kind: 'number', quiz: ['Qual deles foi lançado por último?', 'Qual deles foi lançado primeiro?'] },
     ],
   },
 
@@ -813,6 +818,7 @@ export const UNIVERSES = {
     id: 'valorant-armas',
     label: 'Valorant · Armas',
     secretLabel: 'a arma secreta',
+    silhouette: 'Que arma é essa?',
     dataFile: 'valorant-armas.json',
     groupLabel: 'Categorias',
     groups: [
@@ -826,10 +832,10 @@ export const UNIVERSES = {
     defaultGroups: ['armas-leves', 'submetralhadoras', 'escopetas', 'fuzis-de-assalto', 'fuzis-de-precisao', 'armas-pesadas'],
     columns: [
       { key: 'category', label: 'Categoria', kind: 'text' },
-      { key: 'cost', label: 'Custo', kind: 'number', tolerance: 0.1 },
-      { key: 'bodyDamage', label: 'Dano', kind: 'number', tolerance: 0.1 },
-      { key: 'fireRate', label: 'Cadência', kind: 'number', unit: '/s', tolerance: 0.1 },
-      { key: 'magazineSize', label: 'Pente', kind: 'number', tolerance: 0.1 },
+      { key: 'cost', label: 'Custo', kind: 'number', tolerance: 0.1, quiz: ['Qual delas custa mais?', 'Qual delas custa menos?'] },
+      { key: 'bodyDamage', label: 'Dano', kind: 'number', tolerance: 0.1, quiz: ['Qual delas causa mais dano?', 'Qual delas causa menos dano?'] },
+      { key: 'fireRate', label: 'Cadência', kind: 'number', unit: '/s', tolerance: 0.1, quiz: ['Qual delas atira mais rápido?', 'Qual delas atira mais devagar?'] },
+      { key: 'magazineSize', label: 'Pente', kind: 'number', tolerance: 0.1, quiz: ['Qual delas tem o maior pente?', 'Qual delas tem o menor pente?'] },
       { key: 'penetration', label: 'Penetração', kind: 'text' },
     ],
   },
@@ -870,8 +876,8 @@ export const UNIVERSES = {
       },
       { key: 'origin', label: 'Origem', kind: 'text', labels: { unknown: 'Desconhecida' } },
       { key: 'location', label: 'Localização', kind: 'text', labels: { unknown: 'Desconhecida' } },
-      { key: 'episodes', label: 'Episódios', kind: 'number', tolerance: 0.1 },
-      { key: 'firstEpisode', label: 'Estreia', kind: 'number', prefix: 'Ep. ', tolerance: 0.1 },
+      { key: 'episodes', label: 'Episódios', kind: 'number', tolerance: 0.1, quiz: ['Qual deles aparece em mais episódios?', 'Qual deles aparece em menos episódios?'] },
+      { key: 'firstEpisode', label: 'Estreia', kind: 'number', prefix: 'Ep. ', tolerance: 0.1, quiz: ['Qual deles estreou por último?', 'Qual deles estreou primeiro?'] },
     ],
   },
 
@@ -907,9 +913,9 @@ export const UNIVERSES = {
       },
       { key: 'gender', label: 'Gênero', kind: 'text', labels: { Male: 'Masculino', Female: 'Feminino' } },
       { key: 'race', label: 'Raça', kind: 'text', labels: { Unknown: 'Não dita' } },
-      { key: 'intelligence', label: 'Inteligência', kind: 'number', tolerance: 0.1 },
-      { key: 'strength', label: 'Força', kind: 'number', tolerance: 0.1 },
-      { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1 },
+      { key: 'intelligence', label: 'Inteligência', kind: 'number', tolerance: 0.1, quiz: ['Qual deles é o mais inteligente?', 'Qual deles é o menos inteligente?'] },
+      { key: 'strength', label: 'Força', kind: 'number', tolerance: 0.1, quiz: ['Qual deles é o mais forte?', 'Qual deles é o mais fraco?'] },
+      { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1, quiz: ['Qual deles é o mais alto?', 'Qual deles é o mais baixo?'] },
     ],
   },
 
@@ -987,11 +993,11 @@ export const UNIVERSES = {
         },
       },
       { key: 'gender', label: 'Gênero', kind: 'text', labels: { Male: 'Masculino', Female: 'Feminino' } },
-      { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1 },
+      { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1, quiz: ['Qual deles é o mais alto?', 'Qual deles é o mais baixo?'] },
       // "Armas" saiu: cada um dos 25 tinha um conjunto proprio, entao a celula
       // nunca fechava verde a nao ser na resposta certa
       { key: 'hairColor', label: 'Cabelo', kind: 'text', labels: HAIR_PT },
-      { key: 'films', label: 'Filmes', kind: 'number' },
+      { key: 'films', label: 'Filmes', kind: 'number', quiz: ['Qual deles aparece em mais filmes?', 'Qual deles aparece em menos filmes?'] },
     ],
   },
 
@@ -1017,13 +1023,13 @@ export const UNIVERSES = {
     columns: [
       { key: 'nationality', label: 'País', kind: 'text', labels: COUNTRY_PT },
       { key: 'team', label: 'Equipe', kind: 'text' },
-      { key: 'seasons', label: 'Temporadas', kind: 'number', tolerance: 0.1 },
-      { key: 'wins', label: 'Vitórias', kind: 'number', tolerance: 0.1 },
-      { key: 'titles', label: 'Títulos', kind: 'number' },
+      { key: 'seasons', label: 'Temporadas', kind: 'number', tolerance: 0.1, quiz: ['Qual deles correu mais temporadas?', 'Qual deles correu menos temporadas?'] },
+      { key: 'wins', label: 'Vitórias', kind: 'number', tolerance: 0.1, quiz: ['Qual deles tem mais vitórias?', 'Qual deles tem menos vitórias?'] },
+      { key: 'titles', label: 'Títulos', kind: 'number', quiz: ['Qual deles tem mais títulos?', 'Qual deles tem menos títulos?'] },
       // trocou o ano de nascimento, que quase ninguem sabe e andava colado no
       // ano de estreia: aqui 1 e campeao e o resto do grid se espalha
-      { key: 'bestPosition', label: 'Melhor ano', kind: 'number', prefix: '#' },
-      { key: 'debut', label: 'Estreia', kind: 'number' },
+      { key: 'bestPosition', label: 'Melhor ano', kind: 'number', prefix: '#', quiz: ['Qual deles ficou mais longe do título?', 'Qual deles chegou mais perto do título?'] },
+      { key: 'debut', label: 'Estreia', kind: 'number', quiz: ['Qual deles estreou por último?', 'Qual deles estreou primeiro?'] },
     ],
   },
 
@@ -1053,12 +1059,12 @@ export const UNIVERSES = {
       { key: 'drive', label: 'Tração', kind: 'text', labels: CAR_DRIVE_PT },
       // "Combustível" saiu: 97% dos sorteaveis sao a gasolina, entao a celula
       // fechava verde para quase todo chute e nao dizia nada
-      { key: 'economy', label: 'Consumo', kind: 'number', unit: 'km/l', tolerance: 0.1 },
-      { key: 'cylinders', label: 'Cilindros', kind: 'number' },
-      { key: 'displacement', label: 'Cilindrada', kind: 'number', unit: 'L', tolerance: 0.15 },
+      { key: 'economy', label: 'Consumo', kind: 'number', unit: 'km/l', tolerance: 0.1, quiz: ['Qual deles é o mais econômico?', 'Qual deles gasta mais combustível?'] },
+      { key: 'cylinders', label: 'Cilindros', kind: 'number', quiz: ['Qual deles tem mais cilindros?', 'Qual deles tem menos cilindros?'] },
+      { key: 'displacement', label: 'Cilindrada', kind: 'number', unit: 'L', tolerance: 0.15, quiz: ['Qual deles tem o motor maior?', 'Qual deles tem o motor menor?'] },
       // anos sem tolerancia: 3% de 2000 seriam 60 anos de "quase"
-      { key: 'debut', label: 'Estreia', kind: 'number' },
-      { key: 'lastYear', label: 'Último ano', kind: 'number' },
+      { key: 'debut', label: 'Estreia', kind: 'number', quiz: ['Qual deles foi lançado por último?', 'Qual deles foi lançado primeiro?'] },
+      { key: 'lastYear', label: 'Último ano', kind: 'number', quiz: ['Qual deles saiu de linha por último?', 'Qual deles saiu de linha primeiro?'] },
     ],
   },
 
@@ -1130,14 +1136,16 @@ export const UNIVERSES = {
       {
         key: 'bounty', label: 'Recompensa', kind: 'number',
         compact: true, prefix: '฿ ', tolerance: 0.1, blank: 'Não tem',
+        quiz: ['Qual deles tem a maior recompensa?', 'Qual deles tem a menor recompensa?'],
       },
-      { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1 },
-      { key: 'age', label: 'Idade', kind: 'number', tolerance: 0.1 },
+      { key: 'height', label: 'Altura', kind: 'number', unit: 'cm', tolerance: 0.1, quiz: ['Qual deles é o mais alto?', 'Qual deles é o mais baixo?'] },
+      { key: 'age', label: 'Idade', kind: 'number', tolerance: 0.1, quiz: ['Qual deles é o mais velho?', 'Qual deles é o mais novo?'] },
       // o indice do arco existe so para a seta ▲/▼ dizer o lado da historia;
       // a celula mostra o nome. `nearby: 1` deixa o arco vizinho em amarelo
       {
         key: 'debutArc', label: 'Arco de aparição', kind: 'number',
         nearby: 1, labels: ONEPIECE_ARC_PT,
+        quiz: ['Qual deles apareceu por último?', 'Qual deles apareceu primeiro?'],
       },
     ],
   },
@@ -1146,6 +1154,7 @@ export const UNIVERSES = {
     id: 'dragonball',
     label: 'Dragon Ball',
     secretLabel: 'o personagem secreto',
+    silhouette: 'Quem é esse personagem?',
     dataFile: 'dragonball.json',
     daily: { rotate: 'scope' },
     groupLabel: 'Raças',
@@ -1174,11 +1183,11 @@ export const UNIVERSES = {
       { key: 'gender', label: 'Gênero', kind: 'text', labels: { Male: 'Masculino', Female: 'Feminino' } },
       { key: 'affiliation', label: 'Afiliação', kind: 'text', labels: DB_SIDE_PT },
       { key: 'planet', label: 'Planeta', kind: 'text' },
-      { key: 'transformations', label: 'Transf.', kind: 'number' },
+      { key: 'transformations', label: 'Transf.', kind: 'number', quiz: ['Qual deles tem mais transformações?', 'Qual deles tem menos transformações?'] },
       // o ki vai de 450 ao ki do Zeno: em vez do numero cru, a ordem de
       // grandeza (o expoente dividido por 3) — ainda rende as setas ▲▼
-      { key: 'ki', label: 'Ki base', kind: 'number', labels: DB_KI_PT },
-      { key: 'maxKi', label: 'Ki máximo', kind: 'number', labels: DB_KI_PT },
+      { key: 'ki', label: 'Ki base', kind: 'number', labels: DB_KI_PT, quiz: ['Qual deles tem o ki base mais alto?', 'Qual deles tem o ki base mais baixo?'] },
+      { key: 'maxKi', label: 'Ki máximo', kind: 'number', labels: DB_KI_PT, quiz: ['Qual deles chega ao ki mais alto?', 'Qual deles tem o ki máximo mais baixo?'] },
     ],
   },
 
@@ -1219,7 +1228,7 @@ export const UNIVERSES = {
       { key: 'affiliation', label: 'Afiliação', kind: 'list', labels: HXH_AFFILIATION_PT },
       { key: 'job', label: 'Ocupação', kind: 'text', labels: HXH_JOB_PT },
       { key: 'hair', label: 'Cabelo', kind: 'text', labels: HAIR_PT },
-      { key: 'debutChapter', label: 'Estreia', kind: 'number', prefix: 'Cap. ', tolerance: 0.1 },
+      { key: 'debutChapter', label: 'Estreia', kind: 'number', prefix: 'Cap. ', tolerance: 0.1, quiz: ['Qual deles estreou por último no mangá?', 'Qual deles estreou primeiro no mangá?'] },
     ],
   },
 
@@ -1227,6 +1236,7 @@ export const UNIVERSES = {
     id: 'ordem',
     label: 'Ordem Paranormal',
     secretLabel: 'a criatura secreta',
+    silhouette: 'Que criatura é essa?',
     dataFile: 'ordem.json',
     // as campanhas sao a linha do tempo do Ordem
     daily: { rotate: 'group' },
@@ -1260,6 +1270,7 @@ export const UNIVERSES = {
     id: 'ben10',
     label: 'Ben 10',
     secretLabel: 'o alien secreto',
+    silhouette: 'Quem é esse alien?',
     dataFile: 'ben10.json',
     daily: { rotate: 'scope' },
     groupLabel: 'Relógios',
@@ -1295,7 +1306,7 @@ export const UNIVERSES = {
       { key: 'series', label: 'Série', kind: 'text', labels: BEN10_SERIES_PT },
       // ano e coluna a parte da serie porque separa dentro dela: entre os 53
       // aliens de Omniverse, 2012 e 2014 sao duas metades diferentes do elenco
-      { key: 'debutYear', label: 'Estreia', kind: 'number', nearby: 1 },
+      { key: 'debutYear', label: 'Estreia', kind: 'number', nearby: 1, quiz: ['Qual deles estreou por último?', 'Qual deles estreou primeiro?'] },
     ],
   },
 
@@ -1369,7 +1380,7 @@ export const UNIVERSES = {
       { key: 'gender', label: 'Gênero', kind: 'text' },
       { key: 'country', label: 'País', kind: 'text' },
       // 5 anos de tolerancia: quem chuta a decada certa merece o amarelo
-      { key: 'birthYear', label: 'Nascimento', kind: 'number', nearby: 5 },
+      { key: 'birthYear', label: 'Nascimento', kind: 'number', nearby: 5, quiz: ['Qual delas nasceu por último?', 'Qual delas nasceu primeiro?'] },
       { key: 'status', label: 'Estado', kind: 'text' },
     ],
   },
@@ -1407,6 +1418,24 @@ export function sanitizeScope(universe, raw) {
   const pedidos = (Array.isArray(raw) ? raw : (raw == null ? [] : [raw])).map(String);
   const escolhidas = scope.options.map(o => o.id).filter(id => pedidos.includes(id));
   return escolhidas.length ? escolhidas : [...(scope.default ?? scope.options.map(o => o.id))];
+}
+
+/**
+ * Com o que o formulario de sala abre para um tema: so a primeira opcao do
+ * eixo que ele mostra marcada — a primeira epoca onde o tema tem recorte, o
+ * primeiro grupo onde nao tem. E o comeco da historia (Gen 1, Classico, East
+ * Blue), o que todo mundo sabe de cabeca; quem quiser mais, marca.
+ *
+ * Onde o eixo e a epoca, os grupos ficam todos ligados: o formulario de
+ * criacao nem mostra os grupos, e cortar os dois de uma vez escondia um
+ * filtro que ninguem via. `defaultGroups` e `scope.default` continuam sendo a
+ * rede do servidor (sala sem grupo valido, desafio do dia) e nao mudam.
+ */
+export function roomDefaults(universe) {
+  if (universe.scope) {
+    return { groups: [...universe.defaultGroups], scope: [universe.scope.options[0].id] };
+  }
+  return { groups: [universe.groups[0].id], scope: null };
 }
 
 /** Rotulo das epocas ligadas, para as mensagens da sala. */

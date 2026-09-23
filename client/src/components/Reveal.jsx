@@ -15,7 +15,7 @@ export function HideButton({ onClick }) {
  * para quem sabe. Com `onHide`, o cartao ganha o botao de esconder.
  */
 export default function Reveal({
-  universe, secret, scope = null, caption = 'O segredo era', onHide = null,
+  universe, secret, scope = null, caption = 'O segredo era', onHide = null, flip = false,
 }) {
   const art = secret.artwork ?? secret.sprite ?? null;   // ha universos sem imagem (LOTR)
 
@@ -33,7 +33,8 @@ export default function Reveal({
   const toggle = onHide && <HideButton onClick={onHide} />;
 
   return (
-    <section className="reveal">
+    // `flip`: a carta acabou de ser desvirada pelo olho (ver .flip-in no CSS)
+    <section className={`reveal ${flip ? 'flip-in' : ''}`}>
       {art && (
         <div className="portrait">
           <img src={art} alt={secret.name} onError={fallbackToSprite} />

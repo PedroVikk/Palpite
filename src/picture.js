@@ -161,6 +161,52 @@ export async function prepare(universeId, item) {
 export const frameOf = (universeId, item, level) =>
   (item ? frames.get(keyOf(universeId, item, levelFor(level))) ?? null : null);
 
+// ------------------------------------------------------------ silhueta
+
+/**
+ * A silhueta do "Quem é esse Pokémon?" do "Qual deles?": a figura inteira em
+ * preto, só a forma. Mesma regra da escada: sai daqui pronta, destrutiva — o
+ * arquivo que viaja não tem cor nenhuma dentro, só o canal alfa pintado de
+ * preto —, embutida na pergunta, sem endereço de imagem para abrir no F12.
+ *
+ * Só vale para figura recortada (fundo transparente). Numa foto (os Famosos,
+ * os pilotos) a silhueta seria um retângulo preto: `null`, e a sala faz outra
+ * pergunta.
+ */
+const silhouettes = new Map();
+const MAX_SILHOUETTES = 2000;
+
+export async function silhouetteOf(universeId, item) {
+  if (!hasPicture(item)) return null;
+  const key = `${universeId}:${item.id}`;
+  if (silhouettes.has(key)) return silhouettes.get(key);
+
+  let result = null;
+  try {
+    const source = await framed(path.join(SPRITES, universeId, `${item.id}.webp`));
+    const { data, info } = await sharp(source).ensureAlpha().extractChannel(3).raw()
+      .toBuffer({ resolveWithObject: true });
+    // fundo quase todo opaco e foto, nao figura recortada
+    const opaque = data.reduce((sum, a) => sum + (a > 16 ? 1 : 0), 0) / data.length;
+    if (opaque < 0.9) {
+      // RGBA montado a mao: preto em todo pixel, com o alfa da figura
+      const rgba = Buffer.alloc(data.length * 4);
+      for (let i = 0; i < data.length; i++) rgba[i * 4 + 3] = data[i];
+      const webp = await sharp(rgba, { raw: { width: info.width, height: info.height, channels: 4 } })
+        // pixel art ampliada sem borrar: a forma e a dica inteira
+        .resize({ width: 160, height: 160, fit: 'inside', kernel: 'nearest' })
+        .webp({ quality: 90 })
+        .toBuffer();
+      result = `data:image/webp;base64,${webp.toString('base64')}`;
+    }
+  } catch (err) {
+    console.error(`[picture] sem silhueta para ${universeId}#${item.id}:`, err.message);
+  }
+  if (silhouettes.size >= MAX_SILHOUETTES) silhouettes.delete(silhouettes.keys().next().value);
+  silhouettes.set(key, result);
+  return result;
+}
+
 /** O quadro, gerando na hora se preciso. É o caminho do desafio do dia, que é HTTP e pode esperar. */
 export async function frameFor(universeId, item, level) {
   const ready = frameOf(universeId, item, level);

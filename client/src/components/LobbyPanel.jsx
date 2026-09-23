@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getUniverse, scopeFilter, sanitizeScope } from '@shared/universes.js';
+import { getUniverse, roomDefaults, scopeFilter, sanitizeScope } from '@shared/universes.js';
 import { socket } from '../socket.js';
 import { useDataset } from '../hooks/useDataset.js';
 import { canPlayPicture, hasPicture } from '../lib/picture.js';
@@ -34,6 +34,7 @@ const fromSettings = (s) => ({
   untilRight: s.guessesPerPlayer === 0,
   picture: Boolean(s.picture),
   card: Boolean(s.card),
+  choices: s.choices || 3,
 });
 
 const toSettings = (f) => ({
@@ -46,6 +47,7 @@ const toSettings = (f) => ({
   guessesPerPlayer: f.untilRight ? 0 : f.guessesPerPlayer,
   picture: f.picture,
   card: f.card,
+  choices: f.choices,
 });
 
 /**
@@ -94,6 +96,12 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
       next.untilRight = false;
       next.picture = false;
     }
+    // "Qual deles?" e rapido: entrar no modo ja poe 10 perguntas de 15 s
+    if (next.mode === 'quiz' && form.mode !== 'quiz') {
+      next.rounds = 10;
+      next.turnSeconds = 15;
+      next.picture = false;
+    }
     // universo sem figura espelhada nao joga de imagem; trocar para um deles
     // com a chave ligada desliga ela, em vez de sortear um segredo invisivel
     if (!comImagem) next.picture = false;
@@ -139,6 +147,7 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
   const duel = form.mode === 'duel';
   const impostor = form.mode === 'impostor';
   const battle = form.mode === 'battle';
+  const quiz = form.mode === 'quiz';
   const minPlayers = impostor ? IMPOSTOR_MIN : duel || battle ? 2 : 1;
   const enoughPlayers = state.players.length >= minPlayers;
   const seatsLeft = Math.max(0, MAX_SEATS - state.players.length);
@@ -215,15 +224,11 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
           </div>
 
           <div className="field">
-            <div className="f-label">Universo</div>
+            <div className="f-label">Tema</div>
             <UniverseSelect
               value={form.universe}
               disabled={!isHost}
-              onChange={(id) => change({
-                universe: id,
-                groups: [...getUniverse(id).defaultGroups],
-                scope: sanitizeScope(getUniverse(id), null),
-              })}
+              onChange={(id) => change({ universe: id, ...roomDefaults(getUniverse(id)) })}
             />
           </div>
 
@@ -307,6 +312,8 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
               </button>
             )}
 
+            {/* no "Qual deles?" nao ha segredo nem chute: imagem e "ate acertar" nao se aplicam */}
+            {!quiz && <>
             <button
               type="button"
               className={`switch-row ${form.picture && comImagem && !impostor && !battle ? 'on' : ''}`}
@@ -351,10 +358,11 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
               </span>
               <span className="switch"><i /></span>
             </button>
+            </>}
 
-            <div className="steppers" style={{ marginTop: 12 }}>
+            <div className="steppers" style={{ marginTop: quiz ? 0 : 12 }}>
               <Stepper
-                label="Rodadas"
+                label={quiz ? 'Perguntas' : 'Rodadas'}
                 icon={<CalendarIcon width={14} height={14} />}
                 value={form.rounds} min={1} max={20}
                 off={battle} offValue="1"
@@ -363,14 +371,23 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
                 onChange={(v) => change({ rounds: v })}
               />
               <Stepper
-                label="Tempo por turno"
+                label={quiz ? 'Tempo por pergunta' : 'Tempo por turno'}
                 icon={<ClockIcon width={14} height={14} />}
                 value={form.turnSeconds} min={5} max={180} step={5} suffix="s"
-                hint="Para mandar o chute"
+                hint={quiz ? 'Para todos responderem' : 'Para mandar o chute'}
                 disabled={!isHost}
                 onChange={(v) => change({ turnSeconds: v })}
               />
-              <Stepper
+              {quiz ? (
+                <Stepper
+                  label="Opções"
+                  icon={<TargetIcon width={14} height={14} />}
+                  value={form.choices} min={2} max={5}
+                  hint="Respostas por pergunta"
+                  disabled={!isHost}
+                  onChange={(v) => change({ choices: v })}
+                />
+              ) : <Stepper
                 label={impostor ? 'Voltas' : 'Chutes por jogador'}
                 icon={<TargetIcon width={14} height={14} />}
                 value={form.guessesPerPlayer} min={1} max={impostor ? 5 : 20}
@@ -381,7 +398,7 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
                 disabled={!isHost}
                 /* mexer aqui desliga o "ate acertar" */
                 onChange={(v) => change({ guessesPerPlayer: v, untilRight: false })}
-              />
+              />}
             </div>
           </div>
         </div>

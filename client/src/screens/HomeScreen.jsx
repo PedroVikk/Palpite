@@ -155,7 +155,7 @@ export default function HomeScreen({
           <div>
             <span className="eyebrow"><ClockIcon width={13} height={13} strokeWidth={2.4} />Todo dia · troca à meia-noite</span>
             <h1>Desafio diário</h1>
-            <p className="lead">Um segredo por universo, e outro só de imagem. Os mesmos para todo mundo, até a virada do dia.</p>
+            <p className="lead">Um segredo por tema, e outro só de imagem. Os mesmos para todo mundo, até a virada do dia.</p>
 
             <div className="hero-stats">
               {/* a sequência vem primeiro: é o número que faz voltar amanhã */}
@@ -165,7 +165,7 @@ export default function HomeScreen({
               </div>
               <div className="stat">
                 <div className="k"><CheckIcon width={12} height={12} strokeWidth={2.2} />Resolvidos hoje</div>
-                <div className="v">{day.solved} <small>de {TOTAL_UNIVERSES} universos</small></div>
+                <div className="v">{day.solved} <small>de {TOTAL_UNIVERSES} temas</small></div>
               </div>
               <div className="stat">
                 <div className="k"><ChartIcon width={12} height={12} strokeWidth={2.2} />Chutes hoje</div>
@@ -249,7 +249,7 @@ export default function HomeScreen({
             <img className="corner" src={dailyMark} alt="" aria-hidden />
             <span className="ico"><TargetIcon width={19} height={19} /></span>
             <h3>Desafio diário</h3>
-            <p>Dois segredos por universo — um pela tabela de dicas, outro pela imagem. Iguais para todo mundo.</p>
+            <p>Dois segredos por tema — um pela tabela de dicas, outro pela imagem. Iguais para todo mundo.</p>
             <div className="foot">
               <span className="tag green">{day.solved}/{TOTAL_UNIVERSES} hoje</span>
               <SendIcon className="go" width={18} height={18} />
@@ -259,7 +259,7 @@ export default function HomeScreen({
           <button className="mode-card violet" onClick={onNewRoom}>
             <span className="ico"><PlusIcon width={19} height={19} /></span>
             <h3>Criar sala</h3>
-            <p>Escolha o universo, as regras e o tempo por turno. Você vira o host e convida por link.</p>
+            <p>Escolha o tema, as regras e o tempo por turno. Você vira o host e convida por link.</p>
             <div className="foot">
               <span className="tag purple">Você é o host</span>
               <SendIcon className="go" width={18} height={18} />
@@ -300,7 +300,7 @@ export default function HomeScreen({
           <div className="step-card">
             <div className="n">1</div>
             <h4>Crie ou entre em uma sala</h4>
-            <p>Escolha o universo e as regras, ou entre com o código de 4 letras de um amigo.</p>
+            <p>Escolha o tema e as regras, ou entre com o código de 4 letras de um amigo.</p>
           </div>
           <div className="step-card">
             <div className="n">2</div>

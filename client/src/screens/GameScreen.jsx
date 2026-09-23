@@ -15,9 +15,10 @@ import Reveal from '../components/Reveal.jsx';
 import GameOver from '../components/GameOver.jsx';
 import { ImpostorModal, RoleCard } from '../components/ImpostorPanels.jsx';
 import { BattleTabs, MySecretCard } from '../components/BattlePanels.jsx';
-import { AnchorIcon, ClockIcon, ImageIcon, MaskIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
+import QuizPanel from '../components/QuizPanel.jsx';
+import { AnchorIcon, ClockIcon, ImageIcon, MaskIcon, QuestionIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
 
-const RULES = { hunt: 'Caça ao segredo', duel: 'Duelo', impostor: 'Impostor', battle: 'Batalha naval' };
+const RULES = { hunt: 'Caça ao segredo', duel: 'Duelo', impostor: 'Impostor', battle: 'Batalha naval', quiz: 'Qual deles?' };
 
 export default function GameScreen({ state, myId, toast, onLeave }) {
   const universe = getUniverse(state.settings.universe);
@@ -58,6 +59,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   const isMyLastGuess = state.phase === 'lastGuess' && state.turnPlayerId === myId;
   const isMyTurn = (state.phase === 'playing' && state.turnPlayerId === myId) || isMyLastGuess;
   const battle = state.settings.mode === 'battle';
+  const quiz = state.settings.mode === 'quiz';
   // na batalha naval todo mundo da batalha esconde, ao mesmo tempo
   const isMyChoice = state.phase === 'choosing'
     && (battle ? state.cast.includes(myId) : state.chooserId === myId);
@@ -113,6 +115,8 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
     ? impostorBanner({ state, myId, universe, isMyTurn, nameOf })
     : battle
       ? battleBanner({ state, myId, universe, isMyTurn, target, canShoot, nameOf })
+      : quiz
+      ? quizBanner({ state, myId })
       : buildBanner({ state, myId, universe, isMyTurn, isMyChoice, nameOf });
   const urgent = left !== null && left <= 10 && state.phase !== 'roundEnd';
   const roundOver = state.phase === 'roundEnd';
@@ -162,7 +166,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
             </div>
             {left !== null && (
               <div className={`clock ${urgent ? 'urgent' : ''}`}>
-                <div className="k">{isMyTurn || isMyChoice ? 'Seu turno' : 'Turno'}</div>
+                <div className="k">{quiz ? 'Tempo' : isMyTurn || isMyChoice ? 'Seu turno' : 'Turno'}</div>
                 <div className="v">{String(left).padStart(2, '0')}s</div>
               </div>
             )}
@@ -177,6 +181,9 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
             * O campo de chute sai de cena junto: nao ha o que chutar numa
             * rodada que ja acabou.
             */}
+          {/* "Qual deles?": a pergunta e, fechada, o gabarito — nos dois estados */}
+          {quiz && <QuizPanel state={state} myId={myId} universe={universe} />}
+
           {roundOver ? (
             <>
               {state.secret && (
@@ -240,7 +247,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
                   universe={universe}
                   secret={state.secrets[target]}
                   scope={scopeReach(universe, state.settings.scope)}
-                  caption={`${nameOf(target)} afundou — o segredo era`}
+                  caption={`Afundado por ${state.sunk[target].by === myId ? 'você' : nameOf(state.sunk[target].by)} — o segredo de ${nameOf(target)} era`}
                 />
               )}
 
@@ -257,7 +264,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
                 />
               )}
 
-              {state.phase !== 'voting' && <GuessBar
+              {state.phase !== 'voting' && !quiz && <GuessBar
                 items={items}
                 guessedIds={battle && isMyChoice ? [] : shownRows.map(row => row.id)}
                 groups={state.settings.groups}
@@ -269,7 +276,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
               />}
 
               {/* quantos chutes já foram e quantos sobram, em número e em forma */}
-              {state.phase === 'playing' && (
+              {state.phase === 'playing' && !quiz && (
                 <section className="progress-bar">
                   <span className="txt">
                     Você já deu <b>{myGuesses} {myGuesses === 1 ? 'chute' : 'chutes'}</b>
@@ -293,7 +300,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
           )}
 
           {/* na escolha da batalha ainda nao ha tabuleiro para mostrar */}
-          {!(battle && state.phase === 'choosing') && (
+          {!(battle && state.phase === 'choosing') && !quiz && (
             <HintsTable universe={universe} rows={shownRows} hints={!byPicture} counts={impostorRound} />
           )}
 
@@ -358,6 +365,23 @@ function TopBar({ state, universe, meta, onBack }) {
 }
 
 /** A bola da vez no impostor: o aviso muda com o papel de quem olha. */
+/** "Qual deles?": nao ha vez — o aviso diz em que pergunta estamos e como ela fechou. */
+function quizBanner({ state, myId }) {
+  const q = <QuestionIcon width={22} height={22} />;
+  if (state.phase === 'playing') {
+    return state.myAnswer !== null
+      ? { title: 'Resposta enviada', text: `${state.answered.length} de ${state.cast.length} já responderam.`, tone: '', icon: <ClockIcon width={22} height={22} /> }
+      : { title: `Pergunta ${state.round} de ${state.settings.rounds}`, text: 'Todo mundo responde junto. Quem acerta mais rápido leva mais pontos.', tone: 'you', icon: q };
+  }
+  const mine = state.quizResult?.picks?.[myId];
+  return {
+    title: mine?.correct ? `Acertou! +${mine.points}` : 'Fim da pergunta',
+    text: state.message ?? '',
+    tone: mine?.correct ? 'you' : '',
+    icon: q,
+  };
+}
+
 function battleBanner({ state, myId, universe, isMyTurn, target, canShoot, nameOf }) {
   const anchor = <AnchorIcon width={22} height={22} />;
 

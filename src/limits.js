@@ -99,7 +99,7 @@ export function spendDailyGuess(chave, universo, hoje, modo = 'dicas') {
     }
     return {
       ok: false,
-      error: 'Você já deu chutes demais neste universo hoje. O desafio volta a aceitar amanhã.',
+      error: 'Você já deu chutes demais neste tema hoje. O desafio volta a aceitar amanhã.',
       // até a virada do dia; o cliente só usa isso como "não insista"
       retryAfter: 3600,
     };

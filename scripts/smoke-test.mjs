@@ -690,6 +690,10 @@ try {
   await until(frota[0], s => s.sunk[vitima.id], 'afundou');
   check('afundar pontua quem acertou', frota[0].state.players.find(p => p.id === atirador.id).score > 0);
   check('o segredo afundado vira de todo mundo', frota.every(g => g.state.secrets[vitima.id]?.id === segredoVitima));
+  // o gabarito do afundado mostra as colunas dele: com so nome e figura, as
+  // fichas do reveal saiam todas em branco
+  const afundado = frota[0].state.secrets[vitima.id];
+  check('o segredo afundado vem com as colunas', UNIVERSES.pokemon.columns.every(c => valueOf(afundado, c.key) !== undefined));
   check('a batalha segue com dois de pe', frota[0].state.phase === 'playing');
 
   // quem afundou continua atirando; e ninguem atira no afundado
@@ -733,6 +737,87 @@ try {
   await sleep(150);
   check('batalha recusa sala de um so', sozinhoNaFrota.errors.some(e => /pelo menos 2/.test(e)) && salaUsopp.state.phase === 'lobby');
   for (const g of [...frota, sozinhoNaFrota]) g.socket.close();
+
+  // ----------------------------------------------------------- qual deles?
+  // Pergunta de multipla escolha para todos ao mesmo tempo; acertar mais cedo
+  // vale mais, e a resposta so sai do servidor quando a pergunta fecha.
+  console.log('\n== Qual deles? ==');
+  const plateia = await Promise.all(['Ana', 'Bia', 'Caio'].map(connect));
+  const salaQuiz = await new Promise(res => plateia[0].socket.emit('room:create', {
+    name: 'Ana', settings: { mode: 'quiz', universe: 'pokemon', groups: ['1'], rounds: 2, turnSeconds: 20, choices: 4 },
+  }, res));
+  plateia[0].id = salaQuiz.playerId;
+  for (const [i, g] of plateia.slice(1).entries()) {
+    const r = await new Promise(res => g.socket.emit('room:join', { code: salaQuiz.code, name: ['Bia', 'Caio'][i] }, res));
+    g.id = r.playerId;
+  }
+  plateia[0].socket.emit('game:start');
+  await Promise.all(plateia.map(g => until(g, s => s.phase === 'playing' && s.question, 'pergunta saiu')));
+  const pergunta = plateia[1].state.question;
+  check('a pergunta tem as opcoes da sala', pergunta.options.length === 4);
+  // sem a lista de quem esta na pergunta, a tela tratava todo mundo como
+  // quem chegou atrasado e travava as opcoes
+  check('a tela sabe quem esta na pergunta', plateia.every(g => g.state.cast.includes(g.id)));
+  check('a resposta nao vai junto com a pergunta', !('answerIndex' in pergunta) && plateia[1].state.quizResult === null);
+  check('todo mundo recebe a mesma pergunta', plateia.every(g => g.state.question.options.map(o => o.id).join() === pergunta.options.map(o => o.id).join()));
+
+  // cada um escolhe uma opcao diferente: exatamente quem pegou a certa pontua
+  plateia[0].socket.emit('game:answer', { index: 0 });
+  await until(plateia[1], s => s.answered.length === 1, 'primeira resposta');
+  check('a sala ve quem respondeu, nao o que', plateia[1].state.answered.includes(plateia[0].id) && plateia[1].state.myAnswer === null);
+  plateia[0].socket.emit('game:answer', { index: 3 });
+  await sleep(120);
+  check('uma resposta por pergunta, sem troca', plateia[0].state.myAnswer === 0);
+  await sleep(300);
+  plateia[1].socket.emit('game:answer', { index: 1 });
+  plateia[2].socket.emit('game:answer', { index: 2 });
+  await until(plateia[0], s => s.phase === 'roundEnd', 'pergunta fechou');
+  check('com todos respondidos, fecha sem esperar o relogio', plateia[0].state.phase === 'roundEnd');
+  const gabarito = plateia[0].state.quizResult;
+  check('o gabarito traz a resposta e o valor de cada opcao', Number.isInteger(gabarito.answerIndex) && gabarito.values.length === 4);
+  const pontosQuiz = plateia.map(g => plateia[0].state.players.find(p => p.id === g.id).score);
+  check('so quem acertou pontua', plateia.every((g, i) => (i === gabarito.answerIndex) === (pontosQuiz[i] > 0)));
+  check('o acerto vale de 50 a 100', pontosQuiz.every(p => p === 0 || (p >= 50 && p <= 100)));
+  if (gabarito.answerIndex < 3) {
+    check('quem respondeu antes ganha mais', gabarito.answerIndex !== 0 || pontosQuiz[0] >= 90);
+  }
+
+  plateia[0].socket.emit('game:next');
+  await until(plateia[0], s => s.round === 2 && s.phase === 'playing', 'segunda pergunta');
+  for (const g of plateia) g.socket.emit('game:answer', { index: 0 });
+  await until(plateia[0], s => s.phase === 'gameOver', 'fim do quiz');
+  check('depois das perguntas da sala, placar final', Boolean(plateia[0].state.summary));
+
+  // "Quem é esse Pokémon?": sai em uma a cada quatro perguntas, entao a sala
+  // roda perguntas ate cair uma (em 20, a chance de nao cair nenhuma e 0,3%)
+  const salaSombra = await new Promise(res => plateia[0].socket.emit('room:create', {
+    name: 'Ana', settings: { mode: 'quiz', universe: 'pokemon', groups: ['1'], rounds: 20, turnSeconds: 20, choices: 3 },
+  }, res));
+  await new Promise(res => plateia[1].socket.emit('room:join', { code: salaSombra.code, name: 'Bia' }, res));
+  plateia[0].socket.emit('game:start');
+  let sombra = null;
+  for (let rodada = 1; rodada <= 20 && !sombra; rodada++) {
+    const s = await until(plateia[0], st => st.code === salaSombra.code && st.round === rodada && st.phase === 'playing' && st.question, 'pergunta da sombra');
+    if (s.question.kind === 'who') { sombra = s.question; break; }
+    for (const g of plateia.slice(0, 2)) g.socket.emit('game:answer', { index: 0 });
+    await until(plateia[0], st => st.phase === 'roundEnd' || st.phase === 'gameOver', 'fechou');
+    plateia[0].socket.emit('game:next');
+  }
+  check('sai a pergunta da silhueta', Boolean(sombra));
+  if (sombra) {
+    check('a silhueta vem embutida, sem endereco para abrir', /^data:image\/webp;base64,/.test(sombra.image ?? ''));
+    check('as opcoes da silhueta vem sem figura', sombra.options.every(o => o.sprite === null));
+    for (const g of plateia.slice(0, 2)) g.socket.emit('game:answer', { index: 0 });
+    await until(plateia[0], st => st.quizResult, 'gabarito da silhueta');
+    check('no gabarito as figuras aparecem', plateia[0].state.quizResult.sprites.every(Boolean));
+  }
+  plateia[0].socket.emit('game:end');
+
+  const salaMuitas = await new Promise(res => plateia[0].socket.emit('room:create', {
+    name: 'Ana', settings: { mode: 'quiz', choices: 9, picture: true },
+  }, res));
+  check('no maximo 5 opcoes, e sem imagem', salaMuitas.state.settings.choices === 5 && salaMuitas.state.settings.picture === false);
+  for (const g of plateia) g.socket.close();
 
   // ----------------------------------------------------------- padroes e duelo
   console.log('\n== Padrao e cronometro ==');

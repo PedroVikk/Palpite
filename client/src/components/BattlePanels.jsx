@@ -28,7 +28,7 @@ export function MySecretCard({ secret, sunkBy }) {
   }
 
   return (
-    <section className="reveal mine">
+    <section className="reveal mine flip-in">
       {secret.sprite && <div className="portrait small"><img src={secret.artwork ?? secret.sprite} alt={secret.name} /></div>}
       <div>
         <span className="k">{sunkBy ? `Seu segredo — afundado por ${sunkBy}` : 'Seu segredo'}</span>
