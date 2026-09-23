@@ -139,6 +139,23 @@ export const SwordsIcon = (props) => (
   </svg>
 );
 
+/** Máscara do modo impostor: quem está na mesa sem saber o segredo. */
+export const MaskIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M3 6.5c3-1.3 6-1.5 9-1.5s6 .2 9 1.5c0 6.5-3.6 11-9 12.5C6.6 17.5 3 13 3 6.5Z" />
+    <path d="M7 10.5c.8-.7 2.2-.7 3 0M14 10.5c.8-.7 2.2-.7 3 0M9.5 15c1.5.8 3.5.8 5 0" />
+  </svg>
+);
+
+/** Ficha: um cartão com linhas, para a opção de mostrar os dados do chutado. */
+export const CardIcon = (props) => (
+  <svg {...base} {...props}>
+    <rect x="3" y="5" width="18" height="14" rx="2.5" />
+    <circle cx="8.5" cy="11" r="2" />
+    <path d="M5.5 16c.6-1.3 1.7-2 3-2s2.4.7 3 2M14 10h4M14 13.5h4" />
+  </svg>
+);
+
 export const SparkIcon = (props) => (
   <svg {...base} {...props}>
     <path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />

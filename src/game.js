@@ -13,7 +13,11 @@ export { UNIVERSES, getUniverse, scopeFilter, scopeReach, scopeLabel };
 export const MODES = {
   HUNT: 'hunt', // servidor sorteia o segredo, NINGUEM sabe, todos adivinham em turnos
   DUEL: 'duel', // um jogador sorteado ESCONDE o segredo e assiste; o resto adivinha em turnos
+  IMPOSTOR: 'impostor', // todos SABEM o segredo, menos um; a mesa chuta sem entregar e vota em quem nao sabia
 };
+
+/** Impostor: a mesa precisa de gente para desconfiar de alguem. */
+export const IMPOSTOR_MIN_PLAYERS = 3;
 
 export const DEFAULT_SETTINGS = {
   mode: MODES.HUNT,
@@ -24,6 +28,7 @@ export const DEFAULT_SETTINGS = {
   turnSeconds: 45,
   guessesPerPlayer: 0, // 0 = "ate acertar": sem teto de chutes (so no modo caca ao segredo)
   picture: false,      // rodada jogada pela imagem, sem tabela de dicas
+  card: false,         // impostor: a linha mostra a ficha do chutado (sem cor)
 };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -43,14 +48,20 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
   const requestedScope = raw.scope ?? (universeId === base.universe ? base.scope : null);
   const scope = sanitizeScope(universe, requestedScope);
 
-  const mode = raw.mode === MODES.DUEL ? MODES.DUEL : MODES.HUNT;
+  const mode = Object.values(MODES).includes(raw.mode) ? raw.mode : MODES.HUNT;
+  const impostor = mode === MODES.IMPOSTOR;
 
   // "ate acertar" (guessesPerPlayer 0): a rodada so fecha quando alguem acerta,
   // sem teto de chutes. So vale no modo caca ao segredo — no duelo quem esconde
   // o segredo so pontua se os chutes dos outros acabarem, entao ali o teto e
   // obrigatorio e um valor <= 0 cai para o padrao.
   const rawGuesses = Math.round(Number(raw.guessesPerPlayer ?? base.guessesPerPlayer));
+  //
+  // No impostor o saldo de chutes e o numero de voltas da mesa: a rodada nao
+  // fecha em acerto (quem sabe nao pode chutar o segredo), entao sem teto ela
+  // nunca chegaria na votacao.
   const untilRight = mode === MODES.HUNT && (!Number.isFinite(rawGuesses) || rawGuesses <= 0);
+  const fallbackGuesses = impostor ? 2 : 6;
 
   return {
     mode,
@@ -59,13 +70,18 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
     scope,
     rounds: clamp(Math.round(Number(raw.rounds ?? base.rounds)) || 5, 1, 20),
     turnSeconds: clamp(Math.round(Number(raw.turnSeconds ?? base.turnSeconds)) || 45, 5, 180),
-    guessesPerPlayer: untilRight ? 0 : clamp(rawGuesses || 6, 1, 20),
+    guessesPerPlayer: untilRight ? 0 : clamp(rawGuesses > 0 ? rawGuesses : fallbackGuesses, 1, 20),
     /**
      * O interruptor da imagem atravessa os dois modos: tanto a caca ao segredo
      * quanto o duelo podem ser jogados pela figura. Ele nao substitui `mode`,
      * entao mora aqui do lado em vez de virar um terceiro valor dele.
      */
-    picture: Boolean(raw.picture ?? base.picture),
+    //
+    // O impostor e a excecao: a figura clareia a cada chute, e ai todo chute
+    // da mesa entregaria pixels a quem nao sabe o segredo, sem ninguem poder
+    // evitar. Sem tabela tambem nao ha contagem de acertos para desconfiar.
+    picture: !impostor && Boolean(raw.picture ?? base.picture),
+    card: Boolean(raw.card ?? base.card),
   };
 }
 
@@ -176,6 +192,37 @@ export function scoreForWin(totalGuessesInRound) {
 
 /** No modo duelo, o dono do segredo pontua se ninguem acertar. */
 export const SCORE_CHOOSER_SURVIVED = 50;
+
+/**
+ * Impostor. Ele leva 100 quando escapa da votacao, quando acerta o chute final
+ * depois de pego, ou quando chuta o segredo no meio das voltas. Pego e errando
+ * o chute final, cada um da mesa leva 50, e quem votou nele leva mais 20.
+ */
+export const SCORE_IMPOSTOR_WINS = 100;
+export const SCORE_CREW_WINS = 50;
+export const SCORE_RIGHT_VOTE = 20;
+
+/**
+ * Quantas colunas o chute acertou em cheio. E tudo o que a mesa ve da linha
+ * durante a rodada do impostor: prova que quem chutou sabe um pouco, sem dizer
+ * o que — so verde conta, amarelo e seta ficam de fora.
+ */
+export const hitsOf = (row) => Object.values(row.cells ?? {}).filter(c => c.status === 'hit').length;
+
+/**
+ * Apuracao da votacao. So um mais votado, e sendo ele o impostor, conta como
+ * pego: empate e urna vazia deixam o impostor escapar, como no jogo de mesa.
+ */
+export function tallyVotes(votes) {
+  const count = new Map();
+  for (const suspect of Object.values(votes)) count.set(suspect, (count.get(suspect) ?? 0) + 1);
+  let top = 0;
+  let leaders = [];
+  for (const [id, n] of count) {
+    if (n > top) { top = n; leaders = [id]; } else if (n === top) leaders.push(id);
+  }
+  return { count: Object.fromEntries(count), accused: leaders.length === 1 ? leaders[0] : null };
+}
 
 export function pickSecret(pool, rng = Math.random) {
   return pool[Math.floor(rng() * pool.length)];

@@ -7,10 +7,14 @@ import Avatar from './Avatar.jsx';
 import UniverseSelect from './UniverseSelect.jsx';
 import UniverseIcon from './UniverseIcon.jsx';
 import Stepper from './Stepper.jsx';
+import ModePick from './ModePick.jsx';
 import {
-  CalendarIcon, CheckIcon, ClockIcon, CopyIcon, ExitIcon, ImageIcon, SearchIcon,
-  ShareIcon, SwordsIcon, TargetIcon, UsersIcon,
+  CalendarIcon, CardIcon, CheckIcon, ClockIcon, CopyIcon, ExitIcon, ImageIcon,
+  ShareIcon, TargetIcon, UsersIcon,
 } from './Icon.jsx';
+
+/** O impostor precisa de gente para desconfiar (IMPOSTOR_MIN_PLAYERS no servidor). */
+const IMPOSTOR_MIN = 3;
 
 const MAX_SEATS = 8;
 
@@ -29,6 +33,7 @@ const fromSettings = (s) => ({
   guessesPerPlayer: s.guessesPerPlayer || 6,
   untilRight: s.guessesPerPlayer === 0,
   picture: Boolean(s.picture),
+  card: Boolean(s.card),
 });
 
 const toSettings = (f) => ({
@@ -40,6 +45,7 @@ const toSettings = (f) => ({
   turnSeconds: f.turnSeconds,
   guessesPerPlayer: f.untilRight ? 0 : f.guessesPerPlayer,
   picture: f.picture,
+  card: f.card,
 });
 
 /**
@@ -81,6 +87,13 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
     // no duelo o "ate acertar" nao existe: quem esconde o segredo so pontua
     // quando os chutes dos outros acabam
     if (next.mode === 'duel') next.untilRight = false;
+    // no impostor o saldo de chutes e o numero de voltas, e a imagem entregaria
+    // pixels do segredo a quem nao sabe. Entrar no modo volta para 2 voltas
+    if (next.mode === 'impostor') {
+      if (form.mode !== 'impostor') next.guessesPerPlayer = 2;
+      next.untilRight = false;
+      next.picture = false;
+    }
     // universo sem figura espelhada nao joga de imagem; trocar para um deles
     // com a chave ligada desliga ela, em vez de sortear um segredo invisivel
     if (!comImagem) next.picture = false;
@@ -124,7 +137,9 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
   }
 
   const duel = form.mode === 'duel';
-  const enoughPlayers = !duel || state.players.length >= 2;
+  const impostor = form.mode === 'impostor';
+  const minPlayers = impostor ? IMPOSTOR_MIN : duel ? 2 : 1;
+  const enoughPlayers = state.players.length >= minPlayers;
   const seatsLeft = Math.max(0, MAX_SEATS - state.players.length);
 
   return (
@@ -195,32 +210,7 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
         <div className="stack">
           <div className="field">
             <div className="f-label">Modo de jogo</div>
-            <div className="mode-pick">
-              <button
-                type="button"
-                className={!duel ? 'on' : ''}
-                disabled={!isHost}
-                onClick={() => change({ mode: 'hunt' })}
-              >
-                <span className="ico"><SearchIcon width={17} height={17} /></span>
-                <span>
-                  <b>Caça ao segredo</b>
-                  <small>Ninguém sabe o segredo. Todo mundo adivinha junto.</small>
-                </span>
-              </button>
-              <button
-                type="button"
-                className={duel ? 'on' : ''}
-                disabled={!isHost}
-                onClick={() => change({ mode: 'duel' })}
-              >
-                <span className="ico"><SwordsIcon width={17} height={17} /></span>
-                <span>
-                  <b>Duelo</b>
-                  <small>Um jogador sorteado esconde, o resto adivinha.</small>
-                </span>
-              </button>
-            </div>
+            <ModePick value={form.mode} disabled={!isHost} onChange={(mode) => change({ mode })} />
           </div>
 
           <div className="field">
@@ -296,10 +286,30 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
 
             {/* a chave da imagem vale para as rodadas que ainda vao comecar:
                 como toda regra da sala, ela so e editavel aqui na espera */}
+            {impostor && (
+              <button
+                type="button"
+                className={`switch-row ${form.card ? 'on' : ''}`}
+                disabled={!isHost}
+                style={{ marginBottom: 10 }}
+                onClick={() => change({ card: !form.card })}
+              >
+                <span className="ico"><CardIcon width={18} height={18} /></span>
+                <span className="txt">
+                  <b>Mostrar os dados de cada chute</b>
+                  <small>
+                    Cada linha mostra as características de quem foi chutado, sem dizer quais
+                    batem com o segredo. Desligado, aparece só o número de acertos.
+                  </small>
+                </span>
+                <span className="switch"><i /></span>
+              </button>
+            )}
+
             <button
               type="button"
-              className={`switch-row ${form.picture && comImagem ? 'on' : ''}`}
-              disabled={!isHost || !comImagem}
+              className={`switch-row ${form.picture && comImagem && !impostor ? 'on' : ''}`}
+              disabled={!isHost || !comImagem || impostor}
               style={{ marginBottom: 10 }}
               onClick={() => change({ picture: !form.picture })}
             >
@@ -307,9 +317,11 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
               <span className="txt">
                 <b>Jogar pela imagem</b>
                 <small>
-                  {comImagem
-                    ? 'Sem tabela de dicas: a figura do segredo clareia a cada chute errado da mesa.'
-                    : `${universe.label} não tem figuras para jogar assim.`}
+                  {impostor
+                    ? 'No impostor, cada chute clarearia a figura para quem não sabe o segredo.'
+                    : comImagem
+                      ? 'Sem tabela de dicas: a figura do segredo clareia a cada chute errado da mesa.'
+                      : `${universe.label} não tem figuras para jogar assim.`}
                 </small>
               </span>
               <span className="switch"><i /></span>
@@ -318,16 +330,18 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
             <button
               type="button"
               className={`switch-row ${form.untilRight ? 'on' : ''}`}
-              disabled={!isHost || duel}
+              disabled={!isHost || duel || impostor}
               onClick={() => change({ untilRight: !form.untilRight })}
             >
               <span className="ico"><TargetIcon width={18} height={18} /></span>
               <span className="txt">
                 <b>Até acertar</b>
                 <small>
-                  {duel
-                    ? 'O duelo precisa de teto de chutes para quem esconde pontuar.'
-                    : 'A rodada só fecha quando alguém acerta, sem teto de chutes.'}
+                  {impostor
+                    ? 'No impostor ninguém da mesa pode acertar: as voltas acabam na votação.'
+                    : duel
+                      ? 'O duelo precisa de teto de chutes para quem esconde pontuar.'
+                      : 'A rodada só fecha quando alguém acerta, sem teto de chutes.'}
                 </small>
               </span>
               <span className="switch"><i /></span>
@@ -351,11 +365,13 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
                 onChange={(v) => change({ turnSeconds: v })}
               />
               <Stepper
-                label="Chutes por jogador"
+                label={impostor ? 'Voltas' : 'Chutes por jogador'}
                 icon={<TargetIcon width={14} height={14} />}
-                value={form.guessesPerPlayer} min={1} max={20}
+                value={form.guessesPerPlayer} min={1} max={impostor ? 5 : 20}
                 off={form.untilRight}
-                hint={form.untilRight ? '“Até acertar” ignora o teto' : 'Máximo por rodada'}
+                hint={impostor
+                  ? 'Um chute de cada por volta'
+                  : form.untilRight ? '“Até acertar” ignora o teto' : 'Máximo por rodada'}
                 disabled={!isHost}
                 /* mexer aqui desliga o "ate acertar" */
                 onChange={(v) => change({ guessesPerPlayer: v, untilRight: false })}
@@ -386,7 +402,7 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
           <p className="f-help center-text" style={{ marginTop: 10 }}>
             {enoughPlayers
               ? 'Todo mundo cai direto na primeira rodada.'
-              : 'O modo duelo precisa de pelo menos 2 jogadores.'}
+              : `O modo ${impostor ? 'impostor' : 'duelo'} precisa de pelo menos ${minPlayers} jogadores.`}
           </p>
         )}
       </div>

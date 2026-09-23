@@ -118,13 +118,17 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
                 <span className="pts">{player.score}</span>
                 {isTurn && <span className="state">Agora</span>}
                 {isChooser && !isTurn && <span className="state">Escondeu</span>}
+                {state.phase === 'voting' && state.voted.includes(player.id) && <span className="state">Votou</span>}
               </li>
             );
           })}
         </ul>
         {nextUp && state.phase === 'playing' && (
           <p className="f-help" style={{ marginTop: 10 }}>
-            Vez de <b>{nextUp.name}</b>. Quem acerta primeiro fecha a rodada.
+            Vez de <b>{nextUp.name}</b>.{' '}
+            {state.settings.mode === 'impostor'
+              ? 'Quando as voltas acabarem, a mesa vota.'
+              : 'Quem acerta primeiro fecha a rodada.'}
           </p>
         )}
       </section>

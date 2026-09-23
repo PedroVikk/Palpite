@@ -989,7 +989,7 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
 }
 
 /* modo de jogo: dois cartões, porque a escolha muda o resto das regras */
-.mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mode-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .mode-pick button {
   display: flex;
   align-items: flex-start;
@@ -1250,6 +1250,12 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
 /* sem dado não é o mesmo que errar: fica neutro, e o texto diz que falta */
 .cell.unknown { background: var(--surface-2); color: #5D6683; border: 1px solid var(--line); font-style: italic; }
 .cell .arrow { font-size: 11px; line-height: 1; opacity: .9; }
+/* impostor com a ficha ligada: o valor do chutado, sem cor, porque cor seria dica */
+.cell.plain { background: var(--surface-2); color: var(--text-dim); border: 1px solid var(--line); }
+/* impostor: quantas colunas o chute acertou, a única comparação que a mesa vê */
+.cell.hits { background: #7C5CFF14; border: 1px solid #7C5CFF38; color: var(--text); flex-direction: row; gap: 4px; }
+.cell.hits b { font-family: var(--font-display); font-size: 20px; font-weight: 800; color: var(--purple-hi); }
+.cell.hits small { font-size: 12px; color: var(--muted); }
 
 /* a coluna do chute é a âncora da linha: retrato, nome e quem chutou */
 .cell.guess {
@@ -1366,6 +1372,58 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
 }
 .queue li.now .state { background: #1FA46B24; color: var(--hit-hi); }
 .queue li.chooser .state { background: #D2941A24; color: var(--partial-hi); }
+
+/* ------------------------------------------------------------- impostor */
+
+/* o papel de quem olha: a mesa vê o segredo, o impostor vê a máscara */
+.role-card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: 18px 20px;
+  border-radius: var(--r-lg);
+  border: 1px solid #FF4E5B47;
+  background: linear-gradient(100deg, #2A0D14, var(--surface) 70%);
+  box-shadow: var(--shadow);
+}
+.role-card .ico {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: #FF4E5B24;
+  border: 1px solid #FF4E5B4D;
+  color: var(--coral-hi);
+}
+.role-card h2 { font-size: 20px; font-weight: 800; margin: 0 0 4px; }
+.role-card p { margin: 0; font-size: 13.5px; color: var(--text-dim); line-height: 1.5; }
+
+.vote { border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface); padding: 16px; box-shadow: var(--shadow); }
+.vote h3 { margin: 0 0 4px; font-size: 16px; font-weight: 750; }
+.vote > p { margin: 0 0 12px; font-size: 13px; color: var(--muted); }
+.vote-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.vote-grid button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.vote-grid button:hover:not(:disabled) { border-color: var(--line-2); }
+.vote-grid button.on { border-color: #FF4E5B8C; background: #FF4E5B1A; }
+.vote-grid button:disabled { cursor: default; }
+.vote-grid .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vote-grid .n { font-size: 12px; font-weight: 700; color: var(--muted); }
+.vote-grid .imp { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; padding: 3px 8px; border-radius: var(--pill); background: #FF4E5B24; color: var(--coral-hi); }
 
 /* ------------------------------------------------------------- revelação */
 

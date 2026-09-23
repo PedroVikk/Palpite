@@ -6,9 +6,10 @@ import { universeMeta } from '../lib/universeMeta.js';
 import UniverseSelect from './UniverseSelect.jsx';
 import UniverseIcon from './UniverseIcon.jsx';
 import Stepper from './Stepper.jsx';
+import ModePick from './ModePick.jsx';
 import {
-  BulbIcon, CalendarIcon, CheckIcon, ClockIcon, ImageIcon,
-  InfoIcon, SearchIcon, SparkIcon, SwordsIcon, TargetIcon,
+  BulbIcon, CalendarIcon, CardIcon, CheckIcon, ClockIcon, ImageIcon,
+  InfoIcon, SearchIcon, SparkIcon, TargetIcon,
 } from './Icon.jsx';
 
 /**
@@ -27,10 +28,12 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
   const [guessesPerPlayer, setGuessesPerPlayer] = useState(6);
   const [untilRight, setUntilRight] = useState(true);
   const [picture, setPicture] = useState(false);
+  const [card, setCard] = useState(false);
 
   const universe = getUniverse(universeId);
   const meta = universeMeta(universeId);
   const duel = mode === 'duel';
+  const impostor = mode === 'impostor';
 
   // o interruptor da imagem so existe onde ha figura espelhada: os carros nao
   // tem nenhuma, e universo assim mostra a chave apagada em vez de escondida —
@@ -80,6 +83,11 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
     setMode(next);
     // no duelo quem esconde só pontua quando os chutes dos outros acabam
     if (next === 'duel') setUntilRight(false);
+    // no impostor o saldo de chutes vira o numero de voltas, e 2 e o padrao
+    if (next === 'impostor' && mode !== 'impostor') {
+      setUntilRight(false);
+      setGuessesPerPlayer(2);
+    }
   };
 
   const create = () => onCreate({
@@ -89,8 +97,9 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
     scope,
     rounds,
     turnSeconds,
-    guessesPerPlayer: untilRight ? 0 : guessesPerPlayer,
-    picture: picture && comImagem,
+    guessesPerPlayer: untilRight && !impostor ? 0 : guessesPerPlayer,
+    picture: picture && comImagem && !impostor,
+    card,
   });
 
   return (
@@ -101,7 +110,9 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
         <div className="side-note">
           <div className="h"><BulbIcon width={14} height={14} />Dica</div>
           <p>
-            {picture
+            {impostor
+              ? 'No impostor, a mesa vê só quantas colunas cada chute acertou. Funciona melhor com 4 ou mais pessoas e um recorte de 50 a 200 opções.'
+              : picture
               ? 'Pela imagem, a rodada não tem tabela: a figura do segredo abre irreconhecível e ganha nitidez a cada chute errado da mesa.'
               : duel
                 ? 'No duelo, quem esconde o segredo ganha pontos pelo tempo que os outros levam para achar.'
@@ -147,22 +158,7 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
 
           <div className="field wide">
             <div className="f-label">Modo de jogo</div>
-            <div className="mode-pick">
-              <button type="button" className={mode === 'hunt' ? 'on' : ''} onClick={() => pickMode('hunt')}>
-                <span className="ico"><SearchIcon width={17} height={17} /></span>
-                <span>
-                  <b>Caça ao segredo</b>
-                  <small>Ninguém sabe o segredo. Todo mundo adivinha junto.</small>
-                </span>
-              </button>
-              <button type="button" className={duel ? 'on' : ''} onClick={() => pickMode('duel')}>
-                <span className="ico"><SwordsIcon width={17} height={17} /></span>
-                <span>
-                  <b>Duelo</b>
-                  <small>Um jogador sorteado esconde, o resto adivinha.</small>
-                </span>
-              </button>
-            </div>
+            <ModePick value={mode} onChange={pickMode} />
           </div>
 
           <div className="field wide">
@@ -193,12 +189,33 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
           <div className="field wide">
             <div className="f-label">Regras da partida</div>
 
-            {/* o interruptor da imagem atravessa os dois modos: tanto a caça ao
-                segredo quanto o duelo podem ser jogados pela figura */}
+            {/* a ficha so existe no impostor: nos outros modos a linha ja traz
+                tudo, com cor */}
+            {impostor && (
+              <button
+                type="button"
+                className={`switch-row ${card ? 'on' : ''}`}
+                style={{ marginBottom: 10 }}
+                onClick={() => setCard(v => !v)}
+              >
+                <span className="ico"><CardIcon width={18} height={18} /></span>
+                <span className="txt">
+                  <b>Mostrar os dados de cada chute</b>
+                  <small>
+                    Cada linha mostra as características de quem foi chutado, sem dizer quais
+                    batem com o segredo. Desligado, aparece só o número de acertos.
+                  </small>
+                </span>
+                <span className="switch"><i /></span>
+              </button>
+            )}
+
+            {/* o interruptor da imagem atravessa a caça ao segredo e o duelo;
+                no impostor cada chute clarearia a figura para quem nao sabe */}
             <button
               type="button"
-              className={`switch-row ${picture && comImagem ? 'on' : ''}`}
-              disabled={!comImagem}
+              className={`switch-row ${picture && comImagem && !impostor ? 'on' : ''}`}
+              disabled={!comImagem || impostor}
               style={{ marginBottom: 10 }}
               onClick={() => setPicture(v => !v)}
             >
@@ -206,9 +223,11 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
               <span className="txt">
                 <b>Jogar pela imagem</b>
                 <small>
-                  {comImagem
-                    ? 'Sem tabela de dicas: a figura do segredo clareia a cada chute errado.'
-                    : `${universe.label} não tem figuras para jogar assim.`}
+                  {impostor
+                    ? 'No impostor, cada chute clarearia a figura para quem não sabe o segredo.'
+                    : comImagem
+                      ? 'Sem tabela de dicas: a figura do segredo clareia a cada chute errado.'
+                      : `${universe.label} não tem figuras para jogar assim.`}
                 </small>
               </span>
               <span className="switch"><i /></span>
@@ -216,17 +235,19 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
 
             <button
               type="button"
-              className={`switch-row ${untilRight ? 'on' : ''}`}
-              disabled={duel}
+              className={`switch-row ${untilRight && !impostor ? 'on' : ''}`}
+              disabled={duel || impostor}
               onClick={() => setUntilRight(v => !v)}
             >
               <span className="ico"><TargetIcon width={18} height={18} /></span>
               <span className="txt">
                 <b>Até acertar</b>
                 <small>
-                  {duel
-                    ? 'O duelo precisa de teto de chutes para quem esconde pontuar.'
-                    : 'A rodada só fecha quando alguém acerta, sem teto de chutes.'}
+                  {impostor
+                    ? 'No impostor ninguém da mesa pode acertar: as voltas acabam na votação.'
+                    : duel
+                      ? 'O duelo precisa de teto de chutes para quem esconde pontuar.'
+                      : 'A rodada só fecha quando alguém acerta, sem teto de chutes.'}
                 </small>
               </span>
               <span className="switch"><i /></span>
@@ -248,11 +269,13 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
                 onChange={setTurnSeconds}
               />
               <Stepper
-                label="Chutes por jogador"
+                label={impostor ? 'Voltas' : 'Chutes por jogador'}
                 icon={<TargetIcon width={14} height={14} />}
-                value={guessesPerPlayer} min={1} max={20}
-                off={untilRight}
-                hint={untilRight ? '“Até acertar” ignora o teto' : 'Máximo por rodada'}
+                value={guessesPerPlayer} min={1} max={impostor ? 5 : 20}
+                off={untilRight && !impostor}
+                hint={impostor
+                  ? 'Um chute de cada por volta'
+                  : untilRight ? '“Até acertar” ignora o teto' : 'Máximo por rodada'}
                 onChange={(v) => { setGuessesPerPlayer(v); setUntilRight(false); }}
               />
             </div>

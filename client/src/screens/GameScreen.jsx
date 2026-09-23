@@ -13,7 +13,10 @@ import HintsTable from '../components/HintsTable.jsx';
 import SecretImage from '../components/SecretImage.jsx';
 import Reveal from '../components/Reveal.jsx';
 import GameOver from '../components/GameOver.jsx';
-import { ClockIcon, ImageIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
+import { ImpostorCard, VotePanel, VoteResult } from '../components/ImpostorPanels.jsx';
+import { ClockIcon, ImageIcon, MaskIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
+
+const RULES = { hunt: 'Caça ao segredo', duel: 'Duelo', impostor: 'Impostor' };
 
 export default function GameScreen({ state, myId, toast, onLeave }) {
   const universe = getUniverse(state.settings.universe);
@@ -40,9 +43,15 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   const isHost = state.hostId === myId;
   const untilRight = state.settings.guessesPerPlayer === 0;
   const byPicture = Boolean(state.settings.picture);
-  const isMyTurn = state.phase === 'playing' && state.turnPlayerId === myId;
+  const impostorMode = state.settings.mode === 'impostor';
+  const isImpostor = state.role === 'impostor';
+  // o chute final de quem foi pego passa pelo mesmo campo do chute de sempre
+  const isMyLastGuess = state.phase === 'lastGuess' && state.turnPlayerId === myId;
+  const isMyTurn = (state.phase === 'playing' && state.turnPlayerId === myId) || isMyLastGuess;
   const isMyChoice = state.phase === 'choosing' && state.chooserId === myId;
   const nameOf = (id) => state.players.find(p => p.id === id)?.name ?? 'alguém';
+  // impostor: a rodada ainda esta aberta (voltas, urna ou chute final)
+  const impostorRound = impostorMode && ['playing', 'voting', 'lastGuess'].includes(state.phase);
 
   /**
    * O que a busca do chute oferece. Jogando pela imagem, quem nao tem figura
@@ -50,11 +59,16 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
    * nome seria vender um chute que nunca poderia ser a resposta, e num jogo de
    * um turno por vez isso custa a vez de alguem.
    */
+  const secretId = state.secret?.id ?? null;
   const inScope = useMemo(() => {
     const noRecorte = scopeFilter(universe, state.settings.scope);
-    if (!byPicture) return noRecorte;
-    return (item) => noRecorte(item) && hasPicture(item);
-  }, [universe, state.settings.scope, byPicture]);
+    // no impostor quem sabe o segredo nao pode chuta-lo (o servidor recusa):
+    // ele some da busca em vez de custar uma recusa na hora da vez
+    const hideSecret = impostorRound && secretId !== null;
+    return (item) => noRecorte(item)
+      && (!byPicture || hasPicture(item))
+      && !(hideSecret && item.id === secretId);
+  }, [universe, state.settings.scope, byPicture, impostorRound, secretId]);
 
   const me = state.players.find(p => p.id === myId);
   const budget = state.settings.guessesPerPlayer;
@@ -69,7 +83,9 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
     else toast('Não é a sua vez.');
   }
 
-  const banner = buildBanner({ state, myId, universe, isMyTurn, isMyChoice, nameOf });
+  const banner = impostorMode
+    ? impostorBanner({ state, myId, universe, isMyTurn, isImpostor, nameOf })
+    : buildBanner({ state, myId, universe, isMyTurn, isMyChoice, nameOf });
   const urgent = left !== null && left <= 10 && state.phase !== 'roundEnd';
   const roundOver = state.phase === 'roundEnd';
 
@@ -131,6 +147,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
                   scope={scopeReach(universe, state.settings.scope)}
                 />
               )}
+              {impostorMode && <VoteResult state={state} myId={myId} />}
               <div className="game-actions">
                 {isHost ? (
                   <>
@@ -148,6 +165,21 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
             </>
           ) : (
             <>
+              {/* impostor: a mesa ve o segredo que precisa proteger, o impostor
+                  ve so a mascara. E o que cada um tem nas maos para jogar */}
+              {impostorRound && (isImpostor
+                ? <ImpostorCard universe={universe} />
+                : state.secret && (
+                  <Reveal
+                    universe={universe}
+                    secret={state.secret}
+                    scope={scopeReach(universe, state.settings.scope)}
+                    caption="O segredo — o impostor não sabe qual é"
+                  />
+                ))}
+
+              {state.phase === 'voting' && <VotePanel state={state} myId={myId} />}
+
               {/* jogando pela imagem, a figura fica onde a tabela ficaria: em
                   cima do campo de chute, que e para onde o olho vai antes de
                   digitar. Quem escondeu o segredo no duelo ja sabe quem e, mas
@@ -161,7 +193,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
                 />
               )}
 
-              <GuessBar
+              {state.phase !== 'voting' && <GuessBar
                 items={items}
                 guessedIds={state.rows.map(row => row.id)}
                 groups={state.settings.groups}
@@ -170,7 +202,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
                 choosing={isMyChoice}
                 focusKey={state.phase}
                 onSubmit={submit}
-              />
+              />}
 
               {/* quantos chutes já foram e quantos sobram, em número e em forma */}
               {state.phase === 'playing' && (
@@ -196,7 +228,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
             </>
           )}
 
-          <HintsTable universe={universe} rows={state.rows} hints={!byPicture} />
+          <HintsTable universe={universe} rows={state.rows} hints={!byPicture} counts={impostorRound} />
 
           <div className="game-actions" ref={actionsRef}>
             {/* rodada "ate acertar" nao fecha sozinha: o host pode encerrar */}
@@ -225,7 +257,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
 }
 
 function TopBar({ state, universe, meta, onBack }) {
-  const rules = state.settings.mode === 'duel' ? 'Duelo' : 'Caça ao segredo';
+  const rules = RULES[state.settings.mode] ?? RULES.hunt;
   return (
     <header className="topbar">
       <div className="inner">
@@ -246,6 +278,78 @@ function TopBar({ state, universe, meta, onBack }) {
       </div>
     </header>
   );
+}
+
+/** A bola da vez no impostor: o aviso muda com o papel de quem olha. */
+function impostorBanner({ state, myId, universe, isMyTurn, isImpostor, nameOf }) {
+  const mask = <MaskIcon width={22} height={22} />;
+
+  if (state.phase === 'playing') {
+    if (isMyTurn) {
+      return isImpostor
+        ? {
+          title: 'Sua vez — finja que sabe',
+          text: state.message ?? `Chute ${universe.secretLabel} que pareça perto. A contagem de acertos também te ajuda a descobrir.`,
+          tone: 'warn',
+          icon: mask,
+        }
+        : {
+          title: 'Sua vez — prove que sabe',
+          text: state.message ?? 'Chute algo parecido com o segredo, mas sem entregar ao impostor.',
+          tone: 'you',
+          icon: <TargetIcon width={22} height={22} />,
+        };
+    }
+    return {
+      title: `Vez de ${nameOf(state.turnPlayerId)}`,
+      text: state.message ?? (isImpostor
+        ? 'Observe as contagens: cada chute da mesa é uma pista do segredo.'
+        : 'Esse chute faz sentido para quem sabe o segredo?'),
+      tone: '',
+      icon: <ClockIcon width={22} height={22} />,
+    };
+  }
+
+  if (state.phase === 'voting') {
+    const done = state.voted.includes(myId);
+    return {
+      title: 'Quem é o impostor?',
+      text: done
+        ? `Voto registrado. ${state.voted.length} de ${state.cast.length} já votaram.`
+        : 'Vote em quem você acha que não sabia o segredo. Empate salva o impostor.',
+      tone: 'warn',
+      icon: mask,
+    };
+  }
+
+  if (state.phase === 'lastGuess') {
+    return state.turnPlayerId === myId
+      ? {
+        title: 'Você foi pego — última chance',
+        text: `Acerte ${universe.secretLabel} e a vitória ainda é sua.`,
+        tone: 'warn',
+        icon: mask,
+      }
+      : {
+        title: `${nameOf(state.impostorId)} era o impostor`,
+        text: 'Ainda resta um chute para dizer o segredo. Torça para a mesa não ter ajudado demais.',
+        tone: 'you',
+        icon: mask,
+      };
+  }
+
+  if (state.phase === 'roundEnd') {
+    const won = state.winnerId === myId
+      || (state.outcome && ['caught', 'left'].includes(state.outcome.how) && state.impostorId !== myId);
+    return {
+      title: won ? 'Vitória!' : 'Fim da rodada',
+      text: state.message ?? '',
+      tone: won ? 'you' : '',
+      icon: mask,
+    };
+  }
+
+  return { title: '', text: '', tone: '', icon: <ClockIcon width={22} height={22} /> };
 }
 
 /** Qual e a bola da vez, em um titulo e uma frase. */

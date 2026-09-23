@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import {
   MODES, getUniverse, sanitizeSettings, isUntilRight, scopeFilter, scopeReach, scopeLabel,
   compareGuess, scoreForWin, SCORE_CHOOSER_SURVIVED, pickSecret,
+  IMPOSTOR_MIN_PLAYERS, SCORE_IMPOSTOR_WINS, SCORE_CREW_WINS, SCORE_RIGHT_VOTE, hitsOf, tallyVotes,
 } from './game.js';
 import { datasetOf as datasetFor } from './catalog.js';
 import { TOP as PICTURE_TOP, frameOf, hasPicture, prepare as preparePicture } from './picture.js';
@@ -31,7 +32,12 @@ const RECONNECT_MS = 5 * 60 * 1000;
 const RECONNECT_MIN = RECONNECT_MS / 60000;
 
 /** Fases em que ha partida rolando: so nelas a cadeira vale ser guardada. */
-const liveMatch = (room) => room.phase === 'choosing' || room.phase === 'playing' || room.phase === 'roundEnd';
+const LIVE_PHASES = new Set(['choosing', 'playing', 'voting', 'lastGuess', 'roundEnd']);
+const liveMatch = (room) => LIVE_PHASES.has(room.phase);
+
+/** Segundos da votacao do impostor e do chute final de quem foi pego. */
+const VOTE_SECONDS = 40;
+const LAST_GUESS_SECONDS = 40;
 
 function newCode() {
   let code;
@@ -52,7 +58,11 @@ function createRoom(settings) {
     round: 0,
     secret: null,
     chooserId: null,
-    chooserQueue: [],   // rodizio de quem esconde no duelo (ver nextChooser)
+    chooserQueue: [],   // rodizio de quem esconde no duelo e de quem e o impostor (ver nextChooser)
+    impostorId: null,   // so no modo impostor; so ele e o servidor sabem, ate a rodada fechar
+    cast: [],           // impostor: quem estava na mesa quando a rodada abriu (e so estes votam)
+    votes: {},          // impostor: eleitor -> suspeito
+    outcome: null,      // impostor: como a rodada fechou, para a tela contar
     rows: [],
     turnPlayerId: null,
     pausedAfter: null,  // de quem era a vez quando a rodada parou (ver pauseRound)
@@ -113,8 +123,37 @@ const pictureOf = (room) => {
 
 const activePlayers = (room) => room.order.map(id => room.players.get(id)).filter(p => p && p.connected);
 
-function publicState(room) {
-  const showSecret = room.phase === 'roundEnd' || room.phase === 'gameOver';
+const isImpostorMode = (room) => room.settings.mode === MODES.IMPOSTOR;
+
+/**
+ * A linha do jeito que a mesa pode ver. Fora do impostor, e a linha inteira.
+ * No impostor, com a rodada aberta, as cores ficam no servidor: vai so quantas
+ * colunas acertaram em cheio — e, se a sala ligou a ficha, os valores do
+ * proprio chutado, sem comparacao nenhuma. Mandar as celulas e esconder na
+ * tela nao serviria: o impostor abriria o devtools e leria as cores.
+ */
+function rowFor(room, row, revealed) {
+  if (!isImpostorMode(room) || revealed) return row;
+  const { cells, ...rest } = row;
+  const masked = { ...rest, total: Object.keys(cells ?? {}).length };
+  if (room.settings.card && cells) {
+    masked.cells = Object.fromEntries(Object.entries(cells).map(([key, cell]) =>
+      [key, { value: cell.value, status: 'plain', hint: null }]));
+  }
+  return masked;
+}
+
+/**
+ * O estado da sala visto por um jogador. Quase tudo e igual para todos; o que
+ * muda e o que cada um tem o direito de saber. No impostor, durante a rodada,
+ * o segredo vai para todo mundo menos o impostor — e so ele recebe o papel.
+ */
+function publicState(room, viewerId = null) {
+  const over = room.phase === 'roundEnd' || room.phase === 'gameOver';
+  const impostorMode = isImpostorMode(room);
+  const inRound = impostorMode && ['playing', 'voting', 'lastGuess'].includes(room.phase);
+  const isImpostor = impostorMode && viewerId !== null && viewerId === room.impostorId;
+  const showSecret = over || (inRound && !isImpostor);
   return {
     code: room.code,
     phase: room.phase,
@@ -130,19 +169,37 @@ function publicState(room) {
     }),
     turnPlayerId: room.turnPlayerId,
     chooserId: room.chooserId,
-    rows: room.rows,
+    rows: room.rows.map(row => rowFor(room, row, over)),
     deadline: room.deadline,
     winnerId: room.winnerId,
     message: room.message,
     summary: room.summary,
     secret: showSecret && room.secret ? room.secret : null,
     picture: pictureOf(room),
+    // impostor: o papel de quem olha, e o nome do impostor so depois da rodada
+    // (ou na hora do chute final, quando a mesa ja apontou para ele)
+    role: inRound ? (isImpostor ? 'impostor' : 'crew') : null,
+    impostorId: impostorMode && (over || room.phase === 'lastGuess') ? room.impostorId : null,
+    cast: impostorMode ? room.cast : [],
+    // com a urna aberta so aparece quem ja votou; em quem, so quando ela fecha
+    voted: room.phase === 'voting' ? Object.keys(room.votes) : [],
+    myVote: room.phase === 'voting' && viewerId ? room.votes[viewerId] ?? null : null,
+    votes: impostorMode && (over || room.phase === 'lastGuess') ? room.votes : null,
+    outcome: over ? room.outcome : null,
   };
 }
 
+/**
+ * Cada socket recebe o proprio recorte do estado (ver publicState). Com um
+ * emit so para a sala, o segredo do impostor teria de ir para todos ou para
+ * ninguem.
+ */
 function broadcast(room) {
   room.lastActivity = Date.now();
-  io.to(room.code).emit('room:state', publicState(room));
+  for (const socketId of io.sockets.adapter.rooms.get(room.code) ?? []) {
+    const socket = io.sockets.sockets.get(socketId);
+    socket?.emit('room:state', publicState(room, socket.data.playerId ?? null));
+  }
 }
 
 function clearTimer(room) {
@@ -252,6 +309,10 @@ function startRound(room) {
   room.message = null;
   room.summary = null;
   room.secret = null;
+  room.impostorId = null;
+  room.cast = [];
+  room.votes = {};
+  room.outcome = null;
   room.guessesLeft = {};
   for (const p of room.players.values()) room.guessesLeft[p.id] = guessBudget(room);
 
@@ -273,6 +334,11 @@ function startRound(room) {
 
   room.chooserId = null;
   room.secret = pickSecret(pool(room));
+  if (isImpostorMode(room)) {
+    // o impostor sai da mesma fila circular do duelo: ninguem repete seguido
+    room.impostorId = nextChooser(room);
+    room.cast = activePlayers(room).map(p => p.id);
+  }
   beginGuessing(room);
 }
 
@@ -301,7 +367,7 @@ function beginGuessing(room) {
 
   room.phase = 'playing';
   room.turnPlayerId = firstTurn(room);
-  if (!room.turnPlayerId) return awaitingReturn(room) ? pauseRound(room, null) : endRound(room, null);
+  if (!room.turnPlayerId) return awaitingReturn(room) ? pauseRound(room, null) : outOfGuesses(room);
   armTurnTimer(room);
   broadcast(room);
 }
@@ -339,7 +405,7 @@ function unpause(room) {
     room.message = null;
     return armTurnTimer(room);
   }
-  if (!awaitingReturn(room)) endRound(room, null);
+  if (!awaitingReturn(room)) outOfGuesses(room);
 }
 
 function onTurnTimeout(room) {
@@ -355,10 +421,116 @@ function onTurnTimeout(room) {
 
 function advance(room) {
   const next = nextTurn(room, room.turnPlayerId);
-  if (!next) return awaitingReturn(room) ? pauseRound(room, room.turnPlayerId) : endRound(room, null);
+  if (!next) return awaitingReturn(room) ? pauseRound(room, room.turnPlayerId) : outOfGuesses(room);
   room.turnPlayerId = next;
   armTurnTimer(room);
   broadcast(room);
+}
+
+/**
+ * Os chutes da mesa acabaram. Nos outros modos isso fecha a rodada sem
+ * vencedor; no impostor e a hora de apontar o dedo.
+ */
+function outOfGuesses(room) {
+  return isImpostorMode(room) ? startVoting(room) : endRound(room, null);
+}
+
+// ---------------------------------------------------------------- impostor
+
+/** Quem vota: estava na mesa quando a rodada abriu e continua conectado. */
+const voters = (room) => room.cast.filter(id => room.players.get(id)?.connected);
+
+function startVoting(room) {
+  clearTimer(room);
+  room.phase = 'voting';
+  room.turnPlayerId = null;
+  room.votes = {};
+  room.message = 'As voltas acabaram. Quem não sabia o segredo?';
+  broadcast(room);
+  armTimer(room, VOTE_SECONDS, () => {
+    if (room.phase === 'voting') closeVoting(room);
+  });
+}
+
+/** Fecha a urna assim que todo mundo que pode votar ja votou. */
+function maybeCloseVoting(room) {
+  if (room.phase !== 'voting') return;
+  if (voters(room).every(id => id in room.votes)) closeVoting(room);
+}
+
+function closeVoting(room) {
+  clearTimer(room);
+  const { accused } = tallyVotes(room.votes);
+  const impostor = room.players.get(room.impostorId);
+
+  if (!impostor || accused !== room.impostorId) return endImpostorRound(room, 'escaped');
+
+  // pego, mas ainda com uma chance: se descobrir o segredo pelo que a mesa
+  // chutou, vence mesmo assim — e o castigo de quem ajudou demais
+  room.phase = 'lastGuess';
+  room.turnPlayerId = room.impostorId;
+  room.message = `A mesa apontou ${impostor.name}. Última chance: qual é o segredo?`;
+  broadcast(room);
+  armTimer(room, LAST_GUESS_SECONDS, () => {
+    if (room.phase === 'lastGuess') endImpostorRound(room, 'caught');
+  });
+}
+
+/**
+ * Fecha a rodada do impostor e paga os pontos. `how`:
+ * - `guessed`: o impostor chutou o segredo no meio das voltas;
+ * - `escaped`: a votacao nao apontou para ele (errou, empatou ou ficou vazia);
+ * - `final`: pego, acertou o chute final;
+ * - `caught`: pego, errou o chute final (ou deixou o tempo passar);
+ * - `left`: saiu da sala de vez no meio da rodada (`leaverName` e o nome dele).
+ */
+function endImpostorRound(room, how, finalGuess = null, leaverName = null) {
+  clearTimer(room);
+  room.phase = 'roundEnd';
+  room.turnPlayerId = null;
+
+  const impostor = room.players.get(room.impostorId);
+  const name = impostor?.name ?? leaverName ?? 'O impostor';
+  const secretName = room.secret?.name ?? '???';
+  const impostorWins = how !== 'caught' && how !== 'left';
+  room.winnerId = impostorWins ? room.impostorId : null;
+
+  if (impostorWins) {
+    if (impostor) impostor.score += SCORE_IMPOSTOR_WINS;
+    room.message = {
+      guessed: `${name} era o impostor e chutou o segredo: ${secretName}! +${SCORE_IMPOSTOR_WINS} pontos.`,
+      escaped: `${name} era o impostor e escapou da votação. +${SCORE_IMPOSTOR_WINS} pontos.`,
+      final: `${name} foi pego, mas acertou o segredo no chute final: ${secretName}! +${SCORE_IMPOSTOR_WINS} pontos.`,
+    }[how];
+  } else {
+    for (const id of room.cast) {
+      const p = id === room.impostorId ? null : room.players.get(id);
+      if (p) p.score += SCORE_CREW_WINS + (room.votes[id] === room.impostorId ? SCORE_RIGHT_VOTE : 0);
+    }
+    const tried = finalGuess ? ` Chutou ${finalGuess.name}, mas era ${secretName}.` : ` Era ${secretName}.`;
+    room.message = how === 'left'
+      ? `${name} era o impostor e saiu da sala. Era ${secretName}. +${SCORE_CREW_WINS} para cada um da mesa.`
+      : `A mesa pegou ${name}!${tried} +${SCORE_CREW_WINS} para cada um, +${SCORE_RIGHT_VOTE} para quem votou certo.`;
+  }
+  room.outcome = {
+    how,
+    impostorId: room.impostorId,
+    finalGuess: finalGuess && { id: finalGuess.id, name: finalGuess.name },
+  };
+
+  if (room.round >= room.settings.rounds) return finishMatch(room);
+  broadcast(room);
+  armTimer(room, 15, () => {
+    if (room.phase === 'roundEnd') startRound(room);
+  });
+}
+
+/** Chute final do impostor pego: acerto vira a rodada, erro a entrega a mesa. */
+function finalGuess(room, player, pokemonId, socket) {
+  if (player.id !== room.impostorId) return socket.emit('room:error', 'Só o impostor chuta agora.');
+  const guess = itemById(room, pokemonId);
+  if (!guess) return socket.emit('room:error', 'Chute inválido.');
+  endImpostorRound(room, guess.id === room.secret.id ? 'final' : 'caught', guess);
 }
 
 /** Fecha a partida e anuncia o placar final. */
@@ -454,11 +626,11 @@ function joinRoom(socket, room, name, playerId, cb) {
 
   // so nas fases em que `message` e recado de bastidor: em roundEnd ela carrega
   // o resultado da rodada, e anunciar a volta por cima apagaria o placar
-  if (wasAway && (room.phase === 'playing' || room.phase === 'choosing')) {
+  if (wasAway && ['playing', 'choosing', 'voting', 'lastGuess'].includes(room.phase)) {
     room.message = `${name} voltou para a partida.`;
   }
 
-  cb?.({ code: room.code, playerId, state: publicState(room), resumed: Boolean(existing) });
+  cb?.({ code: room.code, playerId, state: publicState(room, playerId), resumed: Boolean(existing) });
   broadcast(room);
 }
 
@@ -494,9 +666,20 @@ function handleDisconnect(socket, permanent) {
   const verb = keepSeat ? 'caiu' : 'saiu';
   const seat = keepSeat ? ` A vaga fica guardada por ${RECONNECT_MIN} minutos.` : '';
 
+  // o impostor saiu de vez: nao ha mais quem pegar, e a mesa leva a rodada
+  if (!keepSeat && isImpostorMode(room) && room.impostorId === player.id
+    && ['playing', 'voting', 'lastGuess'].includes(room.phase)) {
+    return endImpostorRound(room, 'left', null, player.name);
+  }
   if (room.phase === 'playing' && room.turnPlayerId === player.id) {
     room.message = `${player.name} ${verb} no meio do turno.${seat}`;
     return advance(room);
+  }
+  if (room.phase === 'voting') {
+    delete room.votes[player.id];
+    room.message = `${player.name} ${verb}.${seat}`;
+    broadcast(room);
+    return maybeCloseVoting(room);
   }
   if (room.phase === 'choosing' && room.chooserId === player.id) {
     room.chooserId = null;
@@ -539,6 +722,9 @@ function onConnection(socket) {
     if (room.settings.mode === MODES.DUEL && activePlayers(room).length < 2) {
       return socket.emit('room:error', 'O modo duelo precisa de pelo menos 2 jogadores.');
     }
+    if (room.settings.mode === MODES.IMPOSTOR && activePlayers(room).length < IMPOSTOR_MIN_PLAYERS) {
+      return socket.emit('room:error', `O impostor precisa de pelo menos ${IMPOSTOR_MIN_PLAYERS} jogadores.`);
+    }
     for (const p of room.players.values()) p.score = 0;
     room.round = 0;
     // embaralhada na largada: em ordem de chegada o host esconderia sempre primeiro
@@ -572,7 +758,9 @@ function onConnection(socket) {
 
   socket.on('game:guess', ({ pokemonId }) => {
     const { room, player } = findPlayerRoom(socket);
-    if (!room || !player || room.phase !== 'playing') return;
+    if (!room || !player) return;
+    if (room.phase === 'lastGuess') return finalGuess(room, player, pokemonId, socket);
+    if (room.phase !== 'playing') return;
     if (room.turnPlayerId !== player.id) return socket.emit('room:error', 'Não é a sua vez.');
     if (!hasGuessLeft(guessesOf(room, player.id))) return socket.emit('room:error', 'Você não tem mais chutes.');
 
@@ -588,6 +776,11 @@ function onConnection(socket) {
       return socket.emit('room:error', `Esta sala está em "${epocas}", e ${guess.name} fica de fora.`);
     }
 
+    // quem sabe o segredo nao pode chuta-lo: seria entregar a rodada ao impostor
+    if (isImpostorMode(room) && player.id !== room.impostorId && guess.id === room.secret.id) {
+      return socket.emit('room:error', 'Esse é o segredo: chutar ele entregaria o jogo ao impostor.');
+    }
+
     if (room.guessesLeft[player.id] !== null) room.guessesLeft[player.id] -= 1;
     /**
      * Jogando de imagem a tabela nao vai para a tela, entao a comparacao nem e
@@ -598,20 +791,34 @@ function onConnection(socket) {
     const comparison = room.settings.picture
       ? { id: guess.id, name: guess.name, sprite: guess.sprite, correct: guess.id === room.secret.id }
       : compareGuess(guess, room.secret, universeOf(room), scopeReach(universeOf(room), room.settings.scope));
-    room.rows.push({ ...comparison, playerId: player.id, playerName: player.name });
+    room.rows.push({ ...comparison, hits: hitsOf(comparison), playerId: player.id, playerName: player.name });
     room.message = null;
 
     const row = room.rows[room.rows.length - 1];
-    if (row.correct) return endRound(room, player.id);
+    if (row.correct) {
+      // no impostor so ele consegue acertar: a mesa e barrada logo acima
+      return isImpostorMode(room) ? endImpostorRound(room, 'guessed') : endRound(room, player.id);
+    }
     advance(room);
+  });
+
+  socket.on('game:vote', ({ suspectId }) => {
+    const { room, player } = findPlayerRoom(socket);
+    if (!room || !player || room.phase !== 'voting') return;
+    if (!room.cast.includes(player.id)) return socket.emit('room:error', 'Você entrou no meio da rodada e não vota nesta.');
+    if (suspectId === player.id) return socket.emit('room:error', 'Não dá para votar em si mesmo.');
+    if (!room.cast.includes(suspectId)) return socket.emit('room:error', 'Voto inválido.');
+    room.votes[player.id] = suspectId;
+    broadcast(room);
+    maybeCloseVoting(room);
   });
 
   // valvula de escape do host: uma rodada "ate acertar" nao fecha sozinha
   socket.on('game:end', () => {
     const { room, player } = findPlayerRoom(socket);
     if (!room || !player || room.hostId !== player.id) return;
-    if (room.phase !== 'playing' && room.phase !== 'roundEnd') return;
-    if (room.phase === 'playing') {
+    if (!['playing', 'voting', 'lastGuess', 'roundEnd'].includes(room.phase)) return;
+    if (room.phase !== 'roundEnd') {
       room.message = 'Partida encerrada pelo host.';
     }
     finishMatch(room);

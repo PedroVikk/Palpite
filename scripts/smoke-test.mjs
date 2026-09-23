@@ -525,6 +525,116 @@ try {
   check('placar final anunciado', /venceu|Empate|ninguém pontuou/.test(inf1.state.summary ?? ''));
   check('motivo do encerramento separado do placar', /encerrada pelo host/.test(inf1.state.message ?? ''));
 
+  // ----------------------------------------------------------- impostor
+  // Todos sabem o segredo menos um. A mesa ve so quantas colunas cada chute
+  // acertou, quem sabe nao pode chutar o segredo, e as voltas acabam em voto.
+  console.log('\n== Modo impostor ==');
+  async function mesaImpostor(nomes, settings) {
+    const gente = await Promise.all(nomes.map(connect));
+    const sala = await new Promise(res => gente[0].socket.emit('room:create', {
+      name: nomes[0], settings: { mode: 'impostor', universe: 'pokemon', groups: ['1'], rounds: 1, turnSeconds: 30, ...settings },
+    }, res));
+    const ids = [sala.playerId];
+    for (const [i, g] of gente.slice(1).entries()) {
+      const r = await new Promise(res => g.socket.emit('room:join', { code: sala.code, name: nomes[i + 1] }, res));
+      ids.push(r.playerId);
+    }
+    for (const [i, g] of gente.entries()) g.id = ids[i];
+    return gente;
+  }
+  // chuta ate o saldo acabar, com nomes que nao sao o segredo (o impostor
+  // tambem desvia, para a rodada chegar na votacao)
+  async function darVoltas(gente, segredoId) {
+    let proximo = 1;
+    for (let guard = 0; guard < 40 && gente[0].state.phase === 'playing'; guard++) {
+      const vez = gente.find(g => g.id === gente[0].state.turnPlayerId);
+      if (!vez) { await sleep(40); continue; }
+      if (proximo === segredoId) proximo++;
+      const antes = gente[0].state.rows.length;
+      vez.socket.emit('game:guess', { pokemonId: proximo++ });
+      await until(gente[0], s => s.rows.length > antes || s.phase !== 'playing', 'chute na mesa do impostor');
+    }
+  }
+
+  const mesa1 = await mesaImpostor(['Ana', 'Beto', 'Caio'], { guessesPerPlayer: 1 });
+  mesa1[0].socket.emit('game:start');
+  await Promise.all(mesa1.map(g => until(g, s => s.phase === 'playing', 'impostor comecou')));
+  const [imp1] = mesa1;
+  const impostor = mesa1.find(g => g.state.role === 'impostor');
+  const tripulacao = mesa1.filter(g => g !== impostor);
+  check('um e so um impostor', Boolean(impostor) && tripulacao.every(g => g.state.role === 'crew'));
+  check('o impostor nao recebe o segredo', impostor.state.secret === null);
+  check('a mesa recebe o segredo', tripulacao.every(g => g.state.secret?.id > 0));
+  check('ninguem sabe quem e o impostor durante a rodada', mesa1.every(g => g.state.impostorId === null));
+  const segredo = tripulacao[0].state.secret.id;
+
+  // quem sabe tenta chutar o proprio segredo: barrado, sem gastar a vez
+  if (imp1.state.turnPlayerId === impostor.id) {
+    impostor.socket.emit('game:guess', { pokemonId: segredo === 25 ? 26 : 25 });
+    await until(imp1, s => s.rows.length === 1, 'impostor passa a vez');
+  }
+  const barrado = tripulacao.find(g => g.id === imp1.state.turnPlayerId);
+  barrado.socket.emit('game:guess', { pokemonId: segredo });
+  await sleep(150);
+  check('quem sabe nao pode chutar o segredo', barrado.errors.some(e => /entregaria/.test(e)));
+  check('a recusa nao gasta a vez', imp1.state.turnPlayerId === barrado.id);
+
+  await darVoltas(mesa1, segredo);
+  await until(imp1, s => s.phase === 'voting', 'votacao abriu');
+  const linha = imp1.state.rows[0];
+  check('a linha chega sem as cores', linha && linha.cells === undefined);
+  check('a linha diz quantas colunas acertou', Number.isInteger(linha?.hits) && linha.total === UNIVERSES.pokemon.columns.length);
+
+  impostor.socket.emit('game:vote', { suspectId: impostor.id });
+  await sleep(120);
+  check('nao da para votar em si mesmo', impostor.errors.some(e => /si mesmo/.test(e)));
+  for (const g of tripulacao) g.socket.emit('game:vote', { suspectId: impostor.id });
+  await until(imp1, s => s.voted.length === 2, 'votos contados');
+  check('a urna mostra quem votou, nao em quem', imp1.state.votes === null);
+  impostor.socket.emit('game:vote', { suspectId: tripulacao[0].id });
+  await until(imp1, s => s.phase === 'lastGuess', 'impostor pego');
+  check('pego, o impostor aparece para a mesa', imp1.state.impostorId === impostor.id);
+  check('e so ele chuta agora', imp1.state.turnPlayerId === impostor.id);
+
+  impostor.socket.emit('game:guess', { pokemonId: segredo === 1 ? 2 : 1 });
+  await until(imp1, s => s.phase === 'gameOver', 'rodada do impostor fechou');
+  const pontos = (g) => imp1.state.players.find(p => p.id === g.id).score;
+  check('errando o chute final, a mesa leva 50 + 20 do voto certo', tripulacao.every(g => pontos(g) === 70));
+  check('e o impostor fica sem nada', pontos(impostor) === 0);
+  check('com a rodada fechada as cores aparecem', imp1.state.rows.every(r => r.cells));
+
+  // empate na urna: o impostor escapa. E com a ficha ligada, a linha traz os
+  // valores do chutado, sem comparacao
+  const mesa2 = await mesaImpostor(['Dani', 'Edu', 'Fabi', 'Gil'], { guessesPerPlayer: 1, card: true });
+  mesa2[0].socket.emit('game:start');
+  await Promise.all(mesa2.map(g => until(g, s => s.phase === 'playing', 'impostor 2 comecou')));
+  const impostor2 = mesa2.find(g => g.state.role === 'impostor');
+  const segredo2 = mesa2.find(g => g.state.secret)?.state.secret.id;
+  await darVoltas(mesa2, segredo2);
+  await until(mesa2[0], s => s.phase === 'voting', 'votacao 2 abriu');
+  const ficha = mesa2[0].state.rows[0].cells;
+  check('com a ficha ligada vao os valores do chutado', ficha && Object.values(ficha).every(c => c.status === 'plain'));
+  const outros2 = mesa2.filter(g => g !== impostor2);
+  // dois votos em cada inocente: empate
+  outros2[0].socket.emit('game:vote', { suspectId: outros2[1].id });
+  outros2[1].socket.emit('game:vote', { suspectId: outros2[0].id });
+  outros2[2].socket.emit('game:vote', { suspectId: outros2[0].id });
+  impostor2.socket.emit('game:vote', { suspectId: outros2[1].id });
+  await until(mesa2[0], s => s.phase === 'gameOver', 'rodada 2 fechou');
+  check('empate na urna deixa o impostor escapar', mesa2[0].state.players.find(p => p.id === impostor2.id).score === 100);
+  check('e a tela sabe como foi', mesa2[0].state.outcome?.how === 'escaped');
+
+  const sozinhos = await mesaImpostor(['Hugo', 'Iris'], {});
+  sozinhos[0].socket.emit('game:start');
+  await sleep(150);
+  check('impostor recusa mesa com menos de 3', sozinhos[0].errors.some(e => /pelo menos 3/.test(e)));
+  const salaImpImagem = await new Promise(res => sozinhos[0].socket.emit('room:create', {
+    name: 'Hugo', settings: { mode: 'impostor', picture: true, guessesPerPlayer: 0 },
+  }, res));
+  check('impostor nao joga pela imagem', salaImpImagem.state.settings.picture === false);
+  check('impostor nao tem "ate acertar"', salaImpImagem.state.settings.guessesPerPlayer === 2);
+  for (const g of [...mesa1, ...mesa2, ...sozinhos]) g.socket.close();
+
   // ----------------------------------------------------------- padroes e duelo
   console.log('\n== Padrao e cronometro ==');
   const solo = await connect('Solo');

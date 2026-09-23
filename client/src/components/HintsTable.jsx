@@ -30,7 +30,7 @@ function Symbols({ column, value }) {
  * grade propria, para poder animar e destacar a vencedora sem quebrar o
  * alinhamento das colunas.
  */
-export default function HintsTable({ universe, rows, hints = true }) {
+export default function HintsTable({ universe, rows, hints = true, counts = false }) {
   if (!rows.length) {
     return (
       <p className="empty-hint">
@@ -52,13 +52,21 @@ export default function HintsTable({ universe, rows, hints = true }) {
    * nome. Entao a pilha vira grade: as mesmas celulas, lado a lado, quantas
    * couberem na largura.
    */
-  const hintColumns = hints ? universe.columns : [];
+  /**
+   * Impostor com a rodada aberta (`counts`): o servidor so manda quantas
+   * colunas cada chute acertou, e ela vira a coluna ao lado do nome. As colunas
+   * de dica so aparecem se a sala ligou a ficha — com o valor do chutado, em
+   * celula neutra, porque as cores nem chegaram ao navegador.
+   */
+  const withSheet = !counts || Boolean(rows[0].cells);
+  const hintColumns = hints && withSheet ? universe.columns : [];
+  const lead = counts ? 176 + 6 + 104 : 176;
   const columns = hints
-    ? `176px repeat(${hintColumns.length}, minmax(88px, 1fr))`
+    ? `176px ${counts ? '104px ' : ''}repeat(${hintColumns.length}, minmax(88px, 1fr))`
     : 'minmax(0, 1fr)';
   // a largura minima acompanha o numero de colunas: universo enxuto nao precisa
   // rolar de lado, universo largo rola em vez de espremer a celula
-  const minWidth = hints ? `${176 + hintColumns.length * 94}px` : '0';
+  const minWidth = hints ? `${lead + hintColumns.length * 94}px` : '0';
   const newest = rows[rows.length - 1];
 
   return (
@@ -71,6 +79,7 @@ export default function HintsTable({ universe, rows, hints = true }) {
           {hints && (
             <div className="hints-row">
               <div className="cell head">Chute</div>
+              {counts && <div className="cell head">Acertos</div>}
               {hintColumns.map(column => (
                 <div key={column.key} className="cell head">{column.label}</div>
               ))}
@@ -91,9 +100,15 @@ export default function HintsTable({ universe, rows, hints = true }) {
                 </span>
               </div>
 
+              {counts && (
+                <div className="cell hits" title={`${row.hits} de ${row.total} colunas em cheio`}>
+                  <b>{row.hits}</b><small>de {row.total}</small>
+                </div>
+              )}
+
               {hintColumns.map(column => {
                 const cell = row.cells?.[column.key] ?? { value: null, status: 'unknown', hint: null };
-                const title = cell.status === 'unknown'
+                const title = cell.status === 'unknown' || (cell.status === 'plain' && cell.value == null)
                   ? 'sem dado para comparar'
                   : fullValue(column, cell.value);
                 const comSimbolo = column.icons && cell.status !== 'unknown' && cell.value != null;
@@ -114,7 +129,12 @@ export default function HintsTable({ universe, rows, hints = true }) {
       {/* a legenda aparece uma vez, embaixo: a cor precisa ser ensinada, mas
           repetir a explicacao em cada celula seria ruido. Sem colunas de dica
           nao ha cor para ensinar, e ela sai junto */}
-      {hints && <div className="legend">
+      {counts && (
+        <div className="legend">
+          <span className="k">Acertos = colunas que o chute acertou em cheio. Quais foram, só no fim da rodada.</span>
+        </div>
+      )}
+      {hints && !counts && <div className="legend">
         <span className="k"><i className="sw" style={{ background: 'var(--hit)' }} />Acertou</span>
         <span className="k"><i className="sw" style={{ background: 'var(--partial)' }} />Chegou perto</span>
         <span className="k"><i className="sw" style={{ background: 'var(--miss)' }} />Errou</span>
