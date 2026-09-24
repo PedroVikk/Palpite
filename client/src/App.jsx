@@ -11,6 +11,7 @@ import HomeScreen from './screens/HomeScreen.jsx';
 import GameScreen from './screens/GameScreen.jsx';
 import DailyScreen from './screens/DailyScreen.jsx';
 import RoomModal from './components/RoomModal.jsx';
+import BirthdayModal from './components/BirthdayModal.jsx';
 
 /** Com o que uma sala nasce. O host ajusta tudo depois, no lobby. */
 const NEW_ROOM = {
@@ -227,6 +228,8 @@ export default function App() {
           profile={profile}
         />
       )}
+      {/* so na home de verdade: nao cobre uma sala nem o desafio aberto por link */}
+      {!state && !daily && !creating && <BirthdayModal />}
       {(creating || inLobby) && (
         <RoomModal
           state={state}

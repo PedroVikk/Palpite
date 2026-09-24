@@ -1912,3 +1912,28 @@ button.suspect:disabled { cursor: default; }
 .queue .cards-n { font-size: 11px; font-weight: 700; color: var(--muted); }
 /* no draft a escolha e obrigatoria: o X nao teria o que fazer */
 .modal.draft .close { display: none; }
+
+/* ---------------------------------------------------- aniversario ---- */
+
+/* o parabens do dia: foto em cima, recado embaixo, uma coluna so */
+.modal.birthday { width: min(440px, 100%); grid-template-columns: 1fr; overflow: hidden; }
+.birthday-photo { display: block; width: 100%; aspect-ratio: 4 / 3; max-height: 36vh; object-fit: cover; object-position: center 20%; }
+/* o X fica sobre a foto: fundo escuro para nao sumir nela */
+.modal.birthday .close { background: #050816B3; color: var(--text); border-color: var(--line-2); }
+.birthday-body { padding: 22px 26px 26px; display: flex; flex-direction: column; gap: 10px; }
+.birthday-tag {
+  align-self: flex-start;
+  padding: 5px 12px;
+  border-radius: var(--pill);
+  background: var(--coral-glow);
+  color: var(--coral-hi);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.birthday-body h2 { font-size: 26px; font-weight: 800; }
+.birthday-body p { margin: 0; font-size: 14.5px; color: var(--text-dim); line-height: 1.55; }
+.birthday-body .btn { margin-top: 8px; }
+@media (max-width: 640px) {
+  .birthday-body { padding: 18px 18px 20px; }
+  .birthday-body h2 { font-size: 22px; }
+}
