@@ -1384,6 +1384,55 @@ export const UNIVERSES = {
       { key: 'status', label: 'Estado', kind: 'text' },
     ],
   },
+
+  bandas: {
+    id: 'bandas',
+    label: 'Bandas',
+    secretLabel: 'a banda secreta',
+    dataFile: 'bandas.json',
+    // trezentas bandas de seis estilos: um estilo por dia, como os Famosos
+    daily: { rotate: 'group' },
+    groupLabel: 'Estilos',
+    // o grupo e o genero principal, mais largo que a coluna: Punk mora com o
+    // Rock, e as brasileiras e as de pista dividem balde, senao sobrava estilo
+    // com cinco bandas
+    groups: [
+      { id: 'rock', label: 'Rock' },
+      { id: 'metal', label: 'Metal' },
+      { id: 'pop', label: 'Pop' },
+      { id: 'kpop', label: 'K-pop' },
+      { id: 'brasil', label: 'Sertanejo, pagode e cia.' },
+      { id: 'outros', label: 'Eletrônica, rap e outros' },
+    ],
+    defaultGroups: ['rock', 'metal', 'pop', 'kpop', 'brasil', 'outros'],
+    // a origem nao e epoca: e um filtro dentro dos estilos marcados — "rock, so
+    // as brasileiras". Por isso `nested`: aparece embaixo dos estilos, as duas
+    // fileiras ficam visiveis e as duas origens abrem marcadas
+    scope: {
+      label: 'Origem',
+      key: 'origin',
+      nested: true,
+      help: 'Filtra dentro dos estilos marcados',
+      options: [
+        { id: 'nacionais', label: 'Nacionais', hint: 'Bandas brasileiras.' },
+        { id: 'internacionais', label: 'Internacionais', hint: 'Bandas de fora do Brasil.' },
+      ],
+    },
+    // gravadora, album de estreia e cidade ficaram de fora: ninguem sabe de
+    // cabeca, e cada banda teria o seu — a celula so fecharia verde na resposta
+    columns: [
+      // `list`: o Linkin Park e rock, metal e eletronica, e fecha amarelo
+      // contra os tres. No maximo tres por banda, senao amarela tudo
+      { key: 'genres', label: 'Gênero', kind: 'list' },
+      { key: 'country', label: 'País', kind: 'text' },
+      { key: 'lineup', label: 'Formação', kind: 'text' },
+      // a formacao que ficou, nao a de hoje: os Beatles sao quatro
+      { key: 'members', label: 'Integrantes', kind: 'number', nearby: 1, quiz: ['Qual delas tem mais integrantes?', 'Qual delas tem menos integrantes?'] },
+      // 5 anos: quem acerta a decada leva o amarelo, como no nascimento dos Famosos
+      { key: 'formedYear', label: 'Fundação', kind: 'number', nearby: 5, quiz: ['Qual delas surgiu por último?', 'Qual delas surgiu primeiro?'] },
+      { key: 'status', label: 'Estado', kind: 'text' },
+    ],
+  },
 };
 
 export const DEFAULT_UNIVERSE = 'pokemon';
@@ -1432,6 +1481,11 @@ export function sanitizeScope(universe, raw) {
  * rede do servidor (sala sem grupo valido, desafio do dia) e nao mudam.
  */
 export function roomDefaults(universe) {
+  // o recorte `nested` e filtro dentro dos grupos, nao linha do tempo: os
+  // grupos seguem a regra de sempre e o filtro abre inteiro, sem cortar nada
+  if (universe.scope?.nested) {
+    return { groups: [universe.groups[0].id], scope: universe.scope.options.map(o => o.id) };
+  }
   if (universe.scope) {
     return { groups: [...universe.defaultGroups], scope: [universe.scope.options[0].id] };
   }

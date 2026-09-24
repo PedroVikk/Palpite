@@ -155,6 +155,44 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
   const enoughPlayers = state.players.length >= minPlayers;
   const seatsLeft = Math.max(0, MAX_SEATS - state.players.length);
 
+  const poolLine = poolSize === null
+    ? 'Carregando...'
+    : <><b>{poolSize}</b> {poolSize === 1 ? 'opção sorteável' : 'opções sorteáveis'} com essa seleção.</>;
+
+  // a linha do recorte. Epoca vem antes dos grupos (e a regra que a mesa
+  // combina primeiro); o recorte `nested` e filtro dentro dos grupos e vem
+  // depois deles — "rock, so as nacionais"
+  const scopeField = universe.scope && (
+    <div className="field">
+      <div className="f-label">{universe.scope.label}</div>
+      <div className="chips">
+        {universe.scope.options.map(option => {
+          const on = epocas.includes(option.id);
+          return (
+            <button
+              key={option.id}
+              type="button"
+              className={`chip ${on ? 'on' : ''}`}
+              disabled={!isHost}
+              aria-pressed={on}
+              title={option.hint}
+              onClick={() => toggleScope(option.id)}
+            >
+              {option.label}
+              <CheckIcon className="tick" width={13} height={13} />
+            </button>
+          );
+        })}
+      </div>
+      <p className="f-help">
+        {/* o filtro de dentro fecha a conta: a contagem mora embaixo dele */}
+        {universe.scope.nested
+          ? poolLine
+          : universe.scope.options.filter(o => epocas.includes(o.id)).map(o => o.hint).join(' ')}
+      </p>
+    </div>
+  );
+
   return (
     <>
       <aside className="modal-side room-side">
@@ -235,33 +273,7 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
             />
           </div>
 
-          {universe.scope && (
-            <div className="field">
-              <div className="f-label">{universe.scope.label}</div>
-              <div className="chips">
-                {universe.scope.options.map(option => {
-                  const on = epocas.includes(option.id);
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className={`chip ${on ? 'on' : ''}`}
-                      disabled={!isHost}
-                      aria-pressed={on}
-                      title={option.hint}
-                      onClick={() => toggleScope(option.id)}
-                    >
-                      {option.label}
-                      <CheckIcon className="tick" width={13} height={13} />
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="f-help">
-                {universe.scope.options.filter(o => epocas.includes(o.id)).map(o => o.hint).join(' ')}
-              </p>
-            </div>
-          )}
+          {universe.scope && !universe.scope.nested && scopeField}
 
           <div className="field">
             <div className="f-label">{universe.groupLabel}</div>
@@ -283,12 +295,10 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
                 );
               })}
             </div>
-            <p className="f-help">
-              {poolSize === null
-                ? 'Carregando...'
-                : <><b>{poolSize}</b> {poolSize === 1 ? 'opção sorteável' : 'opções sorteáveis'} com essa seleção.</>}
-            </p>
+            {!universe.scope?.nested && <p className="f-help">{poolLine}</p>}
           </div>
+
+          {universe.scope?.nested && scopeField}
 
           <div className="field">
             <div className="f-label">Regras da partida</div>

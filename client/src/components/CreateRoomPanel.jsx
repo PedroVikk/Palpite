@@ -69,22 +69,28 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
    * até o Soul Society" é a regra que os amigos combinam antes de jogar, e a
    * categoria (raça, vila, facção) quase sempre fica inteira mesmo. Quem quiser
    * as duas linhas continua tendo o lobby, que tem espaço para elas.
+   *
+   * O recorte `nested` é a exceção: ele não é linha do tempo, é filtro dentro
+   * dos grupos ("rock, só as nacionais"), e só faz sentido com os grupos à
+   * vista. Aí aparecem as duas linhas, o grupo em cima.
    */
-  const axis = universe.scope
-    ? {
-      label: universe.scope.label,
-      help: 'Até onde a história entra no sorteio',
-      options: universe.scope.options,
-      on: scope,
-      toggle: toggleScope,
-    }
-    : {
-      label: universe.groupLabel,
-      help: 'De onde o segredo pode sair',
-      options: universe.groups,
-      on: groups,
-      toggle: toggleGroup,
-    };
+  const groupAxis = {
+    label: universe.groupLabel,
+    help: 'De onde o segredo pode sair',
+    options: universe.groups,
+    on: groups,
+    toggle: toggleGroup,
+  };
+  const scopeAxis = universe.scope && {
+    label: universe.scope.label,
+    help: universe.scope.help ?? 'Até onde a história entra no sorteio',
+    options: universe.scope.options,
+    on: scope,
+    toggle: toggleScope,
+  };
+  const axes = !universe.scope ? [groupAxis]
+    : universe.scope.nested ? [groupAxis, scopeAxis]
+    : [scopeAxis];
 
   const pickMode = (next) => {
     setMode(next);
@@ -181,30 +187,39 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
             <ModePick value={mode} onChange={pickMode} />
           </div>
 
-          <div className="field wide">
-            <div className="f-label">
-              {axis.label} <span className="i" title={axis.help}><InfoIcon /></span>
+          {axes.map((axis, i) => (
+            <div className="field wide" key={axis.label}>
+              <div className="f-label">
+                {axis.label} <span className="i" title={axis.help}><InfoIcon /></span>
+              </div>
+              <div className="chips">
+                {axis.options.map(option => {
+                  const on = axis.on.includes(option.id);
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`chip ${on ? 'on' : ''}`}
+                      aria-pressed={on}
+                      title={option.hint}
+                      onClick={() => axis.toggle(option.id)}
+                    >
+                      {option.label}
+                      <CheckIcon className="tick" width={13} height={13} />
+                    </button>
+                  );
+                })}
+              </div>
+              {/* com duas linhas, a regra vale para as duas e aparece uma vez so, embaixo */}
+              {i === axes.length - 1 && (
+                <p className="f-help">
+                  {axes.length > 1
+                    ? `Dá para marcar várias em cada linha. Com toda ${universe.scope.label.toLowerCase()} marcada, entra tudo.`
+                    : 'Dá para marcar várias. Sempre fica pelo menos uma.'}
+                </p>
+              )}
             </div>
-            <div className="chips">
-              {axis.options.map(option => {
-                const on = axis.on.includes(option.id);
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    className={`chip ${on ? 'on' : ''}`}
-                    aria-pressed={on}
-                    title={option.hint}
-                    onClick={() => axis.toggle(option.id)}
-                  >
-                    {option.label}
-                    <CheckIcon className="tick" width={13} height={13} />
-                  </button>
-                );
-              })}
-            </div>
-            <p className="f-help">Dá para marcar várias. Sempre fica pelo menos uma.</p>
-          </div>
+          ))}
 
           <div className="field wide">
             <div className="f-label">Regras da partida</div>

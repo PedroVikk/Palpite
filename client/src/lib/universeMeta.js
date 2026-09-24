@@ -44,6 +44,7 @@ const META = {
   ben10:            ['B1', '#9BE84F', '#4E8A12', 'Os aliens do Omnitrix',            146],
   jojo:             ['JJ', '#FFD166', '#B07C0A', 'Stands, poses e partes',           2],
   famosos:          ['FA', '#FF9EC4', '#B03D6B', 'Gente de carne e osso',            142794],
+  bandas:           ['BD', '#A78BFA', '#5B21B6', 'Do rock ao pagode, em grupo',      1299],
 };
 
 const FALLBACK = ['??', '#8FA3BF', '#3C4B63', '', null];

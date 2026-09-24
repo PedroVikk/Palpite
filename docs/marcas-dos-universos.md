@@ -125,6 +125,7 @@ Desenhe o de: <UNIVERSO> — <SÍMBOLO>
 | `ben10` | Ben 10 | Omnitrix: círculo com ampulheta central |
 | `jojo` | JoJo | estrela de cinco pontas |
 | `famosos` | Famosos | busto de perfil dentro de moldura oval |
+| `bandas` | Bandas | palheta de guitarra, ponta arredondada para baixo |
 
 ## 6. Universo novo: o checklist
 

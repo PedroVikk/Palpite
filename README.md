@@ -1,6 +1,6 @@
 # Palpite
 
-Um jogo de adivinhação multiplayer no estilo Pokédle, com **vinte e dois universos**.
+Um jogo de adivinhação multiplayer no estilo Pokédle, com **vinte e três universos**.
 Um secreto por rodada, todo mundo na mesma sala, **um chute por vez**. Cada
 chute vira uma linha de dicas visível para todos — verde acerta, amarelo chega
 perto, seta indica se o secreto é maior ou menor.
@@ -54,6 +54,7 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Ben 10** | 212 | 171 | 5 relógios + Ultimates | Espécie, Planeta natal, Poderes, Série, Estreia |
 | **JoJo's Bizarre Adventure** | 343 | 229 | Com e sem Stand | Parte, Gênero, Stand, Nacionalidade, Estado |
 | **Famosos** | 2242 | 2036 | 5 categorias | Categoria, Gênero, País, Nascimento, Estado |
+| **Bandas** | 336 | 336 | 6 estilos | Gênero, País, Formação, Integrantes, Fundação, Estado |
 
 **Sorteáveis** são os que entram na partida: viram segredo e são os únicos
 nomes que a busca de chute oferece. Quem fica de fora não existe para a sala —
@@ -253,6 +254,37 @@ como única coluna numérica, com cinco anos de tolerância — quem acerta a d�
 leva o amarelo.
 
 
+Em **Bandas** o elenco sai como o dos Famosos — grupo musical da Wikidata com
+artigo na Wikipédia em português, ordenado pelas visitas do último ano, com piso
+de 15 mil —, e o arquivo guarda **só as jogáveis**: banda com qualquer buraco na
+ficha nem entra no JSON. São 336, e 91 delas brasileiras.
+
+Os grupos são seis estilos, e embaixo deles vem a **Origem** — Nacionais e
+Internacionais —, um filtro de dentro: "rock, só as brasileiras". Ela usa o
+mesmo eixo das épocas, marcado como `nested` no schema, e isso muda três
+coisas: aparece embaixo dos grupos, o formulário de criar sala mostra as duas
+linhas (onde há época ele mostra só ela), e as duas origens abrem marcadas.
+
+As colunas são as perguntas que a sala responde de cabeça: *Gênero*, *País*,
+*Formação* (masculina, feminina ou mista), *Integrantes*, *Fundação* e *Estado*
+(ativa ou encerrada). Gravadora, álbum de estreia e cidade ficaram de fora — cada
+banda teria o seu, e a célula só fecharia verde na resposta. *Gênero* é `list`
+com no máximo três famílias largas (ninguém separa o Radiohead do Queen por
+subgênero), e o nome composto vale pelo núcleo: "pop rock" e "blues rock" são
+Rock, senão metade do rock virava Pop e o Led Zeppelin virava banda de blues.
+*Integrantes* é a formação que ficou, não a de hoje — os Beatles são quatro —,
+com um de tolerância para o amarelo.
+
+A ficha vem da **TheAudioDB**, a única fonte aberta que grava formação e número
+de integrantes prontos, casada com a Wikidata pelo ID do MusicBrainz. Ela conhece
+mal o Brasil: Calcinha Preta, Raimundos e quase toda dupla sertaneja vinham em
+branco. O buraco se fecha em cadeia — **MusicBrainz** (membros com data de saída),
+os membros da Wikidata (é de lá que a Banda Calypso sai como Joelma e Chimbinha)
+e a própria descrição ("dupla sertaneja", "trio"). Isso levou as brasileiras de 57
+para 91. O MusicBrainz também encerra os Mamonas Assassinas, que as outras duas
+fontes deixavam na ativa — mas só quando ninguém segue na banda, porque ele
+também encerra o Queen em 1991.
+
 ### As épocas
 
 Toda obra com linha do tempo tem um segundo eixo na sala, ao lado dos grupos: as
@@ -335,6 +367,8 @@ setas ▲/▼.
 | [Ordem Paranormal Wiki (MediaWiki)](https://ordemparanormal.fandom.com/) | não |
 | [Ben 10 Wiki (MediaWiki)](https://ben10.fandom.com/) | não |
 | [JoJo's Bizarre Encyclopedia (MediaWiki)](https://jojo.fandom.com/) | não |
+| [TheAudioDB](https://www.theaudiodb.com/free_music_api) | chave pública de teste |
+| [MusicBrainz](https://musicbrainz.org/doc/MusicBrainz_API) | não |
 
 Oito fontes pedidas **não** deram para usar direto e foram substituídas:
 
@@ -654,7 +688,7 @@ npm test
 ```
 
 Sobe o servidor de verdade, conecta jogadores falsos e joga partidas completas
-nos dois modos e **nos vinte e dois universos**, verificando turnos, dicas, timeout,
+nos dois modos e **nos vinte e três universos**, verificando turnos, dicas, timeout,
 pontuação, filtros de grupo, sigilo do segredo e a volta de quem cai. São 392
 verificações.
 
@@ -684,7 +718,7 @@ entraram — veja [Se as APIs caírem](#se-as-apis-caírem).
 
 ## Se as APIs caírem
 
-O jogo não fala com API nenhuma em tempo de execução: os vinte e dois datasets vivem
+O jogo não fala com API nenhuma em tempo de execução: os vinte e três datasets vivem
 em `data/*.json`, versionados junto do código, e o `src/catalog.js` lê tudo do
 disco na subida. Com todas as fontes fora do ar, as partidas continuam iguais.
 
