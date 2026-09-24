@@ -171,6 +171,22 @@ const GENDER_FALLBACK = {
   Rammus: 'It', Nunu: 'He', Xerath: 'He', Jinx: 'She', Mel: 'She', Ambessa: 'She',
 };
 
+/**
+ * O bloco da Ambessa no Module:ChampionData/data e a ficha da Ahri com outro
+ * nome: mesmo id (103), Mage/Assassin, Mana, alcance 550, meio. Ficou do
+ * rascunho de antes do lancamento e ninguem trocou. O Data Dragon da Riot
+ * desmente (Energia, alcance 125), e ela e a senhora da guerra de Noxus, que
+ * joga no topo e na selva. A ficha de lore poe Piltover na frente porque segue o Arcane,
+ * onde ela passa a serie em Piltover; na sala, a Ambessa e de Noxus.
+ *
+ * A Mel tambem e copia da Ahri no modulo, mas ai a copia acerta: maga de
+ * mana, a distancia, no meio. Por isso a correcao e por campeao, e o build
+ * avisa quando o id de um bloco se repete (ver `idsRepetidos`).
+ */
+const CORRECOES = {
+  Ambessa: { rangeType: 'Melee', resource: 'Energy', positions: ['Topo', 'Selva'], regions: ['Noxus'] },
+};
+
 // ------------------------------------------------------------------ dados
 
 console.log('Baixando campeoes do Data Dragon...\n');
@@ -193,10 +209,28 @@ const lua = dataModule.query.pages[0].revisions[0].slots.main.content;
 const starts = [...lua.matchAll(/^ {2}\["([^"]+)"\] = \{$/gm)];
 const field = (block, key) => block.match(new RegExp(`\\["${key}"\\]\\s*=\\s*"([^"]*)"`))?.[1] ?? null;
 
+/**
+ * As posicoes em que o campeao e jogado. O modulo tem duas listas: a
+ * `client_positions` e a principal que o cliente da Riot sugere, e diz so
+ * Suporte para o Heimerdinger e so Selva para o Gragas; a `external_positions`
+ * e a das rotas em que ele aparece de fato nas partidas — Topo, Meio e Suporte
+ * no Heimer —, e e a que o jogador tem na cabeca (e a do LoLdle). Sem ela, a
+ * de cliente.
+ */
+function posicoes(block) {
+  const lista = (chave) => [...(block.match(new RegExp(`\\["${chave}"\\]\\s*=\\s*\\{([^}]*)\\}`))?.[1] ?? '')
+    .matchAll(/"([^"]+)"/g)].map(m => POSITION_PT[m[1]] ?? m[1]);
+  const externas = lista('external_positions');
+  return externas.length ? externas : lista('client_positions');
+}
+
 const byApiName = new Map();
+const idsRepetidos = new Map();   // id do wiki -> apinames que usam ele
 for (const [i, match] of starts.entries()) {
   const block = lua.slice(match.index, starts[i + 1]?.index ?? lua.length);
   const apiname = field(block, 'apiname');
+  const wikiId = block.match(/\["id"\]\s*=\s*(\d+)/)?.[1];
+  if (wikiId && apiname) idsRepetidos.set(wikiId, new Set([...(idsRepetidos.get(wikiId) ?? []), apiname]));
   // "Mega Gnar" e "Kled & Skaarl" sao formas, nao campeoes: para cada apiname
   // vale o primeiro bloco, que e o do campeao
   if (!apiname || byApiName.has(apiname)) continue;
@@ -205,11 +239,20 @@ for (const [i, match] of starts.entries()) {
     rangeType: field(block, 'rangetype'),
     resource: field(block, 'resource'),
     releaseYear: Number(field(block, 'date')?.slice(0, 4)) || null,
-    positions: [...(block.match(/\["client_positions"\]\s*=\s*\{([^}]*)\}/)?.[1] ?? '')
-      .matchAll(/"([^"]+)"/g)].map(m => POSITION_PT[m[1]] ?? m[1]),
+    positions: posicoes(block),
   });
 }
 console.log(`  ${byApiName.size} campeoes no modulo`);
+// bloco com id de outro campeao e copia: foi assim que a Ambessa virou Ahri.
+// Gnar/GnarBig sao o mesmo campeao em duas formas, e nao contam
+for (const [wikiId, nomes] of idsRepetidos) {
+  const campeoes = [...nomes].filter(n => n !== 'GnarBig');
+  if (campeoes.length > 1) {
+    const semCorrecao = campeoes.filter(n => !CORRECOES[n]);
+    console.log(`  aviso: id ${wikiId} repetido em ${campeoes.join(', ')}`
+      + ` — confira contra o Data Dragon (${semCorrecao.join(', ')} sem correcao)`);
+  }
+}
 
 console.log('\nBaixando a ficha de lore de cada campeao...');
 const wikiKeys = [...byApiName.values()].map(c => c.wikiKey);
@@ -263,6 +306,8 @@ const roster = list.map((c, index) => {
     sprite: `${DDRAGON}/cdn/${version}/img/champion/${c.image?.full ?? `${c.id}.png`}`,
     artwork: `${DDRAGON}/cdn/img/champion/loading/${c.id}_0.jpg`,
   };
+
+  Object.assign(item, CORRECOES[c.id] ?? {});
 
   item.eligible = Boolean(
     item.name && item.gender && item.positions.length && item.species.length

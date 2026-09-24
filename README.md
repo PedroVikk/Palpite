@@ -74,7 +74,11 @@ guia a escolha aqui, e é por isso que a ficha de *League of Legends* e a de
 de 1 a 10 para Ataque, Magia, Defesa e Dificuldade: ninguém sabe que a Ahri tem
 "Magia 8", então quatro das sete colunas viravam chute no escuro. No lugar
 entrou a ficha de lore do wiki — gênero, posição, espécie, recurso, alcance,
-região e ano de lançamento, o mesmo conjunto do LoLdle. Em Valorant, as colunas
+região e ano de lançamento, o mesmo conjunto do LoLdle. A posição é a
+lista das rotas em que o campeão aparece nas partidas, não a principal que o
+cliente sugere — por essa o Heimerdinger era só suporte e o Gragas só selva. E a
+Ambessa tem a ficha corrigida à mão: no módulo do wiki ela é uma cópia da Ahri
+(mesmo id, maga de mana, a distância, no meio). Em Valorant, as colunas
 *Habilidades* (4 ou 5) e *Passiva* (sim ou não) diziam a mesma coisa duas vezes
 — quem tem 5 habilidades é exatamente quem tem passiva — e *Tags* estava vazia
 em 18 dos 29 agentes; agora são função, gênero, raça, origem e lançamento. Em
