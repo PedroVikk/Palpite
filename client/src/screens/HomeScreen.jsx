@@ -7,7 +7,7 @@ import Avatar from '../components/Avatar.jsx';
 import UniverseSelect from '../components/UniverseSelect.jsx';
 import {
   CheckIcon, ChartIcon, ClockIcon, EnterIcon, ExitIcon, FlameIcon,
-  GoogleIcon, ImageIcon, PlusIcon, SendIcon, TargetIcon,
+  GoogleIcon, PlusIcon, SendIcon, TargetIcon,
 } from '../components/Icon.jsx';
 
 const TOTAL_UNIVERSES = Object.keys(UNIVERSES).length;
@@ -173,15 +173,12 @@ export default function HomeScreen({
               </div>
             </div>
 
-            {/* dois desafios por universo, com segredos diferentes: quem
-                resolveu a tabela ainda tem a imagem para jogar hoje */}
+            {/* um botao so: a tela do dia ja tem a troca entre a tabela e a
+                imagem, os dois desafios de cada universo */}
             <div className="hero-actions">
               <UniverseSelect value={dailyUniverse} onChange={setDailyUniverse} />
               <button className="btn primary lg" onClick={() => onDaily(dailyUniverse, 'dicas')}>
-                Jogar agora <SendIcon width={16} height={16} strokeWidth={2.2} />
-              </button>
-              <button className="btn ghost lg" onClick={() => onDaily(dailyUniverse, 'imagem')}>
-                <ImageIcon width={16} height={16} strokeWidth={2.2} /> Pela imagem
+                Diário <SendIcon width={16} height={16} strokeWidth={2.2} />
               </button>
             </div>
           </div>
