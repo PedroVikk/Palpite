@@ -48,7 +48,7 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Carros** | 1570 | 1020 | 9 origens de marca | Marca, Categoria, Tração, Consumo, Cilindros, Cilindrada, Estreia, Último ano |
 | **My Little Pony** | 555 | 117 | 6 espécies | Espécie, Gênero, Residência, Ocupação |
 | **One Piece** | 786 | 375 | 7 facções | Tripulação, Papel, Fruta, Origem, Status, Recompensa, Altura, Idade |
-| **Dragon Ball** | 58 | 43 | 6 raças | Raça, Gênero, Afiliação, Planeta, Transformações, Ki base, Ki máximo |
+| **Dragon Ball** | 117 | 117 | 6 raças | Raça, Gênero, Lado, Voa, Estreia |
 | **Hunter × Hunter 2011** | 607 | 447 | 7 facções | Gênero, Nen, Estado, Afiliação, Ocupação, Cabelo, Estreia |
 | **Ordem Paranormal** | 123 | 99 | 6 campanhas + livros | Elemento, Complemento, Campanha, Facção, Onde aparece |
 | **Ben 10** | 212 | 171 | 5 relógios + Ultimates | Espécie, Planeta natal, Poderes, Série, Estreia |
@@ -108,11 +108,32 @@ altura ou idade. Da mesma página do wiki sai a `{{Char Box}}`, que preenche o
 que a API não sabe: o *mar de origem* (que ela não tem), 31% das recompensas
 contra 26% dela, e a altura certa — a API põe o Fisher Tiger com 4520 cm, dez
 vezes os 520 cm da ficha. Quem continua sem recompensa é marinheiro ou civil:
-nunca teve uma anunciada. Em **Dragon Ball** o ki
-varia de 450 ao "969 Googolplex" do Zeno, então a célula mostra a ordem de
-grandeza ("Milhões", "Setilhões") em vez do número — as setas ▲▼ continuam
-valendo. Quem não tem ki na base (Bulma, Chi-Chi) pode ser chutado, mas não
-sorteado. **Hunter × Hunter 2011** leva esse nome porque a Hunterpedia entrega
+nunca teve uma anunciada.
+
+**Dragon Ball** saiu da dragonball-api e foi para a **Dragon Ball Wiki**. A API
+tinha 58 personagens (sem Goten, Videl, Nappa, Cooler, Hit, Goku Black) e quatro
+colunas que ninguém sabe de cabeça: o ki em ordem de grandeza de números
+inventados, duas vezes, e a contagem de transformações dela. O wiki tem 2322
+fichas, e o trabalho foi mais cortar do que juntar — sem o corte, o Dragon Ball
+viraria o Hunter × Hunter, cheio de figurante de um episódio. Das 766 fichas das
+séries, entram **117**, por duas réguas: em quantos episódios e capítulos o
+personagem é citado (Goku 1563, Kuririn 1000; Gine 10, Senbei 8) e em quantos
+wikis de outros idiomas ele tem página, que é o que salva os vilões de filme
+(Janemba tem 11 aparições e página em 8 idiomas). O link dos personagens na
+página deles não serve: as caixas de navegação ligam o elenco inteiro em toda
+página, e todo mundo batia 500. O mesmo interwiki dá o nome da dublagem, pelo
+wiki pt-br: Kuririn, Chaos, Bills, Rei Cutelo, Tullece, Coola, Oob.
+
+As colunas são *Raça*, *Gênero*, *Lado* (nunca foi vilão, vilão, ex-vilão),
+*Voa* e *Estreia*, a saga em que o personagem aparece pela primeira vez, em
+treze blocos na ordem de lançamento — com seta, e a saga vizinha fecha amarelo.
+Filme conta pela saga que passava quando ele estreou: a ficha diz que o Cooler
+estreia numa ponta no GT e o Turles numa saga do Dragon Ball Heroes, e vale a
+estreia mais antiga. *Afiliação* ficou de fora porque as categorias do wiki somam
+jogo e mangá paralelo — punham o Whis no Exército do Freeza e a Bulma na Gangue
+do Pilaf. E o GT mora na época do Z: só o Baby passa no corte estreando lá.
+
+**Hunter × Hunter 2011** leva esse nome porque a Hunterpedia entrega
 o retrato e a cor de cabelo da adaptação de 2011 sempre que ela existe. Lá,
 *Nen* separa três respostas: o tipo revelado, o campo escrito "Unknown" (usa
 nen, nunca disseram qual) e a ficha sem o campo, que é quem nunca foi mostrado
@@ -305,6 +326,7 @@ parou no meio deixa só as que viu.
 | **Super-heróis** | Filmes (284) · Só nos quadrinhos (149) |
 | **Ben 10** | Ben 10 2005 (25) · Alien Force (15) · Ultimate Alien (17) · Omniverse (53) · Reboot (61) |
 | **JoJo** | As nove partes, de Phantom Blood (21) a The JOJOLands (5) |
+| **Dragon Ball** | Clássico (37) · Z, com o GT (52) · Super (28) |
 
 O corte sai sempre da estreia: capítulo do mangá, episódio, o que a fonte
 souber datar. Em Hunter × Hunter e nos super-heróis o eixo não é o tempo e sim
@@ -325,8 +347,8 @@ fora.
 
 No schema é um `scope` com uma lista de fases em ordem, e o item guarda em
 `era` o índice da sua. Os universos sem linha do tempo (Pokémon, Clash, LoL,
-Valorant, Carros, Fórmula 1, Yu-Gi-Oh!, Senhor dos Anéis, Harry Potter, Dragon
-Ball, My Little Pony) não têm o eixo: ou a
+Valorant, Carros, Fórmula 1, Yu-Gi-Oh!, Senhor dos Anéis, Harry Potter,
+My Little Pony) não têm o eixo: ou a
 obra não tem fases, ou elas já são os grupos — a geração do Pokémon e a década
 da Fórmula 1 são exatamente isso.
 
@@ -366,7 +388,7 @@ setas ▲/▼.
 | [PonyAPI](https://ponyapi.net/) | não |
 | [api-onepiece](https://api-onepiece.com/) | não |
 | [One Piece Wiki (MediaWiki)](https://onepiece.fandom.com/) | não |
-| [Dragon Ball API](https://dragonball-api.com/) | não |
+| [Dragon Ball Wiki (MediaWiki)](https://dragonball.fandom.com/) | não |
 | [Hunterpedia (MediaWiki)](https://hunterxhunter.fandom.com/) | não |
 | [Ordem Paranormal Wiki (MediaWiki)](https://ordemparanormal.fandom.com/) | não |
 | [Ben 10 Wiki (MediaWiki)](https://ben10.fandom.com/) | não |
@@ -508,7 +530,7 @@ duas e 210 com três.
 | **Duelo** | A cada rodada um jogador escolhe o secreto e assiste, **na vez dele numa fila**; os outros se revezam nos chutes. Se ninguém acertar, quem escolheu leva 50 pontos. |
 | **Impostor** | Todo mundo vê o secreto, **menos um** jogador, tirado da mesma fila do duelo. Cada um chuta por um número fixo de voltas, e a mesa vê só **quantas colunas** cada chute acertou em cheio, não quais. Quem sabe não pode chutar o secreto; se o impostor chutar, ganha na hora. Quando as voltas acabam, todos votam. Empate salva o impostor, e quem for pego ainda tem **um chute final** para dizer o secreto. Precisa de 3 jogadores. |
 | **Batalha naval** | **Cada um esconde o próprio secreto**, todos ao mesmo tempo (dois não escondem o mesmo). Na sua vez você escolhe o **alvo** e chuta contra o secreto dele; cada jogador tem um tabuleiro próprio, e os tabuleiros são públicos. Quem tem o secreto descoberto **afunda** e sai da batalha: não atira mais, só assiste. A partida é **uma batalha só**, sem teto de chutes, e acaba quando sobra um secreto de pé. Precisa de 2 jogadores. |
-| **Qual deles?** | A cada rodada sai uma **pergunta de múltipla escolha** montada das colunas do tema — qual deles tem tal tipo, qual NÃO tem, qual é o mais pesado, qual estreou primeiro — com 2 a 5 opções (o host escolhe). **Todos respondem ao mesmo tempo**, uma vez só; a pergunta fecha quando todo mundo respondeu ou o tempo acaba, e o gabarito mostra o valor de cada opção e quem marcou o quê. Sem segredo, sem vez. Nos temas de figura recortada (Pokémon, Dragon Ball, Ben 10, Ordem Paranormal e as armas do Valorant), uma pergunta em quatro é o **"Quem é esse Pokémon?!"**: a figura em preto, gerada no servidor e embutida na pergunta, e as opções só com nome — a cor acende no gabarito. |
+| **Qual deles?** | A cada rodada sai uma **pergunta de múltipla escolha** montada das colunas do tema — qual deles tem tal tipo, qual NÃO tem, qual é o mais pesado, qual estreou primeiro — com 2 a 5 opções (o host escolhe). **Todos respondem ao mesmo tempo**, uma vez só; a pergunta fecha quando todo mundo respondeu ou o tempo acaba, e o gabarito mostra o valor de cada opção e quem marcou o quê. Sem segredo, sem vez. Nos temas de figura recortada (Pokémon, Ben 10, Ordem Paranormal e as armas do Valorant), uma pergunta em quatro é o **"Quem é esse Pokémon?!"**: a figura em preto, gerada no servidor e embutida na pergunta, e as opções só com nome — a cor acende no gabarito. |
 | **Cartas** | A caça ao segredo com **draft de cartas**: a cada N rodadas (o host escolhe, de 1 a 5) cada jogador recebe 3 cartas e fica com 1. A sala vê quantas cartas cada um tem, nunca quais. Carta se usa na própria vez, antes de chutar: Tempo extra (+20 s), Aposta (acertou, dobra; outro acertou, perde 20), Peneira (tira 30% dos nomes errados da sua busca), Raio-X (revela uma coluna do segredo só para você), Chute duplo, e as de ataque, mais raras — Congelar (o próximo perde a vez) e Assalto (rouba 25 do líder). Quem está em último tira cartas raras com mais frequência. |
 
 **Jogar pela imagem** é um interruptor, não um terceiro modo: ele atravessa os

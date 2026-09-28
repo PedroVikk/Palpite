@@ -1282,8 +1282,15 @@ try {
   const forjado = await (await fetch(
     `${URL}/api/daily/pokemon/guess/${proximoChute()}?modo=imagem&t=${encodeURIComponent('9.aaaaaaaaaaaaaaaaaaaaaa')}`)).json();
   check('bilhete forjado nao pula degrau', forjado.picture?.level === 1);
+  // o chute sai do recorte de imagem de hoje do Naruto, pelo mesmo motivo dos
+  // chutes do Pokemon: o id 1 e o Juubi, do Shippuden, e no dia em que a
+  // imagem sorteia so o Classico ele volta "fora do desafio" e nao degrau 1
+  const hojeNaruto = await (await fetch(`${URL}/api/daily/naruto?modo=imagem`)).json();
+  const narutoDeHoje = elencos.get('naruto')
+    .filter(item => !hojeNaruto.group || item.group === hojeNaruto.group)
+    .filter(scopeFilter(UNIVERSES.naruto, hojeNaruto.scope))[0].id;
   const deOutro = await (await fetch(
-    `${URL}/api/daily/naruto/guess/1?modo=imagem&t=${encodeURIComponent(bilhete)}`)).json();
+    `${URL}/api/daily/naruto/guess/${narutoDeHoje}?modo=imagem&t=${encodeURIComponent(bilhete)}`)).json();
   check('nem bilhete legitimo de outro universo', deOutro.picture?.level === 1);
 
   // os dois desafios do dia sao sorteios separados: o teto de chutes de um nao

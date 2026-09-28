@@ -1,242 +1,458 @@
 /**
- * Baixa a Dragon Ball API e gera data/dragonball.json.
+ * Monta data/dragonball.json a partir da Dragon Ball Wiki.
  *   npm run build:dragonball
- * Fonte: https://dragonball-api.com (aberta, sem chave).
+ * Fonte: dragonball.fandom.com, pela API do MediaWiki (aberta, sem chave).
  *
- * A lista traz raca, genero, afiliacao, ki e imagem; o detalhe de cada
- * personagem acrescenta planeta de origem e transformacoes, entao sao 58
- * requests a mais — todas cacheadas em .cache/dragonball/.
+ * Antes o universo vinha da dragonball-api.com, e ela nao dava conta: 58
+ * personagens (sem Goten, Videl, Nappa, Cooler, Hit, Goku Black), e colunas que
+ * ninguem sabe de cabeca — o "ki" em ordem de grandeza de numeros inventados, a
+ * contagem de transformacoes da propria API. O wiki tem a ficha de 2322
+ * personagens; o trabalho aqui e mais cortar do que juntar.
+ *
+ * **O corte e por aparicao, nao por existencia.** Das 2322 fichas, 766 sao das
+ * series (DB, Z, GT, Super); o resto e jogo, Heroes, dublador e figurante de
+ * Dr. Slump. Mesmo entre as 766, a maioria e o figurante de um episodio — foi
+ * o que estragou o Hunter x Hunter. Duas reguas separam quem a sala conhece:
+ *  - em quantos episodios e capitulos o personagem e citado (as paginas de
+ *    episodio linkam quem aparece nelas). Goku 1563, Kuririn 1000, Freeza 403;
+ *    a Gine 10 e o Senbei 8. Os links de pagina de personagem nao servem: as
+ *    caixas de navegacao ligam o elenco inteiro em todas, e todo mundo bate 500;
+ *  - em quantos wikis de outros idiomas ele tem pagina. E ela que salva os
+ *    viloes de filme, que quase nao aparecem em episodio: o Janemba tem 11
+ *    aparicoes e pagina em 8 idiomas, o Cooler 37 e 12.
+ * O mesmo interwiki da o nome da dublagem brasileira, pelo wiki pt-br: Kuririn,
+ * Chaos, Bills, Rei Cutelo, Tullece, Coola, Oob.
+ *
+ * As colunas sao as que a sala responde sem abrir o wiki: raca, genero, lado
+ * (aliado, vilao, ex-vilao), se voa e a saga em que estreou. Afiliacao ficou de
+ * fora porque as categorias do wiki somam jogo e manga paralelo: punham o Whis
+ * no Exercito do Freeza e a Bulma na Gangue do Pilaf.
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
-const API = 'https://dragonball-api.com/api';
+const WIKI = 'https://dragonball.fandom.com/api.php';
 const ROOT = path.resolve(process.cwd());
 const OUT = path.join(ROOT, 'data', 'dragonball.json');
-const CACHE_DIR = path.join(ROOT, '.cache', 'dragonball');
+const CACHE_DIR = path.join(ROOT, '.cache', 'dragonball-wiki');
+const UA = 'palpite-dataset/1.0 (+https://github.com/PedroVikk)';
 
 await fs.mkdir(CACHE_DIR, { recursive: true });
 
-async function get(slug, url) {
-  const file = path.join(CACHE_DIR, `${slug}.json`);
+/** Nome do cache pelo conteudo do lote, nunca pela posicao (ver build-famosos). */
+const loteSlug = (prefixo, ids) =>
+  `${prefixo}-${createHash('sha1').update(ids.join('|')).digest('hex').slice(0, 12)}`;
+
+async function api(nome, params) {
+  const file = path.join(CACHE_DIR, `${nome}.json`);
   try {
     return JSON.parse(await fs.readFile(file, 'utf8'));
   } catch {}
-  for (let attempt = 1; attempt <= 4; attempt++) {
+  for (let i = 1; i <= 5; i++) {
     try {
-      const res = await fetch(url);
+      const res = await fetch(`${WIKI}?${new URLSearchParams({ format: 'json', formatversion: '2', ...params })}`,
+        { headers: { 'user-agent': UA } });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = await res.text();
       await fs.writeFile(file, text);
       return JSON.parse(text);
     } catch (err) {
-      if (attempt === 4) throw new Error(`${slug}: ${err.message}`);
-      await new Promise(r => setTimeout(r, 500 * attempt * attempt));
+      if (i === 5) throw new Error(`${nome}: ${err.message}`);
+      await new Promise(r => setTimeout(r, 800 * i * i));
     }
   }
 }
 
-/**
- * Ki vem como texto em tres formatos: "60.000.000", "160,000,000" e
- * "10.8 Septillion". Com escala por extenso o numero usa ponto decimal;
- * sem escala, ponto e virgula sao separadores de milhar.
- */
-const SCALES = {
-  thousand: 1e3, million: 1e6, billion: 1e9, trillion: 1e12,
-  quadrillion: 1e15, quintillion: 1e18, sextillion: 1e21,
-  septillion: 1e24, septllion: 1e24, // typo da propria API
-  googolplex: 1e100,                 // so o Zeno chega aqui: serve de teto
-};
-
-function parseKi(raw) {
-  const text = String(raw ?? '').trim().toLowerCase();
-  if (!text || text === 'unknown' || text === '0') return null;
-  const scale = Object.keys(SCALES).find(word => text.includes(word));
-  if (scale) {
-    const n = Number(text.replace(scale, '').replace(/,/g, '').trim());
-    return Number.isFinite(n) ? n * SCALES[scale] : null;
+/** Uma consulta em lotes de 50 titulos, seguindo o `continue` de cada lote. */
+async function emLotes(prefixo, titulos, params, cadaPagina) {
+  for (let i = 0; i < titulos.length; i += 50) {
+    const lote = titulos.slice(i, i + 50);
+    let cont = {}, n = 0;
+    do {
+      const json = await api(loteSlug(`${prefixo}${n++}`, lote), { action: 'query', titles: lote.join('|'), ...params, ...cont });
+      for (const p of json.query.pages) cadaPagina(p, json);
+      cont = json.continue ?? null;
+    } while (cont);
+    process.stdout.write(`\r  ${Math.min(i + 50, titulos.length)}/${titulos.length}`);
   }
-  const n = Number(text.replace(/[.,\s]/g, ''));
-  return Number.isFinite(n) && n > 0 ? n : null;
+  process.stdout.write('\n');
+}
+
+async function transcluem(template) {
+  const titulos = [];
+  let cont = {}, n = 0;
+  do {
+    const json = await api(`emb-${template.replace(/\W/g, '')}-${n++}`, {
+      action: 'query', list: 'embeddedin', eititle: `Template:${template}`, einamespace: '0', eilimit: '500', ...cont,
+    });
+    titulos.push(...json.query.embeddedin.map(p => p.title));
+    cont = json.continue ?? null;
+  } while (cont);
+  return titulos;
+}
+
+// -------------------------------------------------------------- wikitexto
+
+function corpo(texto, nome) {
+  const ini = texto.indexOf(`{{${nome}`);
+  if (ini < 0) return null;
+  let fundo = 0;
+  for (let i = ini; i < texto.length; i++) {
+    if (texto.startsWith('{{', i)) { fundo++; i++; continue; }
+    if (texto.startsWith('}}', i)) { fundo--; i++; if (!fundo) return texto.slice(ini + 2, i - 1); }
+  }
+  return null;
+}
+
+/** Os parametros do infobox, quebrando no `|` so fora de [[ ]] e {{ }}. */
+function parametros(bloco) {
+  const t = (bloco ?? '').replace(/<ref[\s\S]*?(?:\/>|<\/ref>)/g, '').replace(/<!--[\s\S]*?-->/g, '');
+  const partes = [];
+  let fundo = 0, ini = 0;
+  for (let i = 0; i < t.length; i++) {
+    if (t.startsWith('{{', i) || t.startsWith('[[', i)) { fundo++; i++; continue; }
+    if (t.startsWith('}}', i) || t.startsWith(']]', i)) { fundo--; i++; continue; }
+    if (t[i] === '|' && fundo <= 0) { partes.push(t.slice(ini, i)); ini = i + 1; }
+  }
+  partes.push(t.slice(ini));
+  const saida = {};
+  for (const p of partes.slice(1)) {
+    const eq = p.indexOf('=');
+    if (eq > 0) saida[p.slice(0, eq).trim()] = p.slice(eq + 1).trim();
+  }
+  return saida;
+}
+
+const limpa = (v) => (v ?? '')
+  .replace(/\[\[(?:[^\]|]*\|)?([^\]]*)\]\]/g, '$1')
+  .replace(/\{\{[^{}]*\}\}/g, '')
+  .replace(/<[^>]+>/g, ' ')
+  .replace(/''+/g, '')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const primeiroLink = (v) => v?.match(/\[\[([^\]|#]+)/)?.[1]?.trim() ?? null;
+
+// -------------------------------------------------------------- tabelas
+
+/**
+ * As sagas de estreia, na ordem em que sairam. Sao blocos largos de proposito
+ * — o wiki tem trinta e tantas sagas, e com elas a celula quase nunca fecharia
+ * verde. O indice vira coluna numerica: a seta diz de que lado da historia
+ * esta o segredo, e a saga vizinha fecha amarelo.
+ *
+ * A ordem e a de lancamento, nao a da cronologia interna: o GT saiu antes do
+ * Super, e e assim que a sala lembra.
+ */
+const SAGAS = [
+  { rotulo: 'Pilaf', de: [/Emperor Pilaf Saga/, /^Tournament Saga/] },
+  { rotulo: 'Red Ribbon', de: [/Red Ribbon Army Saga/, /General Blue Saga/, /Commander Red Saga/, /Fortuneteller Baba Saga/] },
+  { rotulo: 'Piccolo Daimaoh', de: [/Tien Shinhan Saga/, /King Piccolo Saga/, /Piccolo Jr\. Saga/] },
+  { rotulo: 'Saiyajins', de: [/Raditz Saga/, /Vegeta Saga/, /Saiyan Saga/] },
+  { rotulo: 'Freeza', de: [/Namek Saga/, /Captain Ginyu Saga/, /Frieza Saga/, /Garlic Jr\. Saga/] },
+  { rotulo: 'Androides e Cell', de: [/(?<!Future.{0,3})Trunks Saga/, /Androids Saga/, /Cell Saga/, /Cell Games Saga/] },
+  { rotulo: 'Majin Boo', de: [/Great Saiyaman Saga/, /World Tournament Saga/, /Babidi Saga/, /Majin Buu Saga/, /Fusion Saga/, /Kid Buu Saga/, /Peaceful World Saga/] },
+  { rotulo: 'GT', de: [/Black Star Dragon Ball Saga/, /Baby Saga/, /Super 17 Saga/, /Shadow Dragon Saga/] },
+  { rotulo: 'Deuses', de: [/God of Destruction Beerus Saga/, /Golden Frieza Saga/] },
+  { rotulo: 'Universo 6', de: [/Universe 6 Saga/] },
+  { rotulo: 'Trunks do Futuro', de: [/Future.{0,3}Trunks Saga/] },
+  { rotulo: 'Torneio do Poder', de: [/Universe Survival Saga/] },
+  { rotulo: 'Moro e Granolah', de: [/Galactic Patrol Prisoner Saga/, /Granolah the Survivor Saga/, /Super Hero Saga/] },
+];
+
+/**
+ * As epocas da sala, pelo indice da saga de estreia. O GT mora no Z: so o Baby
+ * passa no corte estreando la, e uma epoca de um personagem nao e epoca.
+ */
+const epocaDaSaga = (i) => (i <= 2 ? 0 : i <= 7 ? 1 : 2);
+
+/**
+ * Saga de uma ficha de capitulo ou episodio. Quando o capitulo cruza duas
+ * sagas ("Frieza Saga, Trunks Saga", a estreia do Rei Cold), vale a mais
+ * nova. As sagas do Dragon Ball Heroes (Prison Planet, Universe Creation) nao
+ * estao na tabela e somem daqui: o Turles e o Bojack "estreavam" nelas.
+ */
+function sagaDe(texto) {
+  const achadas = SAGAS.map((s, i) => (s.de.some(re => re.test(texto)) ? i : -1)).filter(i => i >= 0);
+  return achadas.length ? Math.max(...achadas) : null;
 }
 
 /**
- * Nao da para mostrar 9e25 numa celula, entao o ki vira a ordem de grandeza
- * (centenas, milhares, milhoes...). Ainda rende as setas ▲▼ e fica legivel.
+ * Filme conta pela saga que passava quando ele estreou. A ficha aponta a
+ * estreia em manga e anime mesmo quando ela e uma ponta muito posterior — o
+ * Cooler "estreia" no GT, o Gogeta na saga do Dragao Sombrio —, entao vale a
+ * mais antiga das tres.
  */
-const kiTier = (ki) => (ki == null ? null : Math.min(9, Math.floor(Math.log10(ki) / 3)));
-
-const RACE_GROUP = {
-  Saiyan: 'saiyajin', Human: 'humano', Namekian: 'namekuseijin',
-  Android: 'androide', God: 'divino', Angel: 'divino',
-};
-const groupOf = (race) => RACE_GROUP[race] ?? 'outros';
-
-const PLANET_PT = {
-  Tierra: 'Terra', Namek: 'Namekusei', Vegeta: 'Vegeta', Kanassa: 'Kanassa',
-  Monmar: 'Monmar', Yardrat: 'Yardrat', Makyo: 'Makyo', Babari: 'Babari',
-  'Freezer No. 79': 'Freeza nº 79', 'Kaiō del Norte': 'Planeta do Kaioh do Norte',
-  'Tsufur (Universo 6)': 'Tsufur (Universo 6)', 'Otro Mundo': 'Outro Mundo',
-  'Planeta de Bills': 'Planeta de Bills', 'Planeta del Gran Kaio': 'Planeta do Grande Kaioh',
-  'Nucleo del Mundo': 'Núcleo do Mundo', 'Planeta sagrado': 'Planeta Sagrado',
-  'Nuevo Planeta Tsufrui': 'Novo Planeta Tsufuru',
-  'Templo móvil del Rey de Todo': 'Templo do Rei de Tudo', 'Universo 11': 'Universo 11',
-};
-
-/** Nomes em pt-BR onde a dublagem brasileira diverge do rotulo da API. */
-const NAME_PT = {
-  Celula: 'Cell', 'Master Roshi': 'Mestre Kame', 'Kaio del norte (Kaito)': 'Kaioh do Norte',
-  'Kaio del Sur': 'Kaioh do Sul', 'Kaio del este': 'Kaioh do Leste',
-  'Kaio del Oeste': 'Kaioh do Oeste', 'Gran Kaio': 'Grande Kaioh',
-  'Kaio-shin del Este': 'Kaioh Shin do Leste', 'Kaio-shin del Norte': 'Kaioh Shin do Norte',
-  'Kaio-shin del Sur': 'Kaioh Shin do Sul', 'Kaio-shin del Oeste': 'Kaioh Shin do Oeste',
-  'Gran Kaio-shin': 'Grande Kaioh Shin', 'Grand Priest': 'Grande Sacerdote',
-  'Android 20 (Dr. Gero)': 'Dr. Gero (Android 20)', Vermoudh: 'Vermoud',
-};
+const FILMES = [
+  [/Curse of the Blood Rubies/, 0], [/Sleeping Princess/, 1], [/Mystical Adventure/, 2],
+  [/Dead Zone/, 3], [/Tree of Might/, 3], [/Bardock/, 4], [/Lord Slug/, 4],
+  [/Cooler's Revenge/, 4], [/Return of Cooler/, 5], [/Super Android 13/, 5],
+  [/Broly - The Legendary/, 5], [/Bojack Unbound/, 5], [/Broly - Second Coming/, 6],
+  [/Bio-Broly/, 6], [/Fusion Reborn/, 6], [/Wrath of the Dragon/, 6], [/Path to Power/, 7],
+  // o especial do Trunks do Futuro vem antes do Resurrection F: o titulo dele
+  // comeca igual, e punha o Goku Black e a Mai do Futuro na saga dos Deuses
+  [/A Hero's Legacy/, 7], [/Battle of Gods/, 8], [/Future.{0,3}Trunks Speci/, 10], [/Resurrection.*Future/, 10],
+  [/Resurrection/, 8],
+  [/Super: Broly/, 12], [/Super Hero/, 12],
+];
+const sagaDoFilme = (titulo) => FILMES.find(([re]) => re.test(titulo ?? ''))?.[1] ?? null;
 
 /**
- * A epoca de estreia nao vem da API — e lista escrita a mao, pelos nomes ja em
- * pt-BR. So o Classico e o Super aparecem aqui: quem nao esta em nenhum dos
- * dois estreou no Z, que e a maior parte do elenco. Filme conta para a epoca em
- * que saiu, entao Broly, Janemba e Gogeta ficam no Z, e Bills e Whis no Super.
- * A ordem dos indices e a mesma do `scope.options` do universo.
+ * Raca pela ficha, que mistura tudo ("1/2 Saiyan-1/2 Human-type Earthling",
+ * "Ginyu's race mutant"). Vale a primeira raca escrita; mestico de Saiyajin e
+ * uma raca a parte, porque e assim que a obra trata Gohan, Goten e Trunks.
+ * Especie sem nome proprio (a do Dodoria, a do Hit) vira Alienigena.
  */
-const ERA_CLASSICO = new Set([
-  'Goku', 'Bulma', 'Piccolo', 'Krillin', 'Tenshinhan', 'Yamcha',
-  'Chi-Chi', 'Launch', 'Mestre Kame',
-]);
-const ERA_SUPER = new Set([
-  'Bills', 'Whis', 'Zeno', 'Jiren', 'Toppo', 'Dyspo',
-  'Marcarita', 'Vermoud', 'Grande Sacerdote',
-]);
-const eraDe = (nome) => (ERA_CLASSICO.has(nome) ? 0 : ERA_SUPER.has(nome) ? 2 : 1);
-
-/**
- * Apelidos da busca: o nome original e o traduzido levam ao mesmo personagem.
- * A fonte e em espanhol e a dublagem brasileira renomeou meio elenco, entao
- * "Cell" e "Célula", "Krillin" e "Kuririn", "Daishinkan" e "Grande Sacerdote"
- * precisam achar a mesma ficha — quem assistiu num idioma nao deveria perder o
- * chute por causa disso. O nome cru da API entra sozinho, la embaixo; aqui
- * ficam o japones, o ingles e as grafias que a dublagem consagrou.
- */
-const ALIASES = {
-  Goku: ['Son Goku', 'Kakaroto', 'Kakarot'],
-  Vegeta: ['Principe Vegeta'],
-  Piccolo: ['Piccolo Jr.', 'Ma Junior', 'Big Green'],
-  Bulma: ['Buruma'],
-  Celula: ['Cell', 'Célula', 'Perfect Cell'],
-  Freezer: ['Frieza', 'Freeza'],
-  Zarbon: ['Zarbom'],
-  Ginyu: ['Capitão Ginyu', 'Ginew'],
-  Gohan: ['Son Gohan'],
-  Krillin: ['Kuririn', 'Cririn', 'Klilyn'],
-  Tenshinhan: ['Tien', 'Tien Shinhan', 'Ten Shin Han'],
-  Yamcha: ['Yamtcha', 'Yamsha'],
-  'Chi-Chi': ['Chichi'],
-  Trunks: ['Trunks do Futuro'],
-  'Master Roshi': ['Mestre Kame', 'Roshi', 'Muten Roshi', 'Kamesennin', 'Tartaruga Genial'],
-  Bardock: ['Burdock', 'Bardak'],
-  Launch: ['Lunch'],
-  'Mr. Satan': ['Hercule', 'Satan', 'Senhor Satan'],
-  'Android 13': ['C-13', 'Androide 13'],
-  'Android 14': ['C-14', 'Androide 14'],
-  'Android 15': ['C-15', 'Androide 15'],
-  'Android 16': ['C-16', 'Androide 16'],
-  'Android 17': ['C-17', 'Androide 17', 'Lapis'],
-  'Android 18': ['C-18', 'Androide 18', 'Lazuli'],
-  'Android 19': ['C-19', 'Androide 19'],
-  'Android 20 (Dr. Gero)': ['C-20', 'Androide 20', 'Dr. Maki Gero'],
-  Nail: ['Neil'],
-  Raditz: ['Radditz'],
-  'Majin Buu': ['Majin Boo', 'Boo', 'Bu'],
-  Bills: ['Beerus', 'Birus'],
-  Zeno: ['Zen-Oh', 'Zeno Sama', 'Rei de Tudo'],
-  'Kibito-Shin': ['Kibitoshin', 'Kibito Kai', 'Kaioh Shin', 'Shin'],
-  Toppo: ['Top'],
-  Dyspo: ['Dispo'],
-  Vermoudh: ['Vermoud', 'Vermouth'],
-  // o Daishinkan e o caso que motivou a lista: ninguem procura por "Grande
-  // Sacerdote", que e como a dublagem o chama
-  'Grand Priest': ['Daishinkan', 'Dai Shinkan', 'Sumo Sacerdote'],
-  'Kaio del norte (Kaito)': ['King Kai', 'Kaito', 'Kaioh Sama'],
-  'Kaio-shin del Este': ['Supremo Kaioh Sama', 'Kaioshin', 'Shin'],
-  'Gran Kaio-shin': ['Dai Kaioshin'],
-  Gogeta: ['Gogueta'],
-  Vegetto: ['Vegito', 'Vegerot'],
-  Janemba: ['Jannemba'],
-  Broly: ['Brolly', 'Broli'],
-};
-
-console.log('Baixando personagens da Dragon Ball API...\n');
-
-const lista = (await get('characters', `${API}/characters?limit=1000`)).items;
-
-const detalhes = [];
-for (const [i, c] of lista.entries()) {
-  process.stdout.write(`\r  personagem ${i + 1}/${lista.length}`);
-  detalhes.push(await get(`character_${c.id}`, `${API}/characters/${c.id}`));
+function racaDe(texto, cats, titulo) {
+  if (/Zamasu/.test(titulo)) return 'Kaioshin';
+  if (cats.has('Androids') || /Android/.test(texto)) return 'Androide';
+  const t = texto ?? '';
+  // mestico e quem a ficha abre com fracao ("1/2 Saiyan-1/2 Earthling"). Citar
+  // Saiyan mais adiante nao basta: a raca do Ginyu lista o corpo do Goku que
+  // ele roubou, e a do Goku Black o do Goku que o Zamasu tomou
+  if (/Saiyan/.test(t) && /^(1\/2|1\/4|3\/4)/.test(t)) return 'Meio-Saiyajin';
+  const regras = [
+    // "Ginyu's race", "Dodoria's race": especie sem nome, e vem antes de tudo
+    // porque a ficha do Ginyu segue listando os corpos que ele trocou
+    [/^Beerus' race/, 'Raça do Bills'],
+    [/^[\w.-]+'s race/, 'Alienígena'],
+    [/^(Animal|Monster|Dog|Cat|Monkey|Turtle)/i, 'Animal'],
+    [/^Saiyan/, 'Saiyajin'],
+    [/Earthling/, 'Terráqueo'],
+    [/Namek/, 'Namekuseijin'],
+    [/^Majin/, 'Majin'],
+    [/^Glind/, 'Kaioshin'],
+    [/^Angel/, 'Anjo'],
+    [/^Beerus' race/, 'Raça do Bills'],
+    [/^Frieza (Clan|Race)/, 'Raça do Freeza'],
+    [/^Eternal Dragon/, 'Dragão'],
+    [/^(Demon|Evil)/, 'Demônio'],
+    [/Tuffle/, 'Tsufuru'],
+  ];
+  for (const [re, raca] of regras) if (re.test(t)) return raca;
+  return 'Alienígena';
 }
-process.stdout.write('\n');
 
-const clean = (value) => {
-  const text = String(value ?? '').trim();
-  return text && !/^(unknown|desconocido|-)$/i.test(text) ? text : null;
+/** O grupo que a sala liga e desliga — os mesmos ids de antes, pela raca. */
+const GRUPO_DA_RACA = {
+  Saiyajin: 'saiyajin', 'Meio-Saiyajin': 'saiyajin',
+  'Terráqueo': 'humano', Animal: 'humano',
+  Namekuseijin: 'namekuseijin',
+  Androide: 'androide',
+  Kaioshin: 'divino', Anjo: 'divino', 'Raça do Bills': 'divino', Deus: 'divino', 'Dragão': 'divino',
 };
 
-const roster = detalhes.map((c, index) => {
-  const ki = parseKi(c.ki);
-  const maxKi = parseKi(c.maxKi);
-  const nome = NAME_PT[c.name.trim()] ?? c.name.trim();
-  const item = {
-    id: index + 1,
-    sourceId: c.id,
-    name: nome,
-    group: groupOf(c.race),
-    era: eraDe(nome),
-    race: clean(c.race),
-    gender: clean(c.gender),
-    affiliation: clean(c.affiliation),
-    planet: clean(PLANET_PT[c.originPlanet?.name?.trim()] ?? c.originPlanet?.name),
-    transformations: Array.isArray(c.transformations) ? c.transformations.length : 0,
-    ki: kiTier(ki),
-    maxKi: kiTier(maxKi),
-    sprite: c.image ?? null,
-    artwork: c.image ?? null,
-  };
-  const apelidos = [...new Set([...(ALIASES[c.name.trim()] ?? []), c.name.trim()])]
-    .filter(a => a !== nome);
-  if (apelidos.length) item.aliases = apelidos;
+/**
+ * Quem passa nas reguas mas nao e um personagem que a sala chuta: o grupo dos
+ * assistentes do Zeno, a copia do Zeno do Futuro, o Boo Inocente (o mesmo
+ * Majin Boo gordo, que ja entra como Good Buu), o Yamoshi (lenda, nunca aparece)
+ * e o locutor do torneio, que nem nome tem.
+ */
+const FORA = new Set(["Zeno's Attendants", 'Future Zeno', 'Innocent Buu', 'Yamoshi', 'World Tournament Announcer']);
 
-  item.eligible = Boolean(item.name && item.sprite && item.race && item.gender && item.maxKi != null);
-  return item;
+/**
+ * Onde o wiki pt-br escreve a romanizacao japonesa e a dublagem consagrou
+ * outro nome, vale o da dublagem. O do wiki fica de apelido.
+ */
+const NOME_BR = {
+  Puar: 'Puar', Jeice: 'Jeice', Burter: 'Burter', Cabba: 'Cabba', Zeno: 'Zeno', 'Chi-Chi': 'Chi-Chi',
+  'Good Buu': 'Majin Boo', 'Broly (DBS)': 'Broly (Super)', 'Future Mai': 'Mai do Futuro',
+  'Commander Red': 'Comandante Red', 'Grand Minister': 'Grande Sacerdote',
+};
+
+/**
+ * Onde a ficha nao responde, ou responde pelo que a sala nao reconhece. A
+ * categoria "Former Villains" chega ao Goku e a Gine por jogo e por manga
+ * paralelo; o Zeno e o Mr. Popo nao tem raca escrita.
+ */
+const CORRECOES = {
+  Goku: { side: 'Nunca foi vilão' },
+  Gine: { side: 'Nunca foi vilão' },
+  Zeno: { race: 'Deus', group: 'divino' },
+  'Mr. Popo': { race: 'Desconhecida' },
+};
+
+/** Apelidos que o wiki nao da e a sala usa — os da busca antiga, mais alguns. */
+const APELIDOS = {
+  Goku: ['Son Goku', 'Kakaroto', 'Kakarot'], Vegeta: ['Príncipe Vegeta'],
+  Piccolo: ['Piccolo Jr.', 'Ma Junior'], Frieza: ['Frieza', 'Freezer'],
+  Krillin: ['Krillin', 'Cririn'], 'Tien Shinhan': ['Tien', 'Ten Shin Han'],
+  'Master Roshi': ['Mestre Kame', 'Muten Roshi', 'Kamesennin'], 'Mr. Satan': ['Hercule', 'Satan'],
+  'Android 17': ['C-17', 'Lapis'], 'Android 18': ['C-18', 'Lazuli'], 'Android 16': ['C-16'],
+  'Android 19': ['C-19'], 'Android 8': ['C-8', 'Oitão'], 'Dr. Gero': ['Android 20', 'C-20'],
+  Beerus: ['Beerus', 'Birus'], Zeno: ["Zen'oh", 'Zeno Sama'], Shin: ['Supremo Senhor Kaioh', 'Kaioshin'],
+  'Grand Minister': ['Daishinkan', 'Grande Sacerdote'], 'Good Buu': ['Majin Buu', 'Boo', 'Mr. Buu'],
+  'Kid Buu': ['Kid Buu', 'Boo Magro'], 'Super Buu': ['Super Buu'], Vegito: ['Vegito', 'Vegetto'],
+  Cooler: ['Cooler'], Turles: ['Turles'], 'Broly (DBS)': ['Broly DBS'], Uub: ['Uub'], Bulla: ['Bulla'],
+  'King Kai': ['Kaioh do Norte', 'Kaio-sama'], 'Mercenary Tao': ['Tao Pai Pai'],
+};
+
+// -------------------------------------------------------------- download
+
+console.log('Lendo quem usa a ficha de personagem...');
+const titulos = await transcluem('Character Infobox');
+console.log(`  ${titulos.length} paginas`);
+
+console.log('\nBaixando fichas, categorias e interwikis...');
+const paginas = new Map();
+await emLotes('ficha', titulos, {
+  prop: 'revisions|categories|langlinks', rvprop: 'content', rvslots: 'main', cllimit: 'max', lllimit: 'max',
+}, (p) => {
+  const atual = paginas.get(p.title) ?? { cats: new Set(), idiomas: new Map() };
+  if (p.revisions) atual.texto = p.revisions[0].slots.main.content;
+  if (p.pageid) atual.pageid = p.pageid;
+  for (const c of p.categories ?? []) atual.cats.add(c.title.replace('Category:', ''));
+  for (const l of p.langlinks ?? []) atual.idiomas.set(l.lang, l.title);
+  paginas.set(p.title, atual);
 });
 
-const total = roster.length;
-const coverage = (label, predicate) => {
-  const n = roster.filter(predicate).length;
-  console.log(`  ${label.padEnd(14)} ${String(n).padStart(3)}/${total}  (${Math.round(n / total * 100)}%)`);
+const SERIES = ['DB Characters', 'DBZ Characters', 'DBGT Characters', 'DBS Characters'];
+const dasSeries = [...paginas].filter(([t, p]) =>
+  SERIES.some(s => p.cats.has(s)) && !/^Xeno |Future Warrior|\(.*timeline\)/.test(t));
+console.log(`  ${dasSeries.length} das series`);
+
+console.log('\nContando aparicoes em episodios e capitulos...');
+const obras = [...await transcluem('EpisodeInfobox'), ...await transcluem('Chapter Infobox')];
+const aparicoes = new Map();
+await emLotes('elo', obras, { prop: 'links', plnamespace: '0', pllimit: 'max' }, (p) => {
+  for (const l of p.links ?? []) aparicoes.set(l.title, (aparicoes.get(l.title) ?? 0) + 1);
+});
+
+/**
+ * Quem a sala conhece. Qualquer uma das quatro portas:
+ *  - 100+ aparicoes: o elenco fixo, mesmo o pouco traduzido (a Launch tem
+ *    pagina em 2 idiomas, e 154 aparicoes);
+ *  - 40+ aparicoes e 3+ idiomas: tira o cachorro Bee e o grilo Gregory;
+ *  - 8+ idiomas: os viloes de filme (Cooler, Broly, Janemba, Bojack);
+ *  - 25+ aparicoes e 5+ idiomas: Turles, Caulifla, Kale, Moro.
+ */
+const conhecido = (a, i) => a >= 100 || (a >= 40 && i >= 3) || i >= 8 || (a >= 25 && i >= 5);
+const elenco = dasSeries
+  .filter(([t, p]) => !FORA.has(t) && conhecido(aparicoes.get(t) ?? 0, p.idiomas.size))
+  .map(([t, p]) => {
+    const bruto = corpo(p.texto ?? '', 'Character Infobox') ?? '';
+    return { titulo: t, ...p, bruto, ficha: parametros(bruto) };
+  });
+console.log(`  ${elenco.length} passam no corte`);
+
+console.log('\nLendo a saga de cada estreia...');
+const estreias = [...new Set(elenco.flatMap(c => [primeiroLink(c.ficha['manga debut']), primeiroLink(c.ficha['anime debut'])]).filter(Boolean))];
+const sagaDaEstreia = new Map();
+await emLotes('estreia', estreias, { prop: 'revisions', rvprop: 'content', rvslots: 'main', redirects: '1' }, (p, json) => {
+  const texto = p.revisions?.[0]?.slots?.main?.content ?? '';
+  const f = parametros(corpo(texto, 'Chapter Infobox') ?? corpo(texto, 'EpisodeInfobox'));
+  const saga = sagaDe(limpa(f.saga ?? f.Saga ?? ''));
+  sagaDaEstreia.set(p.title, saga);
+  for (const r of json.query.redirects ?? []) if (r.to === p.title) sagaDaEstreia.set(r.from, saga);
+});
+
+console.log('\nResolvendo as imagens...');
+/**
+ * A imagem vem em tres formatos: um <tabber> com as abas Anime e Manga (que o
+ * separador de parametros parte ao meio), uma <gallery> com uma linha por aba
+ * ("Bulma anime profile.png|Anime"), ou o nome do arquivo cru. Nos dois
+ * primeiros, a primeira aba e a do anime, e e ela que vale.
+ */
+function arquivoDe(c) {
+  const bloco = c.bruto.slice(c.bruto.search(/\|\s*image\s*=/));
+  const galeria = bloco.match(/^\s*\|\s*image\s*=\s*<gallery>\s*\n\s*([^|\n]+?\.(?:png|jpe?g|gif|webp))/i)?.[1];
+  const tabber = bloco.match(/\[\[File:([^\]|]+)/)?.[1];
+  const cru = bloco.match(/^\s*\|\s*image\s*=\s*([^|<\n[]+?\.(?:png|jpe?g|gif|webp))/i)?.[1];
+  // o Broly escreve "File:" dentro do proprio campo
+  return (galeria ?? cru ?? tabber)?.replace(/^File:/i, '').trim() ?? null;
+}
+const arquivos = [...new Set(elenco.map(arquivoDe).filter(Boolean))].map(a => `File:${a}`);
+const urlDe = new Map();
+await emLotes('img', arquivos, { prop: 'imageinfo', iiprop: 'url', iiurlwidth: '640' }, (p, json) => {
+  const info = p.imageinfo?.[0];
+  if (!info) return;
+  urlDe.set(p.title, info.thumburl ?? info.url);
+  for (const n of json.query.normalized ?? []) if (n.to === p.title) urlDe.set(n.from, info.thumburl ?? info.url);
+});
+
+// -------------------------------------------------------------- montagem
+
+const roster = [];
+for (const c of elenco) {
+  const f = c.ficha;
+  const doTitulo = c.idiomas.get('pt-br')?.replace(/^.*#/, '') ?? null;
+  const name = NOME_BR[c.titulo] ?? doTitulo ?? c.titulo;
+
+  const race = racaDe(limpa(f.Race), c.cats, c.titulo);
+
+  // os namekuseijins nao tem sexo na obra, e o wiki deixa o campo vazio; mas
+  // todos sao tratados e dublados como "ele", e e assim que a sala chuta.
+  // So os dragoes ficam de fora
+  const generoCru = limpa(f.Gender).split(' ')[0];
+  const gender = race === 'Dragão' ? 'Sem gênero'
+    : generoCru === 'Female' ? 'Feminino' : 'Masculino';
+
+  // "Nunca foi vilão" e nao "Aliado": o Jiren e o Toppo sao rivais, nao amigos
+  const side = c.cats.has('Villains') ? 'Vilão' : c.cats.has('Former Villains') ? 'Ex-vilão' : 'Nunca foi vilão';
+  const flies = c.cats.has('Characters who can fly') ? 'Sim' : 'Não';
+
+  const candidatas = [
+    sagaDaEstreia.get(primeiroLink(f['manga debut'])),
+    sagaDaEstreia.get(primeiroLink(f['anime debut'])),
+    sagaDoFilme(limpa(f['movie debut'])),
+  ].filter(s => s != null);
+  const debut = candidatas.length ? Math.min(...candidatas) : null;
+
+  const arquivo = arquivoDe(c);
+  const imagem = arquivo ? urlDe.get(`File:${arquivo}`) ?? null : null;
+
+  const item = {
+    id: c.pageid,
+    name,
+    group: GRUPO_DA_RACA[race] ?? 'outros',
+    era: debut == null ? null : epocaDaSaga(debut),
+    race,
+    gender,
+    side,
+    flies,
+    debut,
+    sprite: imagem,
+    artwork: imagem,
+  };
+  Object.assign(item, CORRECOES[c.titulo] ?? {});
+
+  const apelidos = [c.titulo, doTitulo, ...(APELIDOS[c.titulo] ?? [])]
+    .filter(a => a && a !== name);
+  if (apelidos.length) item.aliases = [...new Set(apelidos)];
+  item.eligible = Boolean(item.sprite && item.debut != null);
+  roster.push(item);
+}
+
+// dois personagens com o mesmo nome confundem a busca: o de estreia mais nova
+// leva a epoca junto
+const vistos = new Map();
+for (const item of roster.sort((a, b) => (a.debut ?? 99) - (b.debut ?? 99))) {
+  if (vistos.has(item.name)) item.name = `${item.name} (${SAGAS[item.debut]?.rotulo ?? 'outro'})`;
+  vistos.set(item.name, item);
+}
+
+// ------------------------------------------------------------- relatorio
+
+const elegiveis = roster.filter(i => i.eligible);
+console.log(`\n${elegiveis.length} sorteaveis de ${roster.length}`);
+const semSaga = roster.filter(i => i.debut == null).map(i => i.name);
+const semImagem = roster.filter(i => !i.sprite).map(i => i.name);
+if (semSaga.length) console.log('  sem saga:', semSaga.join(', '));
+if (semImagem.length) console.log('  sem imagem:', semImagem.join(', '));
+const tally = (rotulo, pega) => {
+  const c = {};
+  for (const i of elegiveis) c[pega(i)] = (c[pega(i)] ?? 0) + 1;
+  console.log(`${rotulo}:`, JSON.stringify(Object.fromEntries(Object.entries(c).sort((a, b) => b[1] - a[1]))));
 };
-
-console.log(`\nCobertura dos campos (${total} personagens):`);
-coverage('raca', c => c.race);
-coverage('genero', c => c.gender);
-coverage('afiliacao', c => c.affiliation);
-coverage('planeta', c => c.planet);
-coverage('ki', c => c.ki != null);
-coverage('ki maximo', c => c.maxKi != null);
-coverage('sorteavel', c => c.eligible);
-
-const porGrupo = {};
-for (const c of roster) if (c.eligible) porGrupo[c.group] = (porGrupo[c.group] ?? 0) + 1;
-console.log('\nSorteaveis por raca:', JSON.stringify(porGrupo));
-
-// as epocas escritas a mao so batem se os nomes baterem: a contagem denuncia
-// tanto o nome que mudou na fonte quanto o personagem novo que caiu no Z sem
-// ninguem decidir isso
-const porEpoca = ['classico', 'z', 'super']
-  .map((id, i) => id + ' ' + roster.filter(c => c.eligible && c.era === i).length);
-console.log('Sorteaveis por epoca:', porEpoca.join(', '));
+tally('Grupo', i => i.group);
+tally('Epoca', i => ['classico', 'z', 'super'][i.era]);
+tally('Raca', i => i.race);
+tally('Genero', i => i.gender);
+tally('Lado', i => i.side);
+tally('Voa', i => i.flies);
+tally('Saga', i => SAGAS[i.debut].rotulo);
 
 await fs.mkdir(path.dirname(OUT), { recursive: true });
-await fs.writeFile(OUT, JSON.stringify(roster));
-console.log(`\nPronto: ${total} personagens -> data/dragonball.json (${Math.round((await fs.stat(OUT)).size / 1024)} KB)`);
+await fs.writeFile(OUT, JSON.stringify(elegiveis.sort((a, b) => a.id - b.id)));
+console.log(`\nPronto: ${elegiveis.length} personagens -> data/dragonball.json (${Math.round((await fs.stat(OUT)).size / 1024)} KB)`);

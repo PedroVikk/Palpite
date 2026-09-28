@@ -113,28 +113,15 @@ const MLP_JOB_PT = {
   comercio: 'Comércio',
 };
 
-const DB_RACE_PT = {
-  Saiyan: 'Saiyajin', Human: 'Humano', Namekian: 'Namekuseijin', Android: 'Andróide',
-  'Frieza Race': 'Raça do Freeza', Majin: 'Majin', God: 'Deus', Angel: 'Anjo',
-  'Jiren Race': 'Raça do Jiren', Evil: 'Maligno', Unknown: 'Desconhecida',
-  Nucleico: 'Nucleico', 'Nucleico benigno': 'Nucleico benigno',
-};
-
-const DB_SIDE_PT = {
-  'Z Fighter': 'Guerreiros Z', 'Army of Frieza': 'Exército do Freeza',
-  Villain: 'Vilão', 'Pride Troopers': 'Tropas do Orgulho', Freelancer: 'Autônomo',
-  'Assistant of Beerus': 'Assistente de Bills', 'Assistant of Vermoud': 'Assistente de Vermoud',
-  Other: 'Outros',
-};
-
 /**
- * O ki dos personagens vai de 450 ao "969 Googolplex" do Zeno, entao o dataset
- * guarda a ordem de grandeza (log10 / 3) e a celula mostra o nome dela.
+ * As sagas de estreia do Dragon Ball, na ordem em que sairam. O dataset guarda
+ * o indice (scripts/build-dragonball.mjs, tabela SAGAS), entao a coluna e
+ * numerica: a seta diz de que lado da historia esta o segredo.
  */
-const DB_KI_PT = {
-  0: 'Centenas', 1: 'Milhares', 2: 'Milhões', 3: 'Bilhões', 4: 'Trilhões',
-  5: 'Quatrilhões', 6: 'Quintilhões', 7: 'Sextilhões', 8: 'Setilhões',
-  9: 'Incalculável',
+const DB_SAGA_PT = {
+  0: 'Pilaf', 1: 'Red Ribbon', 2: 'Piccolo Daimaoh', 3: 'Saiyajins', 4: 'Freeza',
+  5: 'Androides e Cell', 6: 'Majin Boo', 7: 'GT', 8: 'Deuses', 9: 'Universo 6',
+  10: 'Trunks do Futuro', 11: 'Torneio do Poder', 12: 'Moro e Granolah',
 };
 
 const NEN_PT = {
@@ -1154,40 +1141,45 @@ export const UNIVERSES = {
     id: 'dragonball',
     label: 'Dragon Ball',
     secretLabel: 'o personagem secreto',
-    silhouette: 'Quem é esse personagem?',
+    // sem `silhouette`: o retrato do wiki e quadro do anime, com cenario, e so
+    // 6 dos 117 sao figura recortada — a silhueta seria um retangulo preto
     dataFile: 'dragonball.json',
     daily: { rotate: 'scope' },
     groupLabel: 'Raças',
     groups: [
-      { id: 'saiyajin', label: 'Saiyajin' },
-      { id: 'humano', label: 'Humano' },
-      { id: 'namekuseijin', label: 'Namekuseijin' },
-      { id: 'androide', label: 'Andróide' },
-      { id: 'divino', label: 'Divindades' },
+      { id: 'saiyajin', label: 'Saiyajins' },
+      { id: 'humano', label: 'Terráqueos' },
+      { id: 'namekuseijin', label: 'Namekuseijins' },
+      { id: 'androide', label: 'Androides' },
+      { id: 'divino', label: 'Deuses e anjos' },
       { id: 'outros', label: 'Outras raças' },
     ],
     defaultGroups: ['saiyajin', 'humano', 'namekuseijin', 'androide', 'divino', 'outros'],
-    // a estreia esta escrita a mao no build (a API nao tem saga); filme conta
-    // para a epoca em que saiu, entao Broly e Gogeta chegam no Z
+    // a epoca sai da saga de estreia; filme conta pela saga que passava quando
+    // ele saiu, entao Cooler, Broly e Gogeta chegam no Z. O GT mora no Z: so o
+    // Baby estreia la e passa no corte
     scope: {
       label: 'Épocas',
       key: 'era',
       options: [
-        { id: 'classico', label: 'Clássico', hint: 'A caçada às esferas e os primeiros torneios.' },
-        { id: 'z', label: 'Z', hint: 'Saiyajins, Freeza, Cell e Buu — com os filmes da época.' },
-        { id: 'super', label: 'Super', hint: 'Deuses da destruição e o Torneio do Poder.' },
+        { id: 'classico', label: 'Clássico', hint: 'A caçada às esferas, a Red Ribbon e o Piccolo Daimaoh.' },
+        { id: 'z', label: 'Z', hint: 'Saiyajins, Freeza, Cell e Boo — com os filmes da época e o GT.' },
+        { id: 'super', label: 'Super', hint: 'Deuses da destruição, o Torneio do Poder e o que veio depois.' },
       ],
     },
+    // o que a sala responde sem abrir o wiki. Ki e transformacoes sairam: eram
+    // numeros da dragonball-api que ninguem sabe (o ki base do Kuririn?), e
+    // Afiliacao nao voltou porque as categorias do wiki somam jogo e manga
+    // paralelo — punham o Whis no Exercito do Freeza
     columns: [
-      { key: 'race', label: 'Raça', kind: 'text', labels: DB_RACE_PT },
-      { key: 'gender', label: 'Gênero', kind: 'text', labels: { Male: 'Masculino', Female: 'Feminino' } },
-      { key: 'affiliation', label: 'Afiliação', kind: 'text', labels: DB_SIDE_PT },
-      { key: 'planet', label: 'Planeta', kind: 'text' },
-      { key: 'transformations', label: 'Transf.', kind: 'number', quiz: ['Qual deles tem mais transformações?', 'Qual deles tem menos transformações?'] },
-      // o ki vai de 450 ao ki do Zeno: em vez do numero cru, a ordem de
-      // grandeza (o expoente dividido por 3) — ainda rende as setas ▲▼
-      { key: 'ki', label: 'Ki base', kind: 'number', labels: DB_KI_PT, quiz: ['Qual deles tem o ki base mais alto?', 'Qual deles tem o ki base mais baixo?'] },
-      { key: 'maxKi', label: 'Ki máximo', kind: 'number', labels: DB_KI_PT, quiz: ['Qual deles chega ao ki mais alto?', 'Qual deles tem o ki máximo mais baixo?'] },
+      { key: 'race', label: 'Raça', kind: 'text' },
+      { key: 'gender', label: 'Gênero', kind: 'text' },
+      { key: 'side', label: 'Lado', kind: 'text' },
+      { key: 'flies', label: 'Voa', kind: 'text' },
+      {
+        key: 'debut', label: 'Estreia', kind: 'number', nearby: 1, labels: DB_SAGA_PT,
+        quiz: ['Qual deles estreou por último?', 'Qual deles estreou primeiro?'],
+      },
     ],
   },
 

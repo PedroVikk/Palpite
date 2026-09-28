@@ -34,6 +34,18 @@ const only = args.find(a => a.startsWith('--only='))?.slice(7) ?? null;
 // alguns wikis devolvem 403 para cliente sem User-Agent
 const HEADERS = { 'User-Agent': 'palpite-mirror/1.0 (+https://github.com/PedroVikk)' };
 
+/**
+ * O CDN do Fandom (static.wikia.nocookie.net) passou a devolver 403 para quem
+ * pede a imagem sem dizer de que wiki veio. O primeiro trecho do caminho e o
+ * nome do wiki ("/dragonball/images/..."), e a pagina dele serve de Referer.
+ */
+function headersPara(url) {
+  const { host, pathname } = new URL(url);
+  if (host !== 'static.wikia.nocookie.net') return HEADERS;
+  const wiki = pathname.split('/')[1];
+  return wiki ? { ...HEADERS, Referer: `https://${wiki}.fandom.com/` } : HEADERS;
+}
+
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 /** 404 e companhia: a imagem nao existe mais na origem, retentar nao muda nada. */
@@ -59,7 +71,7 @@ async function download(url) {
   for (let attempt = 1; attempt <= 5; attempt++) {
     await sleep(waitFor(host));
     try {
-      const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(TIMEOUT) });
+      const res = await fetch(url, { headers: headersPara(url), signal: AbortSignal.timeout(TIMEOUT) });
       if (res.status === 429 || res.status === 503) {
         // a origem pediu calma: segura o host inteiro, nao so este pedido
         const retryAfter = Number(res.headers.get('retry-after'));

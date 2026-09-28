@@ -38,7 +38,7 @@ const META = {
   cars:             ['CA', '#E23A44', '#8E0F1B', 'Marcas, motores e potência',       null],
   mlp:              ['ML', '#FFA6D5', '#B03D77', 'Pôneis de Equestria',              1],
   onepiece:         ['OP', '#FF8A5B', '#C24A16', 'Piratas, marinha e akuma no mi',   1],
-  dragonball:       ['DB', '#FFB84D', '#C07A00', 'Guerreiros e transformações',      1],
+  dragonball:       ['DB', '#FFB84D', '#C07A00', 'Guerreiros, deuses e vilões',      1458],
   hxh:              ['HX', '#7BE0D8', '#1F8E86', 'Nen, tipos e associações',         522],
   ordem:            ['OR', '#B36BFF', '#5E23A8', 'Agentes e os quatro elementos',    11],
   ben10:            ['B1', '#9BE84F', '#4E8A12', 'Os aliens do Omnitrix',            146],
