@@ -1,19 +1,22 @@
-import { BallMark } from './Icon.jsx';
+import MarkArt from './MarkArt.jsx';
 
 /**
- * A camada de fundo: dois brilhos da marca, uma grade fraquíssima e duas
- * pokébolas de marca-d'água. Fica `fixed` atrás de tudo e não recebe clique —
- * é atmosfera, não interface.
+ * O fundo da página: as marcas dos universos espalhadas num plano fixo, na
+ * tinta do tema e quase transparentes. Na partida e no diário são todas do
+ * universo em jogo; na home, uma mistura dos temas. Não recebe clique — é
+ * atmosfera, não interface. O resto do clima (feltro, retícula, linhas de
+ * tubo) é o `--page-bg` do tema, pintado no body.
  */
-export default function Ambient({ extraGlow = false }) {
+const SLOTS = ['a1', 'a2', 'a3', 'a4', 'a5'];
+
+export default function Ambient({ marks = ['pokemon'] }) {
+  // uma marca só vira as cinco posições; várias se revezam nelas
+  const list = marks.length ? marks : ['pokemon'];
   return (
     <div className="ambient" aria-hidden="true">
-      <div className="glow g1" />
-      <div className="glow g2" />
-      {extraGlow && <div className="glow g3" />}
-      <div className="grid" />
-      <BallMark className="ball b1" />
-      <BallMark className="ball b2" />
+      {SLOTS.map((slot, i) => (
+        <MarkArt key={slot} universe={list[i % list.length]} ink className={slot} />
+      ))}
     </div>
   );
 }

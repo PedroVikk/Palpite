@@ -57,6 +57,9 @@ export function universeMeta(id) {
   return {
     mono,
     desc,
+    // as duas pontas soltas: a marca usa a escura no tema claro e a clara no escuro
+    from,
+    to,
     gradient: `linear-gradient(145deg, ${from}, ${to})`,
     icon: face ? `/sprites/${id}/${face}.webp` : null,
     // desconhecido volta para a pokébola: melhor a marca errada que um quadrado quebrado

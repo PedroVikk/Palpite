@@ -1,0 +1,166 @@
+/**
+ * O que os tokens sozinhos não dão conta: a janela de escolha do visual, a
+ * pergunta "vai ser essa?" no canto, e os poucos traços de cada tema que não
+ * são cor (a borda de nanquim do Mangá, a sombra de peça da Mesa, o tamanho da
+ * fonte pixel do Fliperama). Cor nova não entra aqui — entra em tokens.css.
+ */
+
+/* ------------------------------------------------------ escolha do visual */
+
+.modal.themes { width: min(1100px, 100%); grid-template-columns: 1fr; }
+.modal.themes .modal-main { border-radius: var(--r-lg); }
+.modal.themes .modal-title { padding-right: 52px; }
+
+.theme-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+
+/* cada cartão abre o próprio data-theme: tudo aqui dentro já é o tema dele */
+.theme-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 12px 16px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line-2);
+  background: var(--page-bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  text-align: left;
+  transition: transform .18s, box-shadow .18s;
+}
+.theme-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lift); }
+.theme-card:focus-visible { outline: 3px solid var(--select); outline-offset: 3px; }
+.theme-card.on { outline: 2px solid var(--select); outline-offset: 3px; }
+
+.tc-sample {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.tc-top { display: flex; align-items: center; gap: 7px; font-family: var(--font-title); font-size: 13px; font-weight: 700; }
+.tc-top .glyph {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-fill);
+  color: var(--accent-ink);
+  font-size: 11px;
+}
+.tc-stage {
+  position: relative;
+  height: 84px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--stage);
+}
+.tc-stage .mark-art { position: absolute; width: 70px; height: 70px; opacity: var(--art-opacity); }
+.tc-stage .qm { position: relative; font-family: var(--font-title); font-size: 32px; font-weight: 800; color: var(--qm); }
+.tc-sample .mini { min-height: 26px; font-size: 8.5px; letter-spacing: 0; }
+.tc-btn {
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--accent-fill);
+  color: var(--accent-ink);
+  box-shadow: var(--accent-shadow);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+}
+.tc-name { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; font-family: var(--font-title); font-size: 17px; font-weight: 700; }
+.tc-name small { font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--select-text); }
+.tc-blurb { font-size: 13px; line-height: 1.45; color: var(--text-dim); }
+.theme-note { margin-top: 18px; font-size: 13px; color: var(--muted); }
+.theme-note b { color: var(--text-dim); }
+
+/* a pergunta da prova: no canto, pequena, para o site inteiro ficar à vista */
+.theme-dock {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 12px 12px 18px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line-2);
+  background: var(--overlay);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-lift);
+  animation: dock-in .22s ease both;
+}
+.theme-dock:focus { outline: none; }
+.theme-dock:focus-visible { outline: 2px solid var(--select); outline-offset: 3px; }
+.theme-dock .q { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.theme-dock .k { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.theme-dock b { font-family: var(--font-title); font-size: 17px; font-weight: 700; }
+.theme-dock .ask { font-size: 14px; color: var(--text-dim); }
+.theme-dock .nav { display: flex; gap: 2px; }
+.theme-dock .answer { display: flex; gap: 8px; }
+.theme-dock .answer .btn { height: 38px; padding: 0 16px; }
+@keyframes dock-in { from { opacity: 0; transform: translateY(12px); } }
+
+@media (max-width: 640px) {
+  .theme-dock { left: 12px; right: 12px; bottom: 12px; flex-wrap: wrap; gap: 10px; }
+  .theme-dock .answer { margin-left: auto; }
+}
+
+/* --------------------------------------------------------------- Mangá */
+
+/* nanquim: os quadros levam traço grosso, e o que é "tinta cheia" na tabela
+   (o carimbo e a retícula) ganha contorno como nos balões */
+[data-theme="manga"] :is(.card, .hub-card, .table, .turn-banner, .reveal, .secret-image, .quiz, .hand, .modal, .theme-dock, .room-back) {
+  border-width: 2.5px;
+}
+[data-theme="manga"] :is(.cell.hit, .cell.partial, .cell.close, .mini.hit, .mini.part, .theme-tile .seal) {
+  border: 2px solid #111111;
+}
+[data-theme="manga"] :is(.btn.primary, .btn.violet, .btn-guess, .tc-btn) { border: 2px solid #111111; }
+[data-theme="manga"] :is(.silhouette, .tc-stage, .secret-image .frame, .reveal .portrait) { border-width: 2.5px; }
+[data-theme="manga"] :is(.silhouette, .tc-stage, .secret-image .frame) .mark-art { background: #111111; }
+[data-theme="manga"] :is(.silhouette .qm, .tc-stage .qm) {
+  -webkit-text-stroke: 3px #111111;
+  paint-order: stroke fill;
+  transform: rotate(8deg) translate(26px, 20px);
+}
+[data-theme="manga"] .tc-stage .qm { transform: rotate(8deg) translate(12px, 8px); }
+[data-theme="manga"] .theme-tile.on { box-shadow: 4px 4px 0 #D7263D; }
+
+/* ---------------------------------------------------------------- Mesa */
+
+/* peça de mesa: cada célula tem a borda de baixo mais escura, como carta com
+   espessura, e afunda um pouco quando entra */
+[data-theme="mesa"] :is(.cell.hit, .mini.hit) { box-shadow: 0 4px 0 #257A3F; }
+[data-theme="mesa"] :is(.cell.partial, .cell.close, .mini.part) { box-shadow: 0 4px 0 #BF9523; }
+[data-theme="mesa"] :is(.cell.miss, .mini.miss) { box-shadow: 0 4px 0 #07130F; }
+[data-theme="mesa"] .hints { gap: 10px; }
+[data-theme="mesa"] :is(.btn.primary, .btn.violet, .btn-guess):active:not(:disabled) { transform: translateY(3px); box-shadow: none; }
+[data-theme="mesa"] :is(.silhouette, .tc-stage) { box-shadow: inset 0 0 0 5px var(--surface), inset 0 0 0 6px #F5ECD71F; }
+[data-theme="mesa"] .theme-tile .mark-art { filter: drop-shadow(0 2px 0 #00000059); }
+
+/* ----------------------------------------------------------- Fliperama */
+
+/* a Press Start 2P desenha a letra do tamanho do quadrado inteiro: no mesmo
+   font-size ela sai quase o dobro das outras. O font-size-adjust traz a altura
+   das letras para perto da de uma fonte comum, sem reescrever cada título */
+[data-theme="fliperama"] :is(h1, h2, h3, h4, .stat .v, .daily-name b, .code-boxes span, .room-back .code, .tc-top, .tc-name, .theme-dock b, .silhouette .qm, .tc-stage .qm) {
+  font-size-adjust: .42;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.45;
+}
+[data-theme="fliperama"] :is(h1, h2) { text-shadow: 3px 3px 0 var(--accent-lo); color: var(--partial); }
+[data-theme="fliperama"] .wordmark { font-family: var(--font-title); font-size-adjust: .42; font-weight: 400; color: var(--partial); text-shadow: 2px 2px 0 var(--accent-lo); }
+[data-theme="fliperama"] .silhouette .qm { text-shadow: 4px 4px 0 #0B0617, 0 0 22px var(--accent); }
+[data-theme="fliperama"] .theme-tile.on { box-shadow: 0 0 0 1px var(--select), 0 0 24px -4px var(--select); }

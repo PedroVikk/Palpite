@@ -18,23 +18,31 @@ sem tabela de conversão no meio. Servido em `/marks/<id>.png` pelo Express
 Vite espelhando em dev ([vite.config.js](../client/vite.config.js)).
 
 Formato: **PNG 256x256, RGBA, branco puro (255,255,255) sobre transparente**.
-A cor não é escolha do arquivo — os quatro slots pintam de branco e só variam
-a opacidade. Um arquivo colorido apareceria escuro e sujo no fundo.
+A cor não é escolha do arquivo: o PNG entra como **máscara** (`mask-image`,
+componente [MarkArt.jsx](../client/src/components/MarkArt.jsx)) e só dá o
+formato. Quem pinta é o CSS — a cor do universo (a escura de `universeMeta`
+nos temas claros, a clara nos escuros), a tinta do tema no fundo da página, ou
+o preto de nanquim no tema Mangá. Um arquivo colorido teria as cores jogadas
+fora; o que conta é o alfa.
 
 ## 2. Onde aparecem
 
-O mesmo arquivo serve os três slots, mudando só escala e opacidade:
+O mesmo arquivo serve todos os lugares, mudando escala, cor e opacidade. A
+opacidade vem do tema (`--art-opacity` e `--mark-opacity` em
+[tokens.css](../client/src/styles/tokens.css)):
 
-| Onde | Arquivo | Classe | Tamanho | Opacidade |
-| --- | --- | --- | --- | --- |
-| Card do diário (o maior, é por ele que se julga) | [HomeScreen.jsx](../client/src/screens/HomeScreen.jsx) | `.silhouette .art` | 210px | .09 |
-| Lateral do modal de criar sala | [CreateRoomModal.jsx](../client/src/components/CreateRoomModal.jsx) | `.side-art` | 150px | .07 |
-| Canto do card "Desafio diário" | [HomeScreen.jsx](../client/src/screens/HomeScreen.jsx) | `.mode-card .corner` | 140px | .04 |
+| Onde | Arquivo | Classe | Tamanho |
+| --- | --- | --- | --- |
+| Card do diário (o maior, é por ele que se julga) | [HomeScreen.jsx](../client/src/screens/HomeScreen.jsx) | `.silhouette .mark-art` | 190px |
+| Grade de temas da home | [HomeScreen.jsx](../client/src/screens/HomeScreen.jsx) | `.theme-tile .mark-art` | 44px |
+| Moldura do segredo em imagem | [SecretImage.jsx](../client/src/components/SecretImage.jsx) | `.frame .mark-art` | 150px |
+| Lateral do modal de criar sala | [CreateRoomPanel.jsx](../client/src/components/CreateRoomPanel.jsx) | `.side-art` | 150px |
+| Fundo `fixed` da página | [Ambient.jsx](../client/src/components/Ambient.jsx) | `.ambient .mark-art` | 150 a 440px |
 
-O quarto lugar onde havia pokébola — o fundo `fixed` da página
-([Ambient.jsx](../client/src/components/Ambient.jsx)) — **continua com a
-pokébola de propósito**: é o papel de parede do jogo inteiro, não de um
-universo. Segue usando o `BallMark` SVG de [Icon.jsx](../client/src/components/Icon.jsx).
+O fundo da página deixou de ser a pokébola: na partida e no diário ele espalha
+a marca do universo em jogo; na home, a do tema escolhido e as dos mais
+jogados. É onde a marca aparece maior e mais apagada, então as regras abaixo
+valem em dobro ali.
 
 O caminho sai de [universeMeta.js](../client/src/lib/universeMeta.js):
 `universeMeta(id).mark`. Id desconhecido cai em `/marks/pokemon.png` — marca
@@ -45,12 +53,13 @@ existe para impedir.
 
 Vêm todas do slot maior, o do card do diário ([app.css](../client/src/styles/app.css)):
 
-- **Massa sólida.** A 9% de opacidade sobre `#070C1B` não existe contraste:
+- **Massa sólida.** A 20% de opacidade (e a 5% no fundo da página) não existe contraste:
   aparece o volume, não o detalhe. Nada mais fino que 6 unidades em 100,
   nada menor que 8.
-- **Corte vertical.** A caixa tem 176px de altura e a arte 210px de largura —
-  topo e base saem. Só o que está entre **y=8 e y=92** (de 100) aparece.
-- **Miolo livre.** Um `?` de 56px senta no centro. Um círculo de raio 17 em
+- **Nada nas bordas.** A caixa do card tem 240px de altura e a arte 190px,
+  mas no celular a caixa baixa para 200px. Guarde o desenho entre **y=6 e
+  y=94** (de 100).
+- **Miolo livre.** Um `?` de 64px senta no centro. Um círculo de raio 17 em
   torno do centro precisa ser vazado ou massa lisa. Na pokébola isso é o botão
   central; é por isso que ela funciona.
 - **Sem texto.** Nenhuma letra ou número — o monograma já existe em
@@ -76,8 +85,9 @@ Desenhe um ícone "marca d'água" para o painel de um jogo de adivinhação.
 Saída: PNG 256x256, fundo TRANSPARENTE, forma em BRANCO PURO (#FFFFFF) chapado.
 Sem cor, sem sombra, sem gradiente, sem contorno, sem textura, sem fundo.
 
-Ele será exibido a 210x210px com 9% de opacidade sobre um azul quase preto
-(#070C1B) — quase invisível: só a MASSA da forma vai aparecer. Então:
+Ele será exibido a 190x190px com 20% de opacidade, e bem maior e a 5% no
+fundo da página, pintado numa cor só — quase invisível: só a MASSA da forma
+vai aparecer. Então:
 
 - Forma sólida e cheia, silhueta única, tipo pictograma de sinalização.
   Não é ilustração, não é line-art, não é mascote com rosto detalhado.
@@ -93,7 +103,7 @@ Ele será exibido a 210x210px com 9% de opacidade sobre um azul quase preto
   da imagem precisa ser vazado ou massa lisa uniforme, e vazio.
 - Não copie um logotipo registrado: faça o símbolo genérico que evoca a obra
   (o objeto, o brasão, a forma), não a marca oficial da franquia.
-- Se a silhueta não se reconhece a 9% de opacidade, simplifique em vez de
+- Se a silhueta não se reconhece a 20% de opacidade, simplifique em vez de
   acrescentar detalhe.
 
 Desenhe o de: <UNIVERSO> — <SÍMBOLO>

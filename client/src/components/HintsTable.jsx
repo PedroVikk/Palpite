@@ -143,9 +143,9 @@ export default function HintsTable({ universe, rows, hints = true, counts = fals
         </div>
       )}
       {hints && !counts && <div className="legend">
-        <span className="k"><i className="sw" style={{ background: 'var(--hit)' }} />Acertou</span>
-        <span className="k"><i className="sw" style={{ background: 'var(--partial)' }} />Chegou perto</span>
-        <span className="k"><i className="sw" style={{ background: 'var(--miss)' }} />Errou</span>
+        <span className="k"><i className="sw hit" />Acertou</span>
+        <span className="k"><i className="sw partial" />Chegou perto</span>
+        <span className="k"><i className="sw miss" />Errou</span>
         <span className="spacer" />
         <span className="k">▲ o segredo é maior · ▼ é menor</span>
       </div>}

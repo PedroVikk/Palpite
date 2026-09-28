@@ -12,6 +12,7 @@ import GameScreen from './screens/GameScreen.jsx';
 import DailyScreen from './screens/DailyScreen.jsx';
 import RoomModal from './components/RoomModal.jsx';
 import BirthdayModal from './components/BirthdayModal.jsx';
+import ThemeChooser from './components/ThemeChooser.jsx';
 
 /** Com o que uma sala nasce. O host ajusta tudo depois, no lobby. */
 const NEW_ROOM = {
@@ -38,6 +39,8 @@ export default function App() {
   const [resume, setResume] = useState(null);
   // a conta e opcional: sem ela `user` fica null e tudo segue como convidado
   const profile = useProfile();
+  // enquanto a escolha do visual esta aberta, o parabens do dia espera a vez
+  const [choosingTheme, setChoosingTheme] = useState(false);
 
   const toastTimer = useRef(null);
   const showToast = useCallback((message) => {
@@ -229,7 +232,7 @@ export default function App() {
         />
       )}
       {/* so na home de verdade: nao cobre uma sala nem o desafio aberto por link */}
-      {!state && !daily && !creating && <BirthdayModal />}
+      {!state && !daily && !creating && !choosingTheme && <BirthdayModal />}
       {(creating || inLobby) && (
         <RoomModal
           state={state}
@@ -243,6 +246,7 @@ export default function App() {
         />
       )}
       {state && !inLobby && <GameScreen state={state} myId={myId} toast={showToast} onLeave={leave} />}
+      <ThemeChooser toast={showToast} onBusy={setChoosingTheme} />
     </>
   );
 }

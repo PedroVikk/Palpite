@@ -12,10 +12,10 @@ function Dial({ used, total }) {
   return (
     <div className="dial">
       <svg viewBox="0 0 42 42" width="78" height="78" aria-hidden="true">
-        <circle cx="21" cy="21" r="17" fill="none" stroke="#FFFFFF14" strokeWidth="5" />
+        <circle cx="21" cy="21" r="17" fill="none" stroke="var(--line-2)" strokeWidth="5" />
         <circle
           cx="21" cy="21" r="17" fill="none"
-          stroke="var(--purple)" strokeWidth="5" strokeLinecap="round"
+          stroke="var(--select)" strokeWidth="5" strokeLinecap="round"
           strokeDasharray={`${(ratio * dash).toFixed(1)} ${dash}`}
           transform="rotate(-90 21 21)"
         />

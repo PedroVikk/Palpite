@@ -1,16 +1,17 @@
 import { useMemo, useState } from 'react';
 import { UNIVERSES, getUniverse } from '@shared/universes.js';
-import { dailySnapshot, lastDaily, mostPlayed, streak } from '../lib/storage.js';
-import { universeMeta } from '../lib/universeMeta.js';
+import { byUse, dailySnapshot, lastDaily, mostPlayed, streak } from '../lib/storage.js';
+import { openThemePicker } from '../lib/theme.js';
 import Ambient from '../components/Ambient.jsx';
 import Avatar from '../components/Avatar.jsx';
-import UniverseSelect from '../components/UniverseSelect.jsx';
+import MarkArt from '../components/MarkArt.jsx';
 import {
-  CheckIcon, ChartIcon, ClockIcon, EnterIcon, ExitIcon, FlameIcon,
-  GoogleIcon, PlusIcon, SendIcon, TargetIcon,
+  BackIcon, CheckIcon, ChartIcon, ClockIcon, EnterIcon, ExitIcon, FlameIcon,
+  GoogleIcon, LinkIcon, PaletteIcon, PlusIcon, UsersIcon,
 } from '../components/Icon.jsx';
 
 const TOTAL_UNIVERSES = Object.keys(UNIVERSES).length;
+const IDS = Object.keys(UNIVERSES);
 
 /**
  * A linha embaixo do número da sequência. Zerada, ela fala do recorde ou
@@ -29,14 +30,34 @@ const today = () => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
+/**
+ * Onde cada universo parou hoje: resolvido (em qualquer um dos dois modos),
+ * com chutes na tabela, ou intocado. É o selo da grade de temas.
+ */
+function dayOf(id) {
+  const dicas = lastDaily(id);
+  const imagem = lastDaily(id, 'imagem');
+  const solved = Boolean(dicas.secret || imagem.secret);
+  const guesses = dicas.rows.length + imagem.rows.length;
+  return { solved, guesses, started: solved || guesses > 0 };
+}
+
+const FILTERS = [
+  ['todos', 'Todos'],
+  ['andamento', 'Em andamento'],
+  ['resolvidos', 'Resolvidos'],
+];
+
 export default function HomeScreen({
   name, onName, onNewRoom, onJoin, onDaily, toast, resume, onResume, onForgetResume, profile,
 }) {
   // convite chega como ?sala=XXXX: o código já vem preenchido
   const [code, setCode] = useState(() =>
-    (new URLSearchParams(location.search).get('sala') ?? '').toUpperCase());
+    (new URLSearchParams(location.search).get('sala') ?? '').toUpperCase().slice(0, 4));
+  const [codeFocus, setCodeFocus] = useState(false);
   // abre no tema que a pessoa mais joga no diario; quem nunca jogou, no Pokemon
-  const [dailyUniverse, setDailyUniverse] = useState(() => mostPlayed(Object.keys(UNIVERSES)) ?? 'pokemon');
+  const [dailyUniverse] = useState(() => mostPlayed(IDS) ?? 'pokemon');
+  const [filter, setFilter] = useState('todos');
 
   // o diário mora no localStorage e o prune deixa só o dia de hoje lá: o que
   // sobrou é o placar de hoje, sem precisar perguntar nada ao servidor
@@ -71,12 +92,25 @@ export default function HomeScreen({
           : status === 'unknown' ? 'none' : 'miss';
       return { key: column.key, label: column.label, tone };
     });
-    return { rows, secret, last, cells };
+    const hits = cells.filter(c => c.tone === 'hit').length;
+    return { rows, secret, last, cells, hits };
   }, [dailyUniverse]);
 
-  // a marca-d'água segue o universo escolhido: o card do dia e o atalho do
-  // desafio mostram a cara de quem está em jogo, não a pokébola de sempre
-  const dailyMark = universeMeta(dailyUniverse).mark;
+  // a grade de temas, na ordem de quem mais joga, com o selo de hoje em cada um
+  const tiles = useMemo(() => byUse(IDS).map(id => ({ id, label: UNIVERSES[id].label, ...dayOf(id) })), []);
+  const counts = useMemo(() => ({
+    todos: tiles.length,
+    andamento: tiles.filter(t => t.started && !t.solved).length,
+    resolvidos: tiles.filter(t => t.solved).length,
+  }), [tiles]);
+  const shown = tiles.filter(t => (filter === 'andamento' ? t.started && !t.solved
+    : filter === 'resolvidos' ? t.solved : true));
+
+  // o fundo leva o tema escolhido e mais os que a pessoa mais joga
+  const ambientMarks = useMemo(
+    () => [dailyUniverse, ...tiles.map(t => t.id).filter(id => id !== dailyUniverse)].slice(0, 5),
+    [dailyUniverse, tiles],
+  );
 
   const submitCode = (event) => {
     event.preventDefault();
@@ -85,15 +119,21 @@ export default function HomeScreen({
     onJoin(clean);
   };
 
+  const label = UNIVERSES[dailyUniverse].label;
+
   return (
     <>
-      <Ambient extraGlow />
+      <Ambient marks={ambientMarks} />
 
       <header className="topbar">
         <div className="inner">
           <span className="wordmark"><span className="glyph">?</span>Palpite</span>
           <span className="pill"><ClockIcon width={14} height={14} />{today()}</span>
           <span className="spacer" />
+
+          <button type="button" className="btn link" onClick={openThemePicker} title="Trocar o visual do jogo">
+            <PaletteIcon width={16} height={16} /> Visual
+          </button>
 
           {/* o apelido é o nome da partida — continua editável mesmo logado,
               porque a conta identifica, não rebatiza */}
@@ -131,35 +171,81 @@ export default function HomeScreen({
             devolve a cadeira, com placar e chutes de onde parou */}
         {resume && (
           <section className="room-back">
-            <div className="codebox">
-              <div className="k">Sua sala</div>
-              <div className="v">{resume.code}</div>
-            </div>
-            <div>
-              <h3>Você estava jogando</h3>
-              <div className="meta">
-                <Avatar name={resume.name} size="sm" />
-                <span>
-                  A vaga de <b style={{ color: 'var(--text-dim)' }}>{resume.name}</b> fica guardada por
-                  alguns minutos: volte e o placar continua de onde parou.
-                </span>
-              </div>
-            </div>
+            <span className="ico"><BackIcon width={20} height={20} /></span>
+            <p className="txt">
+              <b>Você estava numa partida</b> — sala <b className="code">{resume.code}</b>. A vaga
+              de <b>{resume.name}</b> fica guardada por alguns minutos.
+            </p>
             <div className="actions">
-              <button className="btn ghost" onClick={onForgetResume}>Agora não</button>
-              <button className="btn primary" onClick={onResume}>Voltar para a partida</button>
+              <button className="btn link" onClick={onForgetResume}>Agora não</button>
+              <button className="btn violet" onClick={onResume}>Voltar para a sala</button>
             </div>
           </section>
         )}
 
-        <section className="hero">
-          <div>
-            <span className="eyebrow"><ClockIcon width={13} height={13} strokeWidth={2.4} />Todo dia · troca à meia-noite</span>
-            <h1>Desafio diário</h1>
-            <p className="lead">Um segredo por tema, e outro só de imagem. Os mesmos para todo mundo, até a virada do dia.</p>
+        <div className="home-hub">
+          {/* sozinho: o desafio do dia, no tema escolhido na grade de baixo */}
+          <section className="hub-card" aria-labelledby="hub-daily">
+            <div className="hub-head">
+              <span className="hub-ico"><ClockIcon width={19} height={19} /></span>
+              <div>
+                <h2 id="hub-daily">Desafio diário</h2>
+                <p>Sozinho, sem sala. Os mesmos segredos para todo mundo.</p>
+              </div>
+              <span className="renew">troca à <b>meia-noite</b></span>
+            </div>
 
-            <div className="hero-stats">
-              {/* a sequência vem primeiro: é o número que faz voltar amanhã */}
+            <div className="daily-body">
+              <div className="silhouette">
+                {stack.secret?.sprite ? (
+                  <img className="face" src={stack.secret.sprite} alt={stack.secret.name} />
+                ) : (
+                  <>
+                    <MarkArt universe={dailyUniverse} />
+                    <span className="qm">?</span>
+                  </>
+                )}
+              </div>
+
+              <div className="daily-info">
+                <div className="daily-name">
+                  <MarkArt universe={dailyUniverse} />
+                  <b>{label}</b>
+                  <span className={`tag ${stack.secret ? 'green' : stack.rows.length ? 'amber' : 'ghost'}`}>
+                    {stack.secret
+                      ? 'resolvido'
+                      : stack.rows.length
+                        ? `${stack.rows.length} ${stack.rows.length === 1 ? 'chute' : 'chutes'}`
+                        : 'sem chutes'}
+                  </span>
+                </div>
+
+                <p className="daily-last">
+                  {stack.secret ? (
+                    <>Era <b>{stack.secret.name}</b>, em {stack.rows.length} {stack.rows.length === 1 ? 'chute' : 'chutes'}.</>
+                  ) : stack.last ? (
+                    <>Último chute: <b>{stack.last.name}</b> — {stack.hits} de {stack.cells.length} colunas certas.</>
+                  ) : (
+                    <>Chutes ilimitados. Para outro tema, é só clicar nele na grade abaixo.</>
+                  )}
+                </p>
+
+                <div className="mini-row">
+                  {stack.cells.map(cell => (
+                    <div key={cell.key} className={`mini ${cell.tone}`} title={cell.label}>{cell.label}</div>
+                  ))}
+                </div>
+
+                <div className="daily-actions">
+                  <button className="btn primary" onClick={() => onDaily(dailyUniverse, 'dicas')}>
+                    {stack.rows.length && !stack.secret ? 'Continuar' : 'Jogar'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* a sequência vem primeiro: é o número que faz voltar amanhã */}
+            <div className="day-stats">
               <div className="stat streak">
                 <div className="k"><FlameIcon width={12} height={12} strokeWidth={2.2} />Sequência</div>
                 <div className="v">{dias.current} <small>{streakNote(dias)}</small></div>
@@ -173,149 +259,109 @@ export default function HomeScreen({
                 <div className="v">{day.guesses}</div>
               </div>
             </div>
+          </section>
 
-            {/* um botao so: a tela do dia ja tem a troca entre a tabela e a
-                imagem, os dois desafios de cada universo */}
-            <div className="hero-actions">
-              <UniverseSelect value={dailyUniverse} onChange={setDailyUniverse} byUse />
-              <button className="btn primary lg" onClick={() => onDaily(dailyUniverse, 'dicas')}>
-                Diário <SendIcon width={16} height={16} strokeWidth={2.2} />
+          {/* com amigos: criar e entrar no mesmo cartão, que é a mesma decisão */}
+          <section className="hub-card" aria-labelledby="hub-friends">
+            <div className="hub-head">
+              <span className="hub-ico sel"><UsersIcon width={19} height={19} /></span>
+              <div>
+                <h2 id="hub-friends">Com amigos</h2>
+                <p>De 2 a 8 jogadores, um chute por vez.</p>
+              </div>
+            </div>
+
+            <div className="friend-block">
+              <b>Criar uma sala</b>
+              <p>Você escolhe o tema, as regras e o tempo por turno, e manda o link.</p>
+              <button className="btn violet" onClick={onNewRoom}>
+                <PlusIcon width={17} height={17} /> Criar sala
               </button>
             </div>
-          </div>
 
-          {/* onde a pilha de hoje parou, neste universo */}
-          <aside className="mystery">
-            <div className="cap">
-              <span className="tag coral">{UNIVERSES[dailyUniverse].label} · hoje</span>
-              <span className={`tag ${stack.secret ? 'green' : 'ghost'}`}>
-                {stack.secret
-                  ? 'resolvido'
-                  : stack.rows.length
-                    ? `${stack.rows.length} ${stack.rows.length === 1 ? 'chute' : 'chutes'}`
-                    : 'sem chutes'}
-              </span>
-            </div>
+            <div className="divider">ou</div>
 
-            <div className="silhouette">
-              {stack.secret?.sprite ? (
-                <img className="face" src={stack.secret.sprite} alt={stack.secret.name} />
-              ) : (
-                <>
-                  <img className="art" src={dailyMark} alt="" aria-hidden />
-                  <span className="qm">?</span>
-                  <div className="scan" />
-                </>
-              )}
-            </div>
-
-            <div className="mini-row">
-              {stack.cells.map(cell => (
-                <div key={cell.key} className={`mini ${cell.tone}`} title={cell.label}>{cell.label}</div>
-              ))}
-            </div>
-
-            <div className="foot">
-              {stack.secret ? (
-                <>
-                  <span>Era <b style={{ color: 'var(--text-dim)' }}>{stack.secret.name}</b></span>
-                  <span>em {stack.rows.length} {stack.rows.length === 1 ? 'chute' : 'chutes'}</span>
-                </>
-              ) : stack.last ? (
-                <>
-                  <span>Último: <b style={{ color: 'var(--text-dim)' }}>{stack.last.name}</b></span>
-                  <span>continue de onde parou</span>
-                </>
-              ) : (
-                <>
-                  <span>Chutes ilimitados</span>
-                  <span>Sem sala, sem turno</span>
-                </>
-              )}
-            </div>
-          </aside>
-        </section>
-
-        <div className="section-head">
-          <h2>Como você quer jogar</h2>
-          <span className="spacer" />
-          <span className="hint">Salas aceitam de 2 a 8 jogadores</span>
-        </div>
-
-        <div className="modes-grid">
-          <button className="mode-card accent" onClick={() => onDaily(dailyUniverse)}>
-            <img className="corner" src={dailyMark} alt="" aria-hidden />
-            <span className="ico"><TargetIcon width={19} height={19} /></span>
-            <h3>Desafio diário</h3>
-            <p>Dois segredos por tema — um pela tabela de dicas, outro pela imagem. Iguais para todo mundo.</p>
-            <div className="foot">
-              <span className="tag green">{day.solved}/{TOTAL_UNIVERSES} hoje</span>
-              <SendIcon className="go" width={18} height={18} />
-            </div>
-          </button>
-
-          <button className="mode-card violet" onClick={onNewRoom}>
-            <span className="ico"><PlusIcon width={19} height={19} /></span>
-            <h3>Criar sala</h3>
-            <p>Escolha o tema, as regras e o tempo por turno. Você vira o host e convida por link.</p>
-            <div className="foot">
-              <span className="tag purple">Você é o host</span>
-              <SendIcon className="go" width={18} height={18} />
-            </div>
-          </button>
-
-          <div className="mode-card">
-            <span className="ico"><EnterIcon width={19} height={19} /></span>
-            <h3>Entrar em uma sala</h3>
-            <p>Tem um código de 4 letras? Cole aqui e caia direto na partida dos seus amigos.</p>
-            <div className="foot" style={{ display: 'block' }}>
-              <form className="code-join" onSubmit={submitCode}>
-                <label className="text-field">
+            <form className="join" onSubmit={submitCode}>
+              <label htmlFor="room-code">Entrar com um código</label>
+              <div className="join-row">
+                <div className="code-boxes">
+                  {[0, 1, 2, 3].map(i => {
+                    const at = codeFocus && i === Math.min(code.length, 3);
+                    return (
+                      <span key={i} className={`${code[i] ? '' : 'empty'} ${at ? 'at' : ''}`.trim()} aria-hidden="true">
+                        {code[i] ?? '·'}
+                      </span>
+                    );
+                  })}
                   <input
-                    className="code-input"
+                    id="room-code"
                     value={code}
                     maxLength={4}
-                    placeholder="CÓDIGO"
                     autoComplete="off"
+                    autoCapitalize="characters"
                     spellCheck={false}
-                    aria-label="Código da sala"
-                    onChange={e => setCode(e.target.value.toUpperCase())}
+                    onFocus={() => setCodeFocus(true)}
+                    onBlur={() => setCodeFocus(false)}
+                    onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
                   />
-                </label>
-                <button className="btn secondary" type="submit">Entrar</button>
-              </form>
-            </div>
-          </div>
+                </div>
+                <button className="btn ghost" type="submit" disabled={code.length !== 4}>
+                  <EnterIcon width={16} height={16} /> Entrar
+                </button>
+              </div>
+              <p className="f-help"><LinkIcon width={14} height={14} />Recebeu um convite? O link já abre com o código preenchido.</p>
+            </form>
+          </section>
         </div>
 
         <div className="section-head">
-          <h2>Como jogar</h2>
-          <span className="spacer" />
-          <span className="hint">Leva um minuto para pegar</span>
+          <h2>Temas do diário</h2>
+          <span className="hint">clique num tema para jogar o segredo de hoje</span>
+          <div className="chips" role="group" aria-label="Filtrar temas">
+            {FILTERS.map(([id, text]) => (
+              <button
+                key={id}
+                type="button"
+                className={`chip ${filter === id ? 'on' : ''}`}
+                aria-pressed={filter === id}
+                onClick={() => setFilter(id)}
+              >
+                {text} · {counts[id]}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="steps">
-          <div className="step-card">
-            <div className="n">1</div>
-            <h4>Crie ou entre em uma sala</h4>
-            <p>Escolha o tema e as regras, ou entre com o código de 4 letras de um amigo.</p>
-          </div>
-          <div className="step-card">
-            <div className="n">2</div>
-            <h4>Descubra o segredo</h4>
-            <p>A cada rodada há um segredo escondido — todo mundo tenta adivinhar quem é.</p>
-          </div>
-          <div className="step-card">
-            <div className="n">3</div>
-            <h4>Dê seus chutes</h4>
-            <p>Cada chute pinta a tabela: verde acertou, amarelo chegou perto, vermelho errou.</p>
-          </div>
-          <div className="step-card">
-            <div className="n">4</div>
-            <h4>Acerte antes dos seus amigos</h4>
-            <p>Quem acerta primeiro leva mais pontos. No fim das rodadas, sai o ranking.</p>
-          </div>
+        <div className="theme-grid">
+          {shown.map(tile => (
+            <button
+              key={tile.id}
+              type="button"
+              className={`theme-tile ${tile.id === dailyUniverse ? 'on' : ''} ${tile.solved ? 'solved' : ''}`}
+              onClick={() => onDaily(tile.id, 'dicas')}
+            >
+              {tile.solved ? (
+                <span className="seal ok" title="Resolvido hoje"><CheckIcon width={13} height={13} strokeWidth={3} /></span>
+              ) : tile.guesses > 0 && (
+                <span className="seal go" title="Em andamento">{tile.guesses}</span>
+              )}
+              <MarkArt universe={tile.id} />
+              {tile.label}
+            </button>
+          ))}
+          {!shown.length && (
+            <p className="none">
+              {filter === 'resolvidos' ? 'Nenhum tema resolvido hoje ainda.' : 'Nenhum tema em andamento.'}
+            </p>
+          )}
         </div>
+
+        <ol className="howto" aria-label="Como jogar">
+          <li><span className="n">1</span><div><b>Crie ou entre numa sala</b><p>Ou jogue sozinho no diário, sem sala.</p></div></li>
+          <li><span className="n">2</span><div><b>Descubra o segredo</b><p>Todo mundo tenta adivinhar o mesmo.</p></div></li>
+          <li><span className="n">3</span><div><b>Cada chute pinta a tabela</b><p>Acertou, chegou perto ou errou, coluna por coluna.</p></div></li>
+          <li><span className="n">4</span><div><b>Quem acerta antes pontua mais</b><p>No fim das rodadas sai o ranking.</p></div></li>
+        </ol>
       </main>
     </>
   );

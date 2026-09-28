@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { getUniverse, roomDefaults } from '@shared/universes.js';
 import { useDataset } from '../hooks/useDataset.js';
 import { canPlayPicture } from '../lib/picture.js';
-import { universeMeta } from '../lib/universeMeta.js';
 import UniverseSelect from './UniverseSelect.jsx';
 import UniverseIcon from './UniverseIcon.jsx';
+import MarkArt from './MarkArt.jsx';
 import Stepper from './Stepper.jsx';
 import ModePick from './ModePick.jsx';
 import {
@@ -34,7 +34,6 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
   const [draftEvery, setDraftEvery] = useState(2);
 
   const universe = getUniverse(universeId);
-  const meta = universeMeta(universeId);
   const duel = mode === 'duel';
   const impostor = mode === 'impostor';
   const battle = mode === 'battle';
@@ -126,7 +125,7 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
     <>
       <aside className="modal-side">
         <span className="side-tab on"><SparkIcon width={17} height={17} />Configurações</span>
-        <img className="side-art" src={meta.mark} alt="" aria-hidden />
+        <MarkArt universe={universeId} className="side-art" />
         <div className="side-note">
           <div className="h"><BulbIcon width={14} height={14} />Dica</div>
           <p>

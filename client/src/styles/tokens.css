@@ -1,73 +1,396 @@
 /**
- * Tokens do Palpite.
+ * Tokens do Palpite, em cinco temas.
  *
- * Duas famílias de cor que nunca se misturam:
+ * A pessoa escolhe o tema na primeira visita (e troca depois em "Visual"); o id
+ * fica em `data-theme` no <html>. O Sépia é o padrão e mora também no `:root`,
+ * então a página nunca fica sem cor, nem antes do script do index.html rodar.
  *
- *  - marca e interação — coral é a identidade e a ação principal; roxo é
- *    seleção, foco e ação secundária. Elas mandam em tudo que é interface.
- *  - jogo — verde, âmbar e vermelho pertencem à tabela de dicas e a mais nada.
- *    É a única informação da tela que se lê pela cor, então nada mais compete.
+ * Os seletores são `[data-theme="..."]` soltos, e não `:root[...]`, de
+ * propósito: qualquer elemento pode abrir um tema próprio. É assim que a janela
+ * de escolha desenha cada cartão de prévia com as cores e as fontes de verdade
+ * do tema, sem imagem nem cópia dos valores.
  *
- * Profundidade vem de tom e de uma borda de 1px em branco translúcido, não de
- * sombra dura: sobre o navy quase preto, um brilho de 8% já separa camadas.
+ * Três famílias de cor que nunca se misturam:
+ *
+ *  - ação (`--accent`): o botão principal, o chute. Uma só por tela.
+ *  - seleção (`--select`): foco, o que está marcado, a ação secundária.
+ *  - jogo (`--hit`, `--partial`, `--miss`): a tabela de dicas e mais nada. É a
+ *    única informação que se lê pela cor, então acertou e chegou perto diferem
+ *    também em claridade, e errar é neutro — vermelho de erro fica para
+ *    `--danger` (tempo acabando, voto errado), que não aparece na tabela.
+ *
+ * Tons translúcidos saem de `color-mix()` no próprio app.css a partir desses
+ * tokens (`--tint` é "a tinta" do tema: branco nos escuros, a cor do texto nos
+ * claros), então um tema novo só precisa preencher a lista abaixo.
  */
+
 :root {
-  /* Camadas: chão, cartão, campo, realce. */
-  --bg: #050816;
-  --surface: #0C1226;
-  --surface-2: #111931;
-  --surface-3: #18213E;
-
-  /* Bordas: a fraca desenha, a forte reage ao mouse. */
-  --line: #FFFFFF14;
-  --line-2: #FFFFFF26;
-
-  --text: #E9EDFA;
-  --text-dim: #B6BFD6;
-  --muted: #7E88A5;
-
-  --coral: #FF4E5B;
-  --coral-hi: #FF6E78;
-  --coral-lo: #DE3946;
-  --coral-glow: #FF4E5B4D;
-
-  --purple: #7C5CFF;
-  --purple-hi: #9B85FF;
-  --purple-lo: #6141F0;
-  --purple-glow: #7C5CFF4D;
-
-  /* Estados da tabela. "Errou" é vermelho próprio, mais escuro que o coral de
-     ação, para célula nunca ser confundida com botão. */
-  --hit: #1FA46B;
-  --hit-hi: #2ED694;
-  --partial: #D2941A;
-  --partial-hi: #F0B84A;
-  --miss: #A32633;
-
-  /* Cinza neutro: onde não há juízo de certo e errado (jogador que caiu). */
-  --neutral: #3A465E;
-
-  /* Formas: cartão macio, campo médio, célula quase reta, pílula. */
-  --r-lg: 16px;
-  --r-md: 12px;
-  --r-sm: 10px;
-  --r-xs: 8px;
+  /* Formas e ritmo não mudam de tema (Mangá e Fliperama só apertam os raios). */
   --pill: 999px;
-
-  /* Ritmo de 4px */
   --sp-xs: 8px;
   --sp-sm: 16px;
   --sp-md: 24px;
   --sp-lg: 40px;
   --sp-xl: 64px;
-
-  --shadow: 0 18px 40px -24px #000000E6;
-  --shadow-lift: 0 28px 56px -24px #000000F5;
-
-  /* Geist estrutura, Inter lê. */
-  --font-display: 'Geist Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
-  --font-body: 'Inter Variable', 'Segoe UI', system-ui, -apple-system, sans-serif;
-
   --page: 1400px;
   --page-narrow: 1240px;
+}
+
+/* ------------------------------------------------------------ I · Sépia */
+/* Modo leitor de e-reader: papel quente, tinta marrom, nada de branco puro. É o
+   que se aguenta olhar uma partida inteira sem cansar. */
+:root,
+[data-theme="sepia"] {
+  color-scheme: light;
+  --bg: #F1E8D6;
+  --page-bg: #F1E8D6;
+  --bar: #F1E8D6E6;
+  --surface: #FAF5EA;
+  --surface-2: #F3EBDB;
+  --surface-3: #EADFC8;
+  --field: #FFFCF5;
+  --overlay: #FAF5EAF7;
+  --scrim: #3B302459;
+  --stage: #E9DDC6;
+  --line: #3B30241A;
+  --line-2: #3B302433;
+  --tint: #3B3024;
+  --gloss: transparent;
+  --ink-shade: #3B3024;
+
+  --text: #3B3024;
+  --text-dim: #5A4C3B;
+  --muted: #6F604C;
+
+  --accent: #3B3024;
+  --accent-lo: #2A2219;
+  --accent-fill: #3B3024;
+  --accent-ink: #FAF5EA;
+  --accent-text: #8A4F27;
+  --accent-shadow: 0 10px 22px -14px #3B302499;
+
+  --select: #9C5B2E;
+  --select-lo: #7E4822;
+  --select-fill: #9C5B2E;
+  --select-ink: #FFFFFF;
+  --select-text: #8A4F27;
+  --select-shadow: 0 10px 22px -14px #9C5B2E99;
+
+  --hit: #557F58;
+  --hit-ink: #FFFFFF;
+  --hit-text: #3F6B43;
+  --partial: #DDAE4E;
+  --partial-bg: #DDAE4E;
+  --partial-ink: #3B3024;
+  --partial-text: #8A6414;
+  --miss: #E7DDC8;
+  --miss-ink: #6F604C;
+  --miss-line: #3B30241A;
+  --danger: #B4432F;
+  --neutral: #B9AC95;
+  --flame: #B5562E;
+
+  --shadow: 0 18px 40px -26px #3B302459;
+  --shadow-lift: 0 28px 56px -28px #3B302473;
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 10px;
+  --r-xs: 8px;
+
+  /* Literata é a fonte do Google Play Livros; Atkinson Hyperlegible foi
+     desenhada pelo Braille Institute para quem enxerga pouco. */
+  --font-title: 'Literata Variable', Georgia, serif;
+  --font-display: 'Atkinson Hyperlegible', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Atkinson Hyperlegible', 'Segoe UI', system-ui, sans-serif;
+
+  --mark-color: #3B3024;
+  --mark-opacity: .05;
+  --art-opacity: .2;
+  --qm: #3B3024;
+}
+
+/* ------------------------------------------------------- H · Crepúsculo */
+/* Rosé Pine: roxo-noite quente em vez de preto. Acertou é azul-espuma e chegou
+   perto é dourado — azul contra amarelo é o par que daltônico mais separa. */
+[data-theme="crepusculo"] {
+  color-scheme: dark;
+  --bg: #191724;
+  --page-bg: #191724;
+  --bar: #191724D9;
+  --surface: #1F1D2E;
+  --surface-2: #26233A;
+  --surface-3: #2E2A45;
+  --field: #16141F;
+  --overlay: #1F1D2EF7;
+  --scrim: #0D0C14B8;
+  --stage: #16141F;
+  --line: #E0DEF414;
+  --line-2: #E0DEF426;
+  --tint: #E0DEF4;
+  --gloss: #FFFFFF2E;
+  --ink-shade: #000000;
+
+  --text: #E0DEF4;
+  --text-dim: #C4C0DD;
+  --muted: #908CAA;
+
+  --accent: #EBBCBA;
+  --accent-lo: #D9A3A1;
+  --accent-fill: #EBBCBA;
+  --accent-ink: #191724;
+  --accent-text: #EBBCBA;
+  --accent-shadow: 0 12px 28px -16px #EBBCBA59;
+
+  --select: #C4A7E7;
+  --select-lo: #A98BD1;
+  --select-fill: #C4A7E7;
+  --select-ink: #191724;
+  --select-text: #C4A7E7;
+  --select-shadow: 0 12px 28px -16px #C4A7E759;
+
+  --hit: #9CCFD8;
+  --hit-ink: #191724;
+  --hit-text: #9CCFD8;
+  --partial: #F6C177;
+  --partial-bg: #F6C177;
+  --partial-ink: #191724;
+  --partial-text: #F6C177;
+  --miss: #26233A;
+  --miss-ink: #908CAA;
+  --miss-line: #E0DEF414;
+  --danger: #EB6F92;
+  --neutral: #524F67;
+  --flame: #EB6F92;
+
+  --shadow: 0 18px 40px -24px #000000CC;
+  --shadow-lift: 0 28px 56px -24px #000000E6;
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 10px;
+  --r-xs: 8px;
+
+  /* Lexend foi desenhada para diminuir o cansaço de leitura */
+  --font-title: 'Lexend Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Lexend Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Lexend Variable', 'Segoe UI', system-ui, sans-serif;
+
+  --mark-color: #C4A7E7;
+  --mark-opacity: .045;
+  --art-opacity: .3;
+  --qm: #E0DEF4;
+}
+
+/* ------------------------------------------------------------ E · Mangá */
+/* Página de mangá: tinta preta, retícula e o círculo vermelho que marca acerto
+   nas provas japonesas. Acertou = carimbo, perto = retícula, errou = página em
+   branco — dá para ler a tabela sem enxergar cor nenhuma. */
+[data-theme="manga"] {
+  color-scheme: light;
+  --bg: #F7F3EA;
+  --page-bg: radial-gradient(#1111110F 1.2px, transparent 1.5px) 0 0 / 8px 8px, #F7F3EA;
+  --bar: #F7F3EAF2;
+  --surface: #FFFFFF;
+  --surface-2: #F7F3EA;
+  --surface-3: #ECE6DA;
+  --field: #FFFFFF;
+  --overlay: #FFFFFFFA;
+  --scrim: #11111166;
+  /* linhas de velocidade saindo do centro, com o miolo limpo para a marca */
+  --stage: radial-gradient(circle, #FFFFFF 0 32%, #FFFFFF00 64%), repeating-conic-gradient(from 0deg at 50% 50%, #111111 0deg 1.4deg, #FFFFFF 1.4deg 7deg);
+  --line: #111111;
+  --line-2: #111111;
+  --tint: #111111;
+  --gloss: transparent;
+  --ink-shade: #111111;
+
+  --text: #111111;
+  --text-dim: #3A3630;
+  --muted: #625C53;
+
+  --accent: #D7263D;
+  --accent-lo: #B51D31;
+  --accent-fill: #D7263D;
+  --accent-ink: #FFFFFF;
+  --accent-text: #C21F35;
+  --accent-shadow: 3px 3px 0 #111111;
+
+  --select: #111111;
+  --select-lo: #000000;
+  --select-fill: #111111;
+  --select-ink: #FFFFFF;
+  --select-text: #111111;
+  --select-shadow: 3px 3px 0 #D7263D;
+
+  --hit: #D7263D;
+  --hit-ink: #FFFFFF;
+  --hit-text: #C21F35;
+  --partial: #FFFFFF;
+  --partial-bg: radial-gradient(#11111166 1.2px, transparent 1.5px) 0 0 / 5px 5px, #FFFFFF;
+  --partial-ink: #111111;
+  --partial-text: #111111;
+  --miss: #FFFFFF;
+  --miss-ink: #8A847A;
+  --miss-line: #11111133;
+  --danger: #D7263D;
+  --neutral: #B8B2A7;
+  --flame: #D7263D;
+
+  --shadow: 4px 4px 0 #111111;
+  --shadow-lift: 6px 6px 0 #111111;
+  --r-lg: 4px;
+  --r-md: 3px;
+  --r-sm: 2px;
+  --r-xs: 2px;
+
+  --font-title: 'Dela Gothic One', 'Arial Black', sans-serif;
+  --font-display: 'Zen Kaku Gothic New', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Zen Kaku Gothic New', 'Segoe UI', system-ui, sans-serif;
+
+  --mark-color: #111111;
+  --mark-opacity: .05;
+  --art-opacity: .9;
+  --qm: #D7263D;
+}
+
+/* ----------------------------------------------------- A · Mesa de cartas */
+/* Balatro e Clash Royale: feltro verde, cartas creme e sombra dura embaixo,
+   como peça que se pega na mão. Vermelho é só o botão; errar vira carta
+   virada, escura, sem vermelho na tabela. */
+[data-theme="mesa"] {
+  color-scheme: dark;
+  --bg: #0E3B33;
+  --page-bg: radial-gradient(ellipse 75% 55% at 55% 18%, #155548 0%, #0E3B33 55%, #0A2E28 100%) fixed, #0A2E28;
+  --bar: #0C352EE6;
+  --surface: #0B3129;
+  --surface-2: #10392F;
+  --surface-3: #174A40;
+  --field: #0A2A24;
+  --overlay: #0B3129FA;
+  --scrim: #04130FB8;
+  /* o verso da carta: listras finas sobre o feltro */
+  --stage: repeating-linear-gradient(45deg, #FFFFFF08 0 12px, transparent 12px 24px), #0E3B33;
+  --line: #F5ECD71A;
+  --line-2: #F5ECD733;
+  --tint: #F5ECD7;
+  --gloss: #FFFFFF40;
+  --ink-shade: #000000;
+
+  --text: #F5ECD7;
+  --text-dim: #CFE0D9;
+  --muted: #9FB9AF;
+
+  --accent: #E5484D;
+  --accent-lo: #9E2A2E;
+  --accent-fill: #E5484D;
+  --accent-ink: #FFFFFF;
+  --accent-text: #FF8F8A;
+  --accent-shadow: 0 4px 0 #9E2A2E;
+
+  --select: #4D9DFF;
+  --select-lo: #2F6FC0;
+  --select-fill: #4D9DFF;
+  --select-ink: #0A1B33;
+  --select-text: #8CC2FF;
+  --select-shadow: 0 4px 0 #2F6FC0;
+
+  --hit: #3BA55C;
+  --hit-ink: #FFFFFF;
+  --hit-text: #6FD08C;
+  --partial: #F2C94C;
+  --partial-bg: #F2C94C;
+  --partial-ink: #1D1B16;
+  --partial-text: #F2C94C;
+  --miss: #1A2724;
+  --miss-ink: #9FB5AC;
+  --miss-line: #FFFFFF12;
+  --danger: #E5484D;
+  --neutral: #3E5A52;
+  --flame: #F2994A;
+
+  --shadow: 0 6px 0 #07231E, 0 24px 40px -26px #000000;
+  --shadow-lift: 0 9px 0 #07231E, 0 40px 70px -24px #000000B3;
+  --r-lg: 18px;
+  --r-md: 14px;
+  --r-sm: 10px;
+  --r-xs: 8px;
+
+  --font-title: 'Bricolage Grotesque Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Figtree Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Figtree Variable', 'Segoe UI', system-ui, sans-serif;
+
+  --mark-color: #F5ECD7;
+  --mark-opacity: .05;
+  --art-opacity: .18;
+  --qm: #F2C94C;
+}
+
+/* --------------------------------------------------------- F · Fliperama */
+/* Arcade dos anos 90: tubo com linhas de varredura, neon ciano, magenta e
+   amarelo sobre roxo-noite. A fonte pixel fica só nos títulos; o texto corrido
+   é Chakra Petch, que se lê. */
+[data-theme="fliperama"] {
+  color-scheme: dark;
+  --bg: #120B24;
+  --page-bg: repeating-linear-gradient(0deg, #00000033 0 1px, transparent 1px 4px) fixed, radial-gradient(ellipse 70% 50% at 50% 16%, #2A1850 0%, #120B24 70%) fixed, #120B24;
+  --bar: #120B24E6;
+  --surface: #1B1233;
+  --surface-2: #231A3D;
+  --surface-3: #2E2350;
+  --field: #0B0617;
+  --overlay: #1B1233FA;
+  --scrim: #05020CCC;
+  --stage: repeating-linear-gradient(0deg, #00000066 0 2px, transparent 2px 5px), radial-gradient(circle at 50% 55%, #3EF0FF26 0%, transparent 60%), #0B0617;
+  --line: #3A2C66;
+  --line-2: #5B4A94;
+  --tint: #EDE7FF;
+  --gloss: transparent;
+  --ink-shade: #000000;
+
+  --text: #EDE7FF;
+  --text-dim: #B8ADDB;
+  --muted: #9489BF;
+
+  --accent: #FF3EA5;
+  --accent-lo: #A81D68;
+  --accent-fill: #FF3EA5;
+  --accent-ink: #FFFFFF;
+  --accent-text: #FF6FBE;
+  --accent-shadow: 0 4px 0 #A81D68;
+
+  --select: #3EF0FF;
+  --select-lo: #1BA8B5;
+  --select-fill: #3EF0FF;
+  --select-ink: #0B0617;
+  --select-text: #3EF0FF;
+  --select-shadow: 0 4px 0 #1BA8B5;
+
+  --hit: #3EF08A;
+  --hit-ink: #0B0617;
+  --hit-text: #3EF08A;
+  --partial: #FFE14D;
+  --partial-bg: #FFE14D;
+  --partial-ink: #0B0617;
+  --partial-text: #FFE14D;
+  --miss: #231A3D;
+  --miss-ink: #9489BF;
+  --miss-line: #3A2C66;
+  --danger: #FF3EA5;
+  --neutral: #3A2C66;
+  --flame: #FFE14D;
+
+  --shadow: 4px 4px 0 #0B0617;
+  --shadow-lift: 6px 6px 0 #0B0617;
+  --r-lg: 4px;
+  --r-md: 2px;
+  --r-sm: 2px;
+  --r-xs: 0px;
+
+  --font-title: 'Press Start 2P', ui-monospace, monospace;
+  --font-display: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+
+  --mark-color: #3EF0FF;
+  --mark-opacity: .05;
+  --art-opacity: .35;
+  --qm: #FF3EA5;
 }

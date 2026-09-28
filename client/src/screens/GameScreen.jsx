@@ -17,7 +17,8 @@ import { ImpostorModal, RoleCard } from '../components/ImpostorPanels.jsx';
 import { BattleTabs, MySecretCard } from '../components/BattlePanels.jsx';
 import QuizPanel from '../components/QuizPanel.jsx';
 import { DraftModal, HandBar } from '../components/CardPanels.jsx';
-import { AnchorIcon, CardsIcon, ClockIcon, ImageIcon, MaskIcon, QuestionIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
+import { AnchorIcon, CardsIcon, ClockIcon, ImageIcon, MaskIcon, PaletteIcon, QuestionIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
+import { openThemePicker } from '../lib/theme.js';
 
 const RULES = { hunt: 'Caça ao segredo', duel: 'Duelo', impostor: 'Impostor', battle: 'Batalha naval', quiz: 'Qual deles?', cards: 'Cartas' };
 
@@ -148,7 +149,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   if (state.phase === 'gameOver') {
     return (
       <>
-        <Ambient extraGlow />
+        <Ambient marks={[universe.id]} />
         <TopBar state={state} universe={universe} meta={meta} onBack={onLeave} />
         <main className="page">
           <GameOver
@@ -166,7 +167,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
 
   return (
     <>
-      <Ambient />
+      <Ambient marks={[universe.id]} />
       <TopBar state={state} universe={universe} meta={meta} onBack={backToMenu} />
 
       <div className="wrap">
@@ -379,6 +380,9 @@ function TopBar({ state, universe, meta, onBack }) {
         <span className="pill"><UsersIcon width={14} height={14} />{state.players.length}</span>
         <span className="spacer" />
         <span className="pill code">{state.code}</span>
+        <button type="button" className="icon-btn" onClick={openThemePicker} aria-label="Trocar o visual" title="Trocar o visual">
+          <PaletteIcon width={17} height={17} />
+        </button>
       </div>
     </header>
   );

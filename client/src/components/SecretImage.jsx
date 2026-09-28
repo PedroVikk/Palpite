@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { universeMeta } from '../lib/universeMeta.js';
+import MarkArt from './MarkArt.jsx';
 import { ImageIcon } from './Icon.jsx';
 
 /**
@@ -18,7 +18,6 @@ import { ImageIcon } from './Icon.jsx';
  */
 export default function SecretImage({ universe, picture, caption }) {
   const { level = 0, top = 0, src = null } = picture ?? {};
-  const mark = universeMeta(universe).mark;
 
   // um pisca curto quando a nitidez sobe: sem isso a imagem muda no meio de uma
   // tela cheia de texto e o ganho — que é o prêmio do chute — passa batido
@@ -37,7 +36,7 @@ export default function SecretImage({ universe, picture, caption }) {
   return (
     <section className="secret-image">
       <div className={`frame ${flash ? 'sharper' : ''}`}>
-        <img className="art" src={mark} alt="" aria-hidden />
+        <MarkArt universe={universe} />
         {src
           ? <img className="pix" src={src} alt="A imagem do segredo, ainda sem definição" />
           : <span className="qm">?</span>}

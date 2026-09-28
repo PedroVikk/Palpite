@@ -9,7 +9,8 @@ import GuessBar from '../components/GuessBar.jsx';
 import HintsTable from '../components/HintsTable.jsx';
 import SecretImage from '../components/SecretImage.jsx';
 import Reveal from '../components/Reveal.jsx';
-import { CheckIcon, ClockIcon, ExitIcon, ImageIcon, TargetIcon } from '../components/Icon.jsx';
+import { CheckIcon, ClockIcon, ExitIcon, ImageIcon, PaletteIcon, TargetIcon } from '../components/Icon.jsx';
+import { openThemePicker } from '../lib/theme.js';
 
 /** "2026-08-27" -> "27/08". Sem Date, que reinterpretaria no fuso local. */
 const prettyDate = (iso) => {
@@ -193,7 +194,7 @@ export default function DailyScreen({ toast, onExit }) {
 
   return (
     <>
-      <Ambient />
+      <Ambient marks={[universe]} />
 
       <header className="topbar">
         <div className="inner">
@@ -203,6 +204,9 @@ export default function DailyScreen({ toast, onExit }) {
           <span className="pill"><ClockIcon width={14} height={14} />Desafio diário</span>
           {info && <span className="pill code">{prettyDate(info.date)}</span>}
           <span className="spacer" />
+          <button type="button" className="btn link" onClick={openThemePicker} title="Trocar o visual do jogo">
+            <PaletteIcon width={16} height={16} /> Visual
+          </button>
           <button className="btn link" onClick={onExit}>
             <ExitIcon width={15} height={15} /> Sair
           </button>

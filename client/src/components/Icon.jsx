@@ -232,6 +232,41 @@ export const EnterIcon = (props) => (
   </svg>
 );
 
+export const PaletteIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z" />
+    <circle cx="7.5" cy="11" r="1.2" />
+    <circle cx="10.5" cy="7" r="1.2" />
+    <circle cx="15.5" cy="7.5" r="1.2" />
+  </svg>
+);
+
+export const ArrowLeftIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="m15 18-6-6 6-6" />
+  </svg>
+);
+
+export const ArrowRightIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="m9 18 6-6-6-6" />
+  </svg>
+);
+
+export const BackIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M4 12a8 8 0 1 0 2.3-5.7L4 8.6" />
+    <path d="M4 4v4.6h4.6" />
+  </svg>
+);
+
+export const LinkIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+    <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+  </svg>
+);
+
 export const InfoIcon = (props) => (
   <svg {...base} width="13" height="13" {...props}>
     <circle cx="12" cy="12" r="9" />
