@@ -22,6 +22,8 @@
  *   { rotate: 'group' }   sorteia uma fatia dos grupos por dia (so onde o grupo
  *                         e a linha do tempo — geracao, decada, campanha — ou
  *                         onde o elenco e grande demais para jogar inteiro)
+ *   { rotate: 'group', groups: [...] }
+ *                         o mesmo, sorteando so entre os grupos listados
  *   { scope: 'anime' }    epoca fixa, a mesma todo dia
  * Sem o campo, o universo joga o elenco inteiro todo dia.
  *
@@ -530,6 +532,48 @@ const ORDEM_CAMPAIGN_PT = {
   osnf: 'O Segredo na Floresta', opd: 'Desconjuração', opc: 'Calamidade',
   osni: 'O Segredo na Ilha', sdol: 'Sinais do Outro Lado', hex: 'Hexatombe',
   livros: 'Livros e pacotes',
+};
+
+/**
+ * Os dominios sao familias largas de proposito (o build junta os finos da
+ * tabela): "Céu e astros" junta o sol do Apolo, a lua da Selene e a noite da
+ * Nix, e e assim que o amarelo aparece entre panteoes.
+ */
+const DEUSES_DOMAIN_PT = {
+  astros: 'Céu e astros', tempestade: 'Tempestade e vento', agua: 'Mar e águas',
+  natureza: 'Terra e natureza', amor: 'Amor e beleza', guerra: 'Guerra',
+  morte: 'Morte', sabedoria: 'Sabedoria e magia', artes: 'Artes e festa',
+  fogo: 'Fogo e forja', lar: 'Lar e cura', ordem: 'Justiça e destino',
+  caos: 'Caos e trapaça', riqueza: 'Riqueza e caminhos', criacao: 'Criação',
+};
+
+/**
+ * "Rei ou rainha" e quem reina sobre o panteao (Zeus, Odin, Rá, o Imperador
+ * de Jade), nao quem manda num reino so — Hades e Perséfone sao principais.
+ * Titã tambem cobre o gigante nordico e o fomoriano celta: a geracao antiga,
+ * ou a outra raca, que briga com os deuses.
+ */
+const DEUSES_RANK_PT = {
+  primordial: 'Primordial', soberano: 'Rei ou rainha', principal: 'Principal',
+  menor: 'Menor', tita: 'Titã ou gigante',
+};
+
+const DEUSES_REALM_PT = {
+  ceu: 'Céu', terra: 'Terra', agua: 'Águas', submundo: 'Submundo',
+};
+
+const DESENHOS_SPECIES_PT = {
+  humano: 'Humano', animal: 'Animal', alien: 'Alienígena', monstro: 'Monstro',
+  robo: 'Robô', magico: 'Mágico', outro: 'Outro',
+};
+
+/** O rival que atormenta tambem e vilao: o Kevin, a Angélica, a Vicky. */
+const DESENHOS_ROLE_PT = {
+  protagonista: 'Protagonista', aliado: 'Amigo', vilao: 'Vilão', familia: 'Família',
+};
+
+const DESENHOS_AGE_PT = {
+  crianca: 'Criança', adolescente: 'Adolescente', adulto: 'Adulto', idoso: 'Idoso',
 };
 
 export const UNIVERSES = {
@@ -1423,6 +1467,86 @@ export const UNIVERSES = {
       // 5 anos: quem acerta a decada leva o amarelo, como no nascimento dos Famosos
       { key: 'formedYear', label: 'Fundação', kind: 'number', nearby: 5, quiz: ['Qual delas surgiu por último?', 'Qual delas surgiu primeiro?'] },
       { key: 'status', label: 'Estado', kind: 'text' },
+    ],
+  },
+
+  deuses: {
+    id: 'deuses',
+    label: 'Deuses',
+    secretLabel: 'a divindade secreta',
+    dataFile: 'deuses.json',
+    // um panteao por dia, como um estilo por dia nas Bandas — mas so entre os
+    // quatro que a sala conhece de escola, novela e terreiro. Os outros seis
+    // jogam na sala de quem liga
+    daily: { rotate: 'group', groups: ['grega', 'nordica', 'egipcia', 'orixas'] },
+    groupLabel: 'Panteões',
+    groups: [
+      { id: 'grega', label: 'Grega e romana' },
+      { id: 'nordica', label: 'Nórdica' },
+      { id: 'egipcia', label: 'Egípcia' },
+      { id: 'hindu', label: 'Hindu' },
+      { id: 'japonesa', label: 'Japonesa' },
+      { id: 'chinesa', label: 'Chinesa' },
+      { id: 'orixas', label: 'Orixás' },
+      { id: 'mesoamerica', label: 'Asteca e maia' },
+      { id: 'celta', label: 'Celta' },
+      { id: 'mesopotamica', label: 'Mesopotâmica' },
+    ],
+    defaultGroups: ['grega', 'nordica', 'egipcia', 'hindu', 'japonesa', 'chinesa', 'orixas', 'mesoamerica', 'celta', 'mesopotamica'],
+    // sem coluna numerica: deus nao tem altura, ano nem idade que alguem saiba
+    // de cabeca. Pai e mae ficaram de fora pelo mesmo motivo das gravadoras nas
+    // Bandas — cada um tem os seus, e a celula so fecharia verde na resposta
+    columns: [
+      // o romano nao e panteao a parte: Jupiter e o Zeus, e entra como apelido
+      // na busca. Astecas e maias dividem o grupo, mas a coluna separa
+      { key: 'pantheon', label: 'Panteão', kind: 'text' },
+      { key: 'gender', label: 'Gênero', kind: 'text' },
+      // `list`, no maximo tres: o Zeus e do ceu, do trovao e da justica, e
+      // fecha amarelo contra o Thor
+      { key: 'domains', label: 'Domínio', kind: 'list', labels: DEUSES_DOMAIN_PT },
+      { key: 'rank', label: 'Posição', kind: 'text', labels: DEUSES_RANK_PT },
+      // onde o deus age, em quatro: o Olimpo e Asgard sao ceu, o Poseidon e a
+      // Iemanja sao aguas, o Hades e o Anubis sao submundo, e o resto e terra
+      { key: 'realm', label: 'Reino', kind: 'text', labels: DEUSES_REALM_PT },
+    ],
+  },
+
+  desenhos: {
+    id: 'desenhos',
+    label: 'Desenhos animados',
+    secretLabel: 'o personagem secreto',
+    dataFile: 'desenhos.json',
+    // a decada e a linha do tempo da infancia de cada um: o dia sorteia ate
+    // onde vai, e os anos 90 sozinhos ja sao um desafio inteiro
+    daily: { rotate: 'scope' },
+    groupLabel: 'Canais',
+    groups: [
+      { id: 'cartoon', label: 'Cartoon Network' },
+      { id: 'nick', label: 'Nickelodeon' },
+      { id: 'disney', label: 'Disney Channel' },
+      { id: 'outros', label: 'Fox Kids, Jetix e TV aberta' },
+    ],
+    defaultGroups: ['cartoon', 'nick', 'disney', 'outros'],
+    scope: {
+      label: 'Épocas',
+      key: 'era',
+      options: [
+        { id: 'anos90', label: 'Anos 90', hint: 'Dexter, Meninas Superpoderosas, Rugrats, Bob Esponja.' },
+        { id: 'anos2000', label: 'Anos 2000', hint: 'Billy e Mandy, Padrinhos Mágicos, Avatar, Phineas e Ferb.' },
+        { id: 'anos2010', label: 'Anos 2010+', hint: 'Hora de Aventura, Gumball, Steven Universo, Gravity Falls.' },
+      ],
+    },
+    // o canal fica de fora como coluna: o grupo ja diz, e o desenho verde
+    // entrega o canal junto
+    columns: [
+      { key: 'show', label: 'Desenho', kind: 'text' },
+      { key: 'species', label: 'Espécie', kind: 'text', labels: DESENHOS_SPECIES_PT },
+      { key: 'gender', label: 'Gênero', kind: 'text' },
+      { key: 'role', label: 'Na história', kind: 'text', labels: DESENHOS_ROLE_PT },
+      { key: 'age', label: 'Idade', kind: 'text', labels: DESENHOS_AGE_PT },
+      // o ano do desenho, nao do personagem: 2 anos de tolerancia, e quem acerta
+      // a epoca da infancia leva o amarelo
+      { key: 'debutYear', label: 'Estreia', kind: 'number', nearby: 2, quiz: ['Qual deles estreou por último?', 'Qual deles estreou primeiro?'] },
     ],
   },
 };

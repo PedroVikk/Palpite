@@ -126,6 +126,8 @@ Desenhe o de: <UNIVERSO> — <SÍMBOLO>
 | `jojo` | JoJo | estrela de cinco pontas |
 | `famosos` | Famosos | busto de perfil dentro de moldura oval |
 | `bandas` | Bandas | palheta de guitarra, ponta arredondada para baixo |
+| `deuses` | Deuses | fachada de templo grego, com o vão do meio livre para o "?" |
+| `desenhos` | Desenhos animados | TV de tubo com antena, a tela vazada para o "?" |
 
 ## 6. Universo novo: o checklist
 

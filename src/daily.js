@@ -146,7 +146,10 @@ function cutOf(universeId, date) {
     const naEpoca = scope ? eligible.filter(scopeFilter(universe, scope)) : eligible;
     const counts = new Map();
     for (const item of naEpoca) counts.set(item.group, (counts.get(item.group) ?? 0) + 1);
-    const categorias = (universe.groups ?? []).filter(g => (counts.get(g.id) ?? 0) >= MIN_POOL);
+    // `daily.groups` limita o sorteio a uma parte dos grupos: nos Deuses, o dia
+    // roda so entre os panteoes que a sala conhece de cabeca
+    const sorteaveis = (universe.groups ?? []).filter(g => !daily.groups || daily.groups.includes(g.id));
+    const categorias = sorteaveis.filter(g => (counts.get(g.id) ?? 0) >= MIN_POOL);
     group = categorias.length >= 2 ? pickFrom(categorias, `${date}:${universeId}:categoria`).id : null;
   }
 

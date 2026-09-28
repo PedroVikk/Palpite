@@ -55,6 +55,8 @@ npx cloudflared tunnel --url http://localhost:3000
 | **JoJo's Bizarre Adventure** | 343 | 229 | Com e sem Stand | Parte, Gênero, Stand, Nacionalidade, Estado |
 | **Famosos** | 2242 | 2036 | 5 categorias | Categoria, Gênero, País, Nascimento, Estado |
 | **Bandas** | 336 | 336 | 6 estilos | Gênero, País, Formação, Integrantes, Fundação, Estado |
+| **Deuses** | 253 | 137 | 10 panteões | Panteão, Gênero, Domínio, Posição, Reino |
+| **Desenhos animados** | 471 | 471 | 4 canais | Desenho, Espécie, Gênero, Na história, Idade, Estreia |
 
 **Sorteáveis** são os que entram na partida: viram segredo e são os únicos
 nomes que a busca de chute oferece. Quem fica de fora não existe para a sala —
@@ -310,6 +312,60 @@ para 91. O MusicBrainz também encerra os Mamonas Assassinas, que as outras duas
 fontes deixavam na ativa — mas só quando ninguém segue na banda, porque ele
 também encerra o Queen em 1991.
 
+Em **Deuses** o elenco é **curado à mão** em
+[build-deuses.mjs](scripts/build-deuses.mjs): 253 divindades de dez panteões —
+grega e romana, nórdica, egípcia, hindu, japonesa, chinesa, orixás, asteca e
+maia, celta e mesopotâmica. A Wikidata tem as classes ("deus grego", "orixá"),
+mas o domínio está preenchido em menos da metade e sem vocabulário comum; as
+respostas que a sala sabe de cabeça — Zeus é do céu, Hades é do submundo,
+Iemanjá é do mar — não estão em fonte aberta do jeito que o jogador pensa
+nelas. A Wikipédia em inglês só empresta o rosto e o id da
+Wikidata; onde o artigo não tem imagem livre, entra a da ficha da Wikidata, e
+13 ficam sem nenhuma (jogam só no modo clássico).
+
+**Sorteáveis são só os conhecidos**: quem teve 8 mil visitas no último ano na
+Wikipédia em português, ou está entre os mais visitados do próprio panteão até
+o mínimo dele — 15 nos quatro panteões do desafio do dia, 8 nos outros. Os
+orixás entram inteiros. Dos 253, ficam 137: sai o Ullr, o Ek Chuaj e o Goibniu,
+que só o estudioso conhece.
+
+O romano não é panteão à parte: Júpiter é o Zeus, e entra como apelido na busca,
+como a grafia iorubá dos orixás. Astecas e maias dividem o grupo (sozinhos os
+maias seriam nove), mas a coluna *Panteão* separa os dois. As colunas são
+*Gênero*, *Domínio*, *Posição* (primordial, rei ou rainha, principal, menor,
+titã ou gigante) e *Reino* (céu, terra, águas ou submundo: onde o deus age).
+*Domínio* é `list`, até três, e a tabela escreve o domínio fino ("Hipnos é do
+sono") mas a coluna mostra a família: são 15, e "Céu e astros" junta o sol do
+Apolo, a lua da Selene e a noite da Nix — com os 26 finos o amarelo quase não
+aparecia. A coluna *Animal* (a coruja da Atena) saiu: metade do elenco era
+"Nenhum", e o bicho dos menores ninguém sabe. Sem coluna numérica: deus não tem
+altura nem ano que alguém saiba.
+
+O desafio do dia sorteia um panteão, mas só entre os quatro que a sala conhece —
+grega, nórdica, egípcia e orixás —, pelo `daily.groups` do schema. Os outros seis
+jogam na sala de quem liga.
+
+Em **Desenhos animados** o elenco também é curado à mão, em
+[build-desenhos.mjs](scripts/build-desenhos.mjs): 471 personagens de 42 desenhos
+do Cartoon Network, da Nickelodeon, do Disney Channel e da Fox Kids, Jetix e TV
+aberta, do Tiny Toons (1990) à Casa da Coruja (2020). Cada desenho tem seu wiki
+no Fandom, com ficha e vocabulário próprios, e o que a sala pergunta — é bicho ou
+gente? é vilão? é criança? — não sai igual de quarenta fichas; o wiki só empresta
+a imagem, e 18 delas foram trocadas à mão onde o topo da ficha era cena,
+colagem ou tela de créditos. Os nomes são os da dublagem (Du, Dudu e Edu;
+Florzinha; Seu Siriguejo), com o original como apelido na busca, e nome
+repetido entre desenhos leva o desenho entre parênteses: "Harold (Billy e Mandy)"
+e "Harold (Hey Arnold!)". Hora de
+Aventura entra aqui, em vez de virar tema próprio.
+
+Os grupos são os canais, e as épocas são a década de estreia do desenho — anos
+90 (137), anos 2000 (152) e anos 2010+ (182) —, para cada um jogar a
+própria infância. As colunas são *Desenho*, *Espécie* (humano, animal,
+alienígena, monstro, robô, mágico, outro), *Gênero*, *Na história* (protagonista,
+amigo, vilão, família — o rival que atormenta conta como vilão), *Idade* (a que
+o desenho mostra: a Marceline tem mil anos e é adulta) e *Estreia*, o ano do
+desenho, com dois de tolerância.
+
 ### As épocas
 
 Toda obra com linha do tempo tem um segundo eixo na sala, ao lado dos grupos: as
@@ -326,6 +382,7 @@ parou no meio deixa só as que viu.
 | **Super-heróis** | Filmes (284) · Só nos quadrinhos (149) |
 | **Ben 10** | Ben 10 2005 (25) · Alien Force (15) · Ultimate Alien (17) · Omniverse (53) · Reboot (61) |
 | **JoJo** | As nove partes, de Phantom Blood (21) a The JOJOLands (5) |
+| **Desenhos animados** | Anos 90 (137) · Anos 2000 (152) · Anos 2010+ (182) |
 | **Dragon Ball** | Clássico (37) · Z, com o GT (52) · Super (28) |
 
 O corte sai sempre da estreia: capítulo do mangá, episódio, o que a fonte

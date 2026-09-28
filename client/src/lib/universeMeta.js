@@ -45,6 +45,8 @@ const META = {
   jojo:             ['JJ', '#FFD166', '#B07C0A', 'Stands, poses e partes',           2],
   famosos:          ['FA', '#FF9EC4', '#B03D6B', 'Gente de carne e osso',            142794],
   bandas:           ['BD', '#A78BFA', '#5B21B6', 'Do rock ao pagode, em grupo',      1299],
+  deuses:           ['DE', '#E8D39A', '#8C6D2C', 'Do Olimpo aos orixás',             34201],
+  desenhos:         ['TV', '#7FDBFF', '#1F6FB2', 'Cartoon, Nick e Disney',           742406443],
 };
 
 const FALLBACK = ['??', '#8FA3BF', '#3C4B63', '', null];

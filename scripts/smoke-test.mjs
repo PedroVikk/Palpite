@@ -1007,6 +1007,10 @@ try {
     }
     if (universe.daily?.rotate === 'group') {
       check(`${universe.label}: trancado por categoria, nao por epoca`, hoje.scope === null);
+      if (universe.daily.groups) {
+        check(`${universe.label}: o dia so sorteia entre os grupos da lista`,
+          universe.daily.groups.includes(hoje.group));
+      }
     }
     if (universe.daily?.rotate === 'scope') {
       check(`${universe.label}: trancado por epoca, nao por categoria`, hoje.group === null);
