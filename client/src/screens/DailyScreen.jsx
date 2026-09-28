@@ -268,7 +268,7 @@ export default function DailyScreen({ toast, onExit }) {
         <section className="progress-bar">
           <span className="txt">Tema do dia</span>
           <div style={{ width: 296, maxWidth: '100%' }}>
-            <UniverseSelect value={universe} onChange={setUniverse} />
+            <UniverseSelect value={universe} onChange={setUniverse} byUse />
           </div>
           <span className="spacer" />
           {epoca && <span className="pill"><ClockIcon width={14} height={14} />{epoca}</span>}

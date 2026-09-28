@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { UNIVERSES } from '@shared/universes.js';
 import { universeMeta } from '../lib/universeMeta.js';
+import { byUse as ordemDeUso } from '../lib/storage.js';
 import UniverseIcon from './UniverseIcon.jsx';
 import { CheckIcon, ChevronIcon, SearchIcon } from './Icon.jsx';
 
@@ -13,8 +14,12 @@ const ALL = Object.values(UNIVERSES);
  *
  * A lista fecha ao escolher, ao clicar fora e no Esc; o teclado anda com as
  * setas, que é como se usa uma lista que já está aberta com o foco na busca.
+ *
+ * Com `byUse` (o seletor do desafio do dia) os temas que a pessoa mais joga
+ * vêm em cima. A ordem é lida a cada vez que a lista abre, para o tema jogado
+ * agora subir sem recarregar a página.
  */
-export default function UniverseSelect({ value, onChange, disabled = false, showDesc = true }) {
+export default function UniverseSelect({ value, onChange, disabled = false, showDesc = true, byUse = false }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
@@ -25,12 +30,14 @@ export default function UniverseSelect({ value, onChange, disabled = false, show
   const selected = UNIVERSES[value] ?? ALL[0];
   const meta = universeMeta(selected.id);
 
+  const ordered = useMemo(() => (byUse ? ordemDeUso(ALL, u => u.id) : ALL), [byUse, open]);
+
   const matches = useMemo(() => {
     const term = query.trim().toLowerCase();
-    if (!term) return ALL;
-    return ALL.filter(u =>
+    if (!term) return ordered;
+    return ordered.filter(u =>
       u.label.toLowerCase().includes(term) || universeMeta(u.id).desc.toLowerCase().includes(term));
-  }, [query]);
+  }, [query, ordered]);
 
   useEffect(() => { setIndex(0); }, [query]);
 

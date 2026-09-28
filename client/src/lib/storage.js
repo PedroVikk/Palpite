@@ -86,8 +86,10 @@ export function loadDaily(date, universe, mode = 'dicas') {
   }
 }
 
-export const saveDaily = (date, universe, progress, mode = 'dicas') =>
+export function saveDaily(date, universe, progress, mode = 'dicas') {
   safe(() => localStorage.setItem(dailyKey(date, universe, mode), JSON.stringify(progress)));
+  if (progress?.rows?.length || progress?.secret) markPlayed(universe, date);
+}
 
 /** O universo de uma chave do diario, seja ela do classico ou de um modo novo. */
 const universeOfKey = (key) => key.slice(DAILY_PREFIX.length).split(':')[1] ?? null;
@@ -159,6 +161,69 @@ export function lastDaily(universe, mode = 'dicas') {
     }
     return { rows: [], secret: null };
   }, { rows: [], secret: null });
+}
+
+// ------------------------------------------------- temas mais jogados
+
+/**
+ * Quantos dias a pessoa jogou cada tema no diario, para o seletor do dia
+ * abrir com os dela em cima. O progresso do diario nao serve: o `pruneDaily`
+ * apaga o que e de ontem. Entao a conta mora em chave propria, como a
+ * sequencia — um dia por tema, nao um chute, senao uma tarde de Yu-Gi-Oh!
+ * valeria mais que um mes de Pokemon.
+ *
+ * E do navegador, e so dele: nada disso vai ao servidor.
+ */
+const USO_KEY = 'palpite:uso';
+
+function readUso() {
+  const saved = safe(() => JSON.parse(localStorage.getItem(USO_KEY)));
+  if (saved && typeof saved === 'object') return saved;
+  /**
+   * Quem ja jogava antes desta chave existir comeca com o que jogou hoje: e o
+   * unico rastro que sobrou, e e melhor que abrir a lista como se nunca
+   * tivesse jogado nada.
+   */
+  const semente = {};
+  const date = gameToday();
+  safe(() => {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith(`${DAILY_PREFIX}${date}:`)) continue;
+      const universe = universeOfKey(key);
+      if (universe) semente[universe] = { days: 1, last: date };
+    }
+  });
+  return semente;
+}
+
+function markPlayed(universe, date = gameToday()) {
+  const uso = readUso();
+  const atual = uso[universe];
+  if (atual?.last === date) return;
+  uso[universe] = { days: (Number(atual?.days) || 0) + 1, last: date };
+  safe(() => localStorage.setItem(USO_KEY, JSON.stringify(uso)));
+}
+
+/**
+ * Os temas na ordem de uso: mais dias jogados primeiro, e no empate o jogado
+ * por ultimo. Quem nunca foi jogado segue na ordem que chegou.
+ */
+export function byUse(universes, idOf = (u) => u) {
+  const uso = readUso();
+  const dias = (u) => Number(uso[idOf(u)]?.days) || 0;
+  const ultimo = (u) => uso[idOf(u)]?.last ?? '';
+  return universes
+    .map((u, i) => ({ u, i }))
+    .sort((a, b) => dias(b.u) - dias(a.u) || ultimo(b.u).localeCompare(ultimo(a.u)) || a.i - b.i)
+    .map(({ u }) => u);
+}
+
+/** O tema mais jogado, ou null para quem ainda nao jogou nenhum. */
+export function mostPlayed(ids) {
+  const uso = readUso();
+  const [primeiro] = byUse(ids);
+  return primeiro && uso[primeiro] ? primeiro : null;
 }
 
 // ------------------------------------------------------------- sequencia

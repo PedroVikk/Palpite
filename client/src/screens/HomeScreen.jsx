@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { UNIVERSES, getUniverse } from '@shared/universes.js';
-import { dailySnapshot, lastDaily, streak } from '../lib/storage.js';
+import { dailySnapshot, lastDaily, mostPlayed, streak } from '../lib/storage.js';
 import { universeMeta } from '../lib/universeMeta.js';
 import Ambient from '../components/Ambient.jsx';
 import Avatar from '../components/Avatar.jsx';
@@ -35,7 +35,8 @@ export default function HomeScreen({
   // convite chega como ?sala=XXXX: o código já vem preenchido
   const [code, setCode] = useState(() =>
     (new URLSearchParams(location.search).get('sala') ?? '').toUpperCase());
-  const [dailyUniverse, setDailyUniverse] = useState('pokemon');
+  // abre no tema que a pessoa mais joga no diario; quem nunca jogou, no Pokemon
+  const [dailyUniverse, setDailyUniverse] = useState(() => mostPlayed(Object.keys(UNIVERSES)) ?? 'pokemon');
 
   // o diário mora no localStorage e o prune deixa só o dia de hoje lá: o que
   // sobrou é o placar de hoje, sem precisar perguntar nada ao servidor
@@ -176,7 +177,7 @@ export default function HomeScreen({
             {/* um botao so: a tela do dia ja tem a troca entre a tabela e a
                 imagem, os dois desafios de cada universo */}
             <div className="hero-actions">
-              <UniverseSelect value={dailyUniverse} onChange={setDailyUniverse} />
+              <UniverseSelect value={dailyUniverse} onChange={setDailyUniverse} byUse />
               <button className="btn primary lg" onClick={() => onDaily(dailyUniverse, 'dicas')}>
                 Diário <SendIcon width={16} height={16} strokeWidth={2.2} />
               </button>
