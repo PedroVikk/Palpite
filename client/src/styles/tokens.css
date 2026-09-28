@@ -87,6 +87,7 @@
   --miss-ink: #6F604C;
   --miss-line: #3B30241A;
   --danger: #B4432F;
+  --danger-ink: #FFFFFF;
   --neutral: #B9AC95;
   --flame: #B5562E;
 
@@ -159,6 +160,7 @@
   --miss-ink: #908CAA;
   --miss-line: #E0DEF414;
   --danger: #EB6F92;
+  --danger-ink: #191724;
   --neutral: #524F67;
   --flame: #EB6F92;
 
@@ -232,6 +234,7 @@
   --miss-ink: #8A847A;
   --miss-line: #11111133;
   --danger: #D7263D;
+  --danger-ink: #FFFFFF;
   --neutral: #B8B2A7;
   --flame: #D7263D;
 
@@ -304,6 +307,7 @@
   --miss-ink: #9FB5AC;
   --miss-line: #FFFFFF12;
   --danger: #E5484D;
+  --danger-ink: #FFFFFF;
   --neutral: #3E5A52;
   --flame: #F2994A;
 
@@ -375,6 +379,7 @@
   --miss-ink: #9489BF;
   --miss-line: #3A2C66;
   --danger: #FF3EA5;
+  --danger-ink: #0B0617;
   --neutral: #3A2C66;
   --flame: #FFE14D;
 

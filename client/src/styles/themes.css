@@ -164,3 +164,77 @@
 [data-theme="fliperama"] .wordmark { font-family: var(--font-title); font-size-adjust: .42; font-weight: 400; color: var(--partial); text-shadow: 2px 2px 0 var(--accent-lo); }
 [data-theme="fliperama"] .silhouette .qm { text-shadow: 4px 4px 0 #0B0617, 0 0 22px var(--accent); }
 [data-theme="fliperama"] .theme-tile.on { box-shadow: 0 0 0 1px var(--select), 0 0 24px -4px var(--select); }
+
+/* ------------------------------------------------ confirmação (sair etc.) */
+
+.modal.confirm { width: min(440px, 100%); grid-template-columns: 1fr; text-align: center; }
+.modal.confirm .modal-main { padding: 30px 28px 26px; border-radius: var(--r-lg); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.modal.confirm h2 { font-size: 24px; font-weight: 800; }
+.modal.confirm p { max-width: 34ch; font-size: 14.5px; line-height: 1.55; color: var(--text-dim); }
+.confirm-ico {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+.confirm-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+.confirm-actions .btn { height: 46px; min-width: 150px; }
+
+/* ------------------------------------------------ a entrada das janelas */
+
+/*
+ * Toda janela (e a pergunta "vai ser essa?") entra com a animação do tema. O
+ * véu só esmaece e desfoca; quem tem personalidade é a caixa. O
+ * prefers-reduced-motion do app.css desliga tudo isto.
+ */
+.scrim { animation: scrim-in .22s ease both; }
+@keyframes scrim-in { from { opacity: 0; -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); } }
+
+/* Sépia: a folha sobe um pouco e assenta, como papel pousado na mesa */
+.modal, .theme-dock { animation: modal-paper .34s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes modal-paper {
+  from { opacity: 0; transform: translateY(16px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Crepúsculo: nasce do desfoque, devagar, como coisa que aparece no escuro */
+[data-theme="crepusculo"] :is(.modal, .theme-dock) { animation: modal-dusk .5s cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes modal-dusk {
+  from { opacity: 0; transform: scale(.94); filter: blur(8px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+/* Mangá: o quadro bate na página — entra grande e torto, passa do ponto e
+   trava, com a retícula no véu */
+[data-theme="manga"] :is(.modal, .theme-dock) { animation: modal-slam .42s cubic-bezier(.2, .9, .3, 1) both; }
+@keyframes modal-slam {
+  0% { opacity: 0; transform: scale(1.3) rotate(-4deg); }
+  55% { opacity: 1; transform: scale(.97) rotate(1deg); }
+  75% { transform: scale(1.015) rotate(-.4deg); }
+  100% { opacity: 1; transform: none; }
+}
+[data-theme="manga"] .scrim { background: radial-gradient(#11111124 1.2px, transparent 1.5px) 0 0 / 6px 6px, var(--scrim); }
+
+/* Mesa: a carta é dada — vem de baixo, girada, e cai no lugar com um pulinho */
+[data-theme="mesa"] :is(.modal, .theme-dock) { animation: modal-deal .55s cubic-bezier(.2, 1.25, .4, 1) both; transform-origin: 50% 100%; }
+@keyframes modal-deal {
+  0% { opacity: 0; transform: perspective(900px) translateY(70px) rotate(-7deg) rotateX(18deg) scale(.9); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+
+/* Fliperama: o tubo liga — uma linha acesa no meio que abre para a tela
+   inteira, com o clarão do fósforo */
+[data-theme="fliperama"] :is(.modal, .theme-dock) { animation: modal-crt .48s steps(12, end) both; }
+@keyframes modal-crt {
+  0% { opacity: 0; transform: scale(.2, .005); filter: brightness(4); }
+  30% { opacity: 1; transform: scale(1, .005); filter: brightness(4); }
+  70% { transform: scale(1, 1.03); filter: brightness(1.5); }
+  100% { opacity: 1; transform: none; filter: none; }
+}
+[data-theme="fliperama"] .scrim { animation: scrim-in .22s ease both, scrim-flicker .48s steps(6, end) both; }
+@keyframes scrim-flicker { 0%, 40% { background-color: #3EF0FF14; } 60% { background-color: transparent; } }

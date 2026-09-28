@@ -103,6 +103,7 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
             return (
               <li
                 key={player.id}
+                data-player={player.id}
                 className={[
                   isTurn ? 'now' : '',
                   isChooser ? 'chooser' : '',
@@ -124,6 +125,7 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
                 {/* modo cartas: quantas cartas na mão (nunca quais) e quem está congelado */}
                 {player.cards > 0 && <span className="cards-n" title="Cartas na mão">🃏 {player.cards}</span>}
                 {player.frozen && <span className="state">Congelado</span>}
+                {player.shielded && <span className="state">Escudo</span>}
               </li>
             );
           })}

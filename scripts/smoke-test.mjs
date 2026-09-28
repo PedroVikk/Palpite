@@ -856,7 +856,8 @@ try {
   const outroCarta = mesaCartas.find(g => g !== donoCarta);
   const cartaUsada = donoCarta.state.myHand[0];
   const prazoCarta = donoCarta.state.deadline;
-  donoCarta.socket.emit('game:card', { uid: cartaUsada.uid });
+  // carta com alvo leva o outro jogador; as demais ignoram o alvo
+  donoCarta.socket.emit('game:card', { uid: cartaUsada.uid, targetId: outroCarta.id });
   await sleep(250);
   const sCarta = donoCarta.state;
   const efeitoCarta = {
@@ -868,9 +869,23 @@ try {
     congelar: () => sCarta.players.find(p => p.id === outroCarta.id).frozen === true,
     // com o placar zerado nao ha o que roubar: recusa e a carta fica na mao
     assalto: () => donoCarta.errors.some(e => /roubar/.test(e)) && sCarta.myHand.length === 1,
+    letra: () => sCarta.myIntel.length === 1 && sCarta.myIntel[0].key.startsWith('letra:') && sCarta.myIntel[0].value.length === 1,
+    // sozinha na mao nao ha o que embaralhar: recusa e a carta fica
+    embaralhar: () => donoCarta.errors.some(e => /embaralhar/.test(e)) && sCarta.myHand.length === 1,
+    escudo: () => sCarta.myShield === true && sCarta.players.find(p => p.id === donoCarta.id).shielded === true,
+    pressa: () => /Pressa/.test(sCarta.message ?? ''),
+    // o outro tem a carta do draft: ela troca de mao
+    furto: () => sCarta.myHand.length === 1 && sCarta.players.find(p => p.id === outroCarta.id).cards === 0,
+    // a mao dele (1 carta) vem para ca, e a minha (vazia, fora a Troca) vai para la
+    troca: () => sCarta.myHand.length === 1 && sCarta.players.find(p => p.id === outroCarta.id).cards === 0,
+    espiar: () => sCarta.myIntel.some(i => i.key === `espiar:${outroCarta.id}` && i.value.length === 1),
+    bussola: () => sCarta.myIntel.some(i => i.key === 'grupo' && i.value),
+    reforco: () => sCarta.myHand.length === 2,
+    // o espelho e segredo: a sala ve que alguem usou uma carta, nao qual
+    espelho: () => sCarta.myMirror === true && outroCarta.state.lastCard?.id === null,
   }[cartaUsada.id];
   check(`a carta ${cartaUsada.id} faz o que diz`, Boolean(efeitoCarta?.()));
-  if (cartaUsada.id !== 'assalto') {
+  if (!['assalto', 'embaralhar', 'furto', 'troca', 'reforco'].includes(cartaUsada.id)) {
     check('usada, a carta sai da mao e a sala e avisada', sCarta.myHand.length === 0 && sCarta.message?.includes('usou'));
   }
 

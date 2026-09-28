@@ -15,7 +15,8 @@ import {
 import { datasetOf as datasetFor } from './catalog.js';
 import { makeQuestion, makeWhoQuestion, scoreForAnswer } from './quiz.js';
 import {
-  CARDS, drawOffer, isDraftRound, HAND_LIMIT, STEAL_POINTS, BET_PENALTY, EXTRA_SECONDS,
+  CARDS, drawCard, drawOffer, isDraftRound, HAND_LIMIT, STEAL_POINTS, BET_PENALTY, EXTRA_SECONDS,
+  RUSH_SECONDS,
 } from './cards.js';
 import { valueOf } from '../shared/universes.js';
 import { TOP as PICTURE_TOP, frameOf, hasPicture, prepare as preparePicture, silhouetteOf } from './picture.js';
@@ -86,7 +87,13 @@ function createRoom(settings) {
     sieved: {},         // Peneira: jogador -> ids tirados da busca dele
     bets: {},           // Aposta: jogador -> true
     extraTurns: {},     // Chute duplo: jogador -> chutes a mais nesta vez
+    // a ultima carta jogada, para a mesa ver a carta na tela; o `seq` sobe a
+    // cada uso, e e ele que diz ao navegador que ha jogada nova para animar
+    lastCard: null,
     frozen: {},         // Congelar: jogador -> perde a proxima vez
+    shields: {},        // Escudo: jogador -> ataque nao pega ate o fim da rodada
+    mirrors: {},        // Espelho: jogador -> o proximo ataque volta (segredo dele)
+    rushed: {},         // Pressa: jogador -> a proxima vez dele e curta
     rows: [],
     turnPlayerId: null,
     pausedAfter: null,  // de quem era a vez quando a rodada parou (ver pauseRound)
@@ -183,6 +190,12 @@ function cardsStateFor(room, viewerId) {
     mySieve: room.sieved[viewerId] ?? [],
     myBet: Boolean(room.bets[viewerId]),
     myExtra: room.extraTurns[viewerId] ?? 0,
+    myShield: Boolean(room.shields[viewerId]),
+    myMirror: Boolean(room.mirrors[viewerId]),
+    // carta secreta (o Espelho): quem nao usou ve so o verso
+    lastCard: room.lastCard?.secret && room.lastCard.by !== viewerId
+      ? { ...room.lastCard, id: null }
+      : room.lastCard,
   };
 }
 
@@ -246,6 +259,7 @@ function publicState(room, viewerId = null) {
         // modo cartas: a sala ve quantas cartas cada um tem, nunca quais
         cards: isCards(room) ? (room.hands[p.id]?.length ?? 0) : undefined,
         frozen: isCards(room) ? Boolean(room.frozen[p.id]) : undefined,
+        shielded: isCards(room) ? Boolean(room.shields[p.id]) : undefined,
       };
     }),
     turnPlayerId: room.turnPlayerId,
@@ -422,6 +436,9 @@ function startRound(room) {
   room.bets = {};
   room.extraTurns = {};
   room.frozen = {};
+  room.shields = {};
+  room.mirrors = {};
+  room.rushed = {};
   room.guessesLeft = {};
   for (const p of room.players.values()) room.guessesLeft[p.id] = guessBudget(room);
 
@@ -480,7 +497,10 @@ function startRound(room) {
  */
 function armTurnTimer(room) {
   if (activePlayers(room).length < 2) return clearTimer(room);
-  armTimer(room, room.settings.turnSeconds, () => onTurnTimeout(room));
+  const rushed = room.rushed[room.turnPlayerId];
+  delete room.rushed[room.turnPlayerId];
+  const seconds = rushed ? Math.min(RUSH_SECONDS, room.settings.turnSeconds) : room.settings.turnSeconds;
+  armTimer(room, seconds, () => onTurnTimeout(room));
 }
 
 function beginGuessing(room) {
@@ -739,16 +759,41 @@ function settleBets(room, winnerId, points) {
 /**
  * Usa uma carta da mao. So na propria vez, antes de chutar: a carta e parte
  * da jogada, e fora da vez ela atropelaria o turno de outro. Carta que nao
- * pode fazer nada agora (Tempo extra sem relogio, Assalto sem ninguem com
- * ponto) e recusada e continua na mao.
+ * pode fazer nada agora (Tempo extra sem relogio, Assalto em quem nao tem
+ * ponto) e recusada e continua na mao — a recusa vem sempre antes de gastar
+ * o Espelho de alguem.
  */
-function useCard(room, player, uid, socket) {
+function useCard(room, player, uid, socket, chosenId) {
   const hand = room.hands[player.id] ?? [];
   const at = hand.findIndex(c => c.uid === Number(uid));
   if (at < 0) return socket.emit('room:error', 'Essa carta não está na sua mão.');
-  const card = CARDS[hand[at].id];
+  const used = hand[at];
+  const card = CARDS[used.id];
   const universe = universeOf(room);
   let detail = '';
+  let targetId = null;   // de quem a carta mexe no jogo, quando mexe
+  let reflected = false; // o Espelho do alvo devolveu a carta
+
+  /**
+   * Carta com alvo: quem usa escolhe em quem. O alvo tem que ser outro jogador
+   * da sala; com Escudo de pé, carta de ataque nem sai da mão (o escudo é
+   * público, então quem escolhe já sabe). O Espelho é segredo: ele só se
+   * revela quando a carta bate nele, e aí o efeito volta para quem usou.
+   */
+  let target = null;
+  if (card?.target) {
+    target = room.players.get(chosenId);
+    if (!target || target.id === player.id) return socket.emit('room:error', 'Escolha em quem usar a carta.');
+    if (card.attack && room.shields[target.id]) {
+      return socket.emit('room:error', `${target.name} está de escudo nesta rodada.`);
+    }
+  }
+  const mirrorOf = (victim) => {
+    if (!card?.attack || !room.mirrors[victim.id]) return false;
+    delete room.mirrors[victim.id];
+    return true;
+  };
+  const myOthers = () => hand.filter(c => c.uid !== used.uid);
 
   switch (hand[at].id) {
     case 'tempo': {
@@ -790,27 +835,170 @@ function useCard(room, player, uid, socket) {
       detail = ': chuta duas vezes nesta vez';
       break;
     case 'congelar': {
-      const target = nextTurn(room, player.id);
-      if (!target || target === player.id) return socket.emit('room:error', 'Não há ninguém para congelar.');
-      room.frozen[target] = true;
-      detail = ` em ${room.players.get(target).name}, que perde a próxima vez`;
+      targetId = target.id;
+      if ((reflected = mirrorOf(target))) {
+        room.frozen[player.id] = true;
+        detail = ` em ${target.name}, mas o espelho devolveu: ${player.name} perde a próxima vez`;
+        break;
+      }
+      room.frozen[target.id] = true;
+      detail = ` em ${target.name}, que perde a próxima vez`;
+      break;
+    }
+    case 'pressa': {
+      targetId = target.id;
+      if ((reflected = mirrorOf(target))) {
+        room.rushed[player.id] = true;
+        detail = ` em ${target.name}, mas o espelho devolveu: ${player.name} fica com só ${RUSH_SECONDS} s na próxima vez`;
+        break;
+      }
+      room.rushed[target.id] = true;
+      detail = ` em ${target.name}: só ${RUSH_SECONDS} s na próxima vez`;
       break;
     }
     case 'assalto': {
-      const [leader] = [...room.players.values()].filter(p => p.id !== player.id).sort((a, b) => b.score - a.score);
-      if (!leader || leader.score <= 0) return socket.emit('room:error', 'Ninguém tem pontos para roubar.');
-      const amount = Math.min(STEAL_POINTS, leader.score);
-      leader.score -= amount;
-      player.score += amount;
-      detail = ` em ${leader.name}: ${amount} pontos roubados`;
+      if (target.score <= 0) return socket.emit('room:error', `${target.name} não tem pontos para roubar.`);
+      targetId = target.id;
+      // devolvido, o assalto vira ao contrário: o alvo leva de quem usou
+      const [from, to] = (reflected = mirrorOf(target)) ? [player, target] : [target, player];
+      const amount = Math.min(STEAL_POINTS, Math.max(0, from.score));
+      from.score -= amount;
+      to.score += amount;
+      detail = reflected
+        ? ` em ${target.name}, mas o espelho devolveu: ${target.name} levou ${amount} pontos de ${player.name}`
+        : ` em ${target.name}: ${amount} pontos roubados`;
       break;
     }
+    case 'furto': {
+      const theirs = room.hands[target.id] ?? [];
+      if (!theirs.length) return socket.emit('room:error', `${target.name} não tem carta na mão.`);
+      targetId = target.id;
+      if ((reflected = mirrorOf(target))) {
+        const mine = myOthers();
+        if (mine.length) {
+          const stolen = mine[Math.floor(Math.random() * mine.length)];
+          hand.splice(hand.indexOf(stolen), 1);
+          (room.hands[target.id] ??= []).push(stolen);
+        }
+        detail = mine.length
+          ? ` em ${target.name}, mas o espelho devolveu: ${target.name} levou uma carta de ${player.name}`
+          : ` em ${target.name}, mas o espelho devolveu, e ${player.name} não tinha carta para perder`;
+        break;
+      }
+      const [stolen] = theirs.splice(Math.floor(Math.random() * theirs.length), 1);
+      hand.push(stolen);
+      detail = ` em ${target.name} e levou uma carta`;
+      break;
+    }
+    case 'troca': {
+      const mine = myOthers();
+      const theirs = room.hands[target.id] ?? [];
+      if (!mine.length && !theirs.length) return socket.emit('room:error', 'As duas mãos estão vazias: não há o que trocar.');
+      targetId = target.id;
+      // trocar é simétrico, então o espelho só barra: nada muda de mão
+      if ((reflected = mirrorOf(target))) {
+        detail = ` em ${target.name}, mas o espelho barrou a troca`;
+        break;
+      }
+      room.hands[target.id] = mine;
+      room.hands[player.id] = [used, ...theirs];
+      detail = ` com ${target.name}: ${mine.length} por ${theirs.length} ${theirs.length === 1 ? 'carta' : 'cartas'}`;
+      break;
+    }
+    case 'espiar': {
+      const theirs = room.hands[target.id] ?? [];
+      targetId = target.id;
+      // a espiada vale o retrato do momento; espiar de novo a mesma pessoa troca o retrato
+      const intel = (room.intel[player.id] ??= []).filter(i => i.key !== `espiar:${target.id}`);
+      intel.push({ key: `espiar:${target.id}`, value: theirs.map(c => c.id), who: target.name });
+      room.intel[player.id] = intel;
+      detail = ` na mão de ${target.name}`;
+      break;
+    }
+    case 'bussola': {
+      if ((room.intel[player.id] ?? []).some(i => i.key === 'grupo')) {
+        return socket.emit('room:error', 'Você já sabe de qual grupo é o segredo.');
+      }
+      const group = universe.groups?.find(g => g.id === room.secret?.group);
+      if (!group) return socket.emit('room:error', 'Este segredo não tem grupo para mostrar.');
+      (room.intel[player.id] ??= []).push({ key: 'grupo', value: group.label, of: universe.groupLabel ?? 'Grupo' });
+      detail = ' e viu de qual grupo é o segredo';
+      break;
+    }
+    case 'reforco': {
+      const space = HAND_LIMIT - myOthers().length;
+      if (space <= 0) return socket.emit('room:error', 'Sua mão está cheia.');
+      const count = Math.min(2, space);
+      for (let i = 0; i < count; i++) {
+        room.cardSeq += 1;
+        hand.push({ uid: room.cardSeq, id: drawCard() });
+      }
+      detail = `: ${count} ${count === 1 ? 'carta nova' : 'cartas novas'} na mão`;
+      break;
+    }
+    case 'espelho':
+      if (room.mirrors[player.id]) return socket.emit('room:error', 'Seu espelho já está de pé.');
+      room.mirrors[player.id] = true;
+      // o espelho e segredo: a sala sabe que alguem usou uma carta, nao qual
+      break;
+    case 'letra': {
+      /**
+       * Uma letra ao acaso, com a posição dela no nome ("3ª de 9"). Sorteia
+       * entre as que a pessoa ainda não viu, e só letra ou número: espaço e
+       * pontuação não dizem nada. A chave leva a posição, então dá para usar
+       * mais de uma Letra na mesma rodada e ir montando o nome.
+       */
+      const name = String(room.secret?.name ?? '');
+      const seen = new Set((room.intel[player.id] ?? []).map(i => i.key));
+      const open = [...name].map((ch, i) => ({ ch, i }))
+        .filter(({ ch, i }) => /[\p{L}\p{N}]/u.test(ch) && !seen.has(`letra:${i + 1}`));
+      if (!open.length) return socket.emit('room:error', 'Você já viu todas as letras do segredo.');
+      const { ch, i } = open[Math.floor(Math.random() * open.length)];
+      (room.intel[player.id] ??= []).push({ key: `letra:${i + 1}`, value: ch.toUpperCase(), of: [...name].length });
+      detail = ' e viu uma letra do segredo';
+      break;
+    }
+    case 'embaralhar': {
+      // troca o resto da mao, na mesma posicao; a propria carta sai abaixo
+      const others = myOthers();
+      if (!others.length) return socket.emit('room:error', 'Não há outras cartas na mão para embaralhar.');
+      hand.forEach((c, i) => {
+        if (c.uid === used.uid) return;
+        room.cardSeq += 1;
+        hand[i] = { uid: room.cardSeq, id: drawCard() };
+      });
+      detail = `: ${others.length} ${others.length === 1 ? 'carta nova' : 'cartas novas'} na mão`;
+      break;
+    }
+    case 'escudo':
+      if (room.shields[player.id]) return socket.emit('room:error', 'Seu escudo já está de pé nesta rodada.');
+      room.shields[player.id] = true;
+      detail = ': ataques não pegam até o fim da rodada';
+      break;
     default:
       return socket.emit('room:error', 'Carta desconhecida.');
   }
 
-  hand.splice(at, 1);
-  room.message = `${player.name} usou ${card.name}${detail}.`;
+  // a carta sai pela identidade, nao pela posicao: Furto, Troca e Reforço
+  // mexem na mao antes daqui
+  const own = room.hands[player.id];
+  const gone = own.findIndex(c => c.uid === used.uid);
+  if (gone >= 0) own.splice(gone, 1);
+  room.lastCard = {
+    seq: (room.lastCard?.seq ?? 0) + 1,
+    id: used.id,
+    by: player.id,
+    // devolvida pelo espelho, quem leva a carta na cara e quem usou
+    target: reflected ? player.id : targetId,
+    reflected,
+    via: reflected ? targetId : null,
+    // o espelho e segredo: so quem usou ve qual carta foi (ver cardsStateFor)
+    secret: used.id === 'espelho',
+  };
+  // o espelho nao se anuncia: para a sala, alguem usou "uma carta"
+  room.message = used.id === 'espelho'
+    ? `${player.name} usou uma carta.`
+    : `${player.name} usou ${card.name}${detail}.`;
   broadcast(room);
 }
 
@@ -1366,11 +1554,11 @@ function onConnection(socket) {
   });
 
   // modo cartas: usar uma carta da mao, na propria vez
-  socket.on('game:card', ({ uid }) => {
+  socket.on('game:card', ({ uid, targetId }) => {
     const { room, player } = findPlayerRoom(socket);
     if (!room || !player || !isCards(room) || room.phase !== 'playing') return;
     if (room.turnPlayerId !== player.id) return socket.emit('room:error', 'Cartas só na sua vez, antes de chutar.');
-    useCard(room, player, uid, socket);
+    useCard(room, player, uid, socket, targetId);
   });
 
   socket.on('game:vote', ({ suspectId }) => {

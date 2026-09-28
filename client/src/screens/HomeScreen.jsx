@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { UNIVERSES, getUniverse } from '@shared/universes.js';
 import { byUse, dailySnapshot, lastDaily, mostPlayed, streak } from '../lib/storage.js';
 import { openThemePicker } from '../lib/theme.js';
@@ -56,7 +56,9 @@ export default function HomeScreen({
     (new URLSearchParams(location.search).get('sala') ?? '').toUpperCase().slice(0, 4));
   const [codeFocus, setCodeFocus] = useState(false);
   // abre no tema que a pessoa mais joga no diario; quem nunca jogou, no Pokemon
-  const [dailyUniverse] = useState(() => mostPlayed(IDS) ?? 'pokemon');
+  const [dailyUniverse, setDailyUniverse] = useState(() => mostPlayed(IDS) ?? 'pokemon');
+  const hubRef = useRef(null);
+  const scrollTimer = useRef(null);
   const [filter, setFilter] = useState('todos');
 
   // o diário mora no localStorage e o prune deixa só o dia de hoje lá: o que
@@ -117,6 +119,28 @@ export default function HomeScreen({
     const clean = code.trim().toUpperCase();
     if (clean.length !== 4) return toast('O código tem 4 caracteres.');
     onJoin(clean);
+  };
+
+  /**
+   * Um clique na grade só troca o tema do cartão do diário (a marca, o nome, a
+   * pilha de hoje) e traz o cartão para a vista se ele tiver saído dela; jogar
+   * é o botão do cartão. Dois cliques entram direto — o primeiro clique do par
+   * já escolheu o tema, então o segundo só precisa abrir.
+   *
+   * A rolagem espera passar a janela do duplo clique: se a página andasse já no
+   * primeiro, o segundo cairia em outro lugar e o duplo clique se perderia.
+   */
+  const pickTheme = (id) => {
+    setDailyUniverse(id);
+    clearTimeout(scrollTimer.current);
+    scrollTimer.current = setTimeout(() => {
+      const box = hubRef.current?.getBoundingClientRect();
+      if (box && box.bottom < 120) hubRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 350);
+  };
+  const playTheme = (id) => {
+    clearTimeout(scrollTimer.current);
+    onDaily(id, 'dicas');
   };
 
   const label = UNIVERSES[dailyUniverse].label;
@@ -183,7 +207,7 @@ export default function HomeScreen({
           </section>
         )}
 
-        <div className="home-hub">
+        <div className="home-hub" ref={hubRef}>
           {/* sozinho: o desafio do dia, no tema escolhido na grade de baixo */}
           <section className="hub-card" aria-labelledby="hub-daily">
             <div className="hub-head">
@@ -226,7 +250,7 @@ export default function HomeScreen({
                   ) : stack.last ? (
                     <>Último chute: <b>{stack.last.name}</b> — {stack.hits} de {stack.cells.length} colunas certas.</>
                   ) : (
-                    <>Chutes ilimitados. Para outro tema, é só clicar nele na grade abaixo.</>
+                    <>Chutes ilimitados. Para trocar de tema, clique nele na grade abaixo.</>
                   )}
                 </p>
 
@@ -316,7 +340,7 @@ export default function HomeScreen({
 
         <div className="section-head">
           <h2>Temas do diário</h2>
-          <span className="hint">clique num tema para jogar o segredo de hoje</span>
+          <span className="hint">um clique mostra no cartão, dois cliques já entram no jogo</span>
           <div className="chips" role="group" aria-label="Filtrar temas">
             {FILTERS.map(([id, text]) => (
               <button
@@ -338,7 +362,10 @@ export default function HomeScreen({
               key={tile.id}
               type="button"
               className={`theme-tile ${tile.id === dailyUniverse ? 'on' : ''} ${tile.solved ? 'solved' : ''}`}
-              onClick={() => onDaily(tile.id, 'dicas')}
+              aria-pressed={tile.id === dailyUniverse}
+              title={`${tile.label} — dois cliques para jogar`}
+              onClick={() => pickTheme(tile.id)}
+              onDoubleClick={() => playTheme(tile.id)}
             >
               {tile.solved ? (
                 <span className="seal ok" title="Resolvido hoje"><CheckIcon width={13} height={13} strokeWidth={3} /></span>

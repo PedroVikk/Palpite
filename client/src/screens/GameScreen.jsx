@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { getUniverse, scopeFilter, scopeReach } from '@shared/universes.js';
 import { socket } from '../socket.js';
 import { useDataset } from '../hooks/useDataset.js';
@@ -16,8 +16,9 @@ import GameOver from '../components/GameOver.jsx';
 import { ImpostorModal, RoleCard } from '../components/ImpostorPanels.jsx';
 import { BattleTabs, MySecretCard } from '../components/BattlePanels.jsx';
 import QuizPanel from '../components/QuizPanel.jsx';
-import { DraftModal, HandBar } from '../components/CardPanels.jsx';
-import { AnchorIcon, CardsIcon, ClockIcon, ImageIcon, MaskIcon, PaletteIcon, QuestionIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
+import Modal from '../components/Modal.jsx';
+import { CardPlayFx, DraftModal, HandBar } from '../components/CardPanels.jsx';
+import { AnchorIcon, CardsIcon, ClockIcon, ExitIcon, ImageIcon, MaskIcon, PaletteIcon, QuestionIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
 import { openThemePicker } from '../lib/theme.js';
 
 const RULES = { hunt: 'Caça ao segredo', duel: 'Duelo', impostor: 'Impostor', battle: 'Batalha naval', quiz: 'Qual deles?', cards: 'Cartas' };
@@ -39,17 +40,15 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   const [closedModal, setClosedModal] = useState(null);
   // batalha naval: o tabuleiro que o jogador abriu (ver `target` abaixo)
   const [pickedTarget, setPickedTarget] = useState(null);
-  const actionsRef = useRef(null);
 
   /**
    * A logo tambem volta para o menu, mas aqui isso e sair da sala: com a
-   * partida em pe ela so acende a confirmacao la embaixo — e rola ate ela, que
-   * senao o clique parece nao ter feito nada.
+   * partida em pe ela abre a confirmacao numa janela no meio da tela, onde o
+   * clique nao passa despercebido, com a partida desfocada atras.
    */
   const backToMenu = () => {
     if (state.phase === 'gameOver') return onLeave();
     setLeaving(true);
-    requestAnimationFrame(() => actionsRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }));
   };
 
   const isHost = state.hostId === myId;
@@ -280,7 +279,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
 
               {/* modo cartas: a mão, que só acende na sua vez */}
               {cardsMode && state.phase === 'playing' && (
-                <HandBar state={state} universe={universe} myTurn={isMyTurn} />
+                <HandBar state={state} universe={universe} myTurn={isMyTurn} myId={myId} />
               )}
 
               {state.phase !== 'voting' && !quiz && <GuessBar
@@ -323,17 +322,10 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
             <HintsTable universe={universe} rows={shownRows} hints={!byPicture} counts={impostorRound} />
           )}
 
-          <div className="game-actions" ref={actionsRef}>
+          <div className="game-actions">
             {/* rodada "ate acertar" nao fecha sozinha: o host pode encerrar */}
             {isHost && !roundOver && untilRight && (
               <button className="btn ghost" onClick={() => socket.emit('game:end')}>Encerrar partida</button>
-            )}
-            {leaving && (
-              <>
-                <span className="muted">Sair de vez abre mão da vaga e do placar.</span>
-                <button className="btn ghost small" onClick={onLeave}>Sair mesmo assim</button>
-                <button className="btn link" onClick={() => setLeaving(false)}>Ficar</button>
-              </>
             )}
           </div>
         </main>
@@ -342,11 +334,12 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
           state={state}
           myId={myId}
           universe={universe}
-          onLeave={() => (leaving ? onLeave() : backToMenu())}
+          onLeave={backToMenu}
         />
       </div>
 
       {cardsMode && state.phase === 'drafting' && <DraftModal state={state} />}
+      {cardsMode && <CardPlayFx state={state} myId={myId} />}
 
       {showModal && (
         <ImpostorModal
@@ -357,7 +350,28 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
           onClose={() => setClosedModal(modalKey)}
         />
       )}
+
+      {/* por ultimo: se outra janela estiver aberta, a de sair fica por cima */}
+      {leaving && <LeaveModal onStay={() => setLeaving(false)} onLeave={onLeave} />}
     </>
+  );
+}
+
+/** Sair de vez: a unica saida que nao guarda a cadeira, entao pergunta antes. */
+function LeaveModal({ onStay, onLeave }) {
+  return (
+    <Modal label="Sair da partida" onClose={onStay} className="confirm" closeLabel="Ficar">
+      <div className="modal-main">
+        <span className="confirm-ico"><ExitIcon width={24} height={24} /></span>
+        <h2>Sair da partida?</h2>
+        <p>Sair de vez abre mão da sua vaga e do seu placar. Não dá para voltar para esta cadeira depois.</p>
+        <div className="confirm-actions">
+          {/* o foco fica no Ficar: Enter por engano nao custa a partida */}
+          <button type="button" className="btn ghost" onClick={onStay} autoFocus>Ficar</button>
+          <button type="button" className="btn danger" onClick={onLeave}>Sair mesmo assim</button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
