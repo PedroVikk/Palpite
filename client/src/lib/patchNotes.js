@@ -49,17 +49,8 @@ export const PATCH_NOTES = [
         head: 'Tabela',
         groups: [
           {
-            head: 'Busca Inteligente',
-            items: [
-              'A busca agora respeita as informações descobertas pela mesa.',
-              'Com a regra da sala ativada, nomes já descartados deixam de aparecer.',
-              'A Peneira também considera apenas os nomes que continuam possíveis.',
-            ],
-          },
-          {
             head: 'Mais informações, menos adivinhação',
             items: [
-              'Adicionamos a faixa Já se sabe.',
               'Setas duplas agora indicam quando um chute está muito distante.',
               'Toque em uma célula para ver suas informações.',
               'Novos chutes recebem um carimbo visual.',
@@ -84,6 +75,14 @@ export const PATCH_NOTES = [
             items: [
               'Avisos da sala agora aparecem no canto da tela.',
               'Um novo painel permite configurar som, vibração, piscar e notificações, inclusive quando a aba está em segundo plano.',
+            ],
+          },
+          {
+            head: 'Modo acessibilidade',
+            items: [
+              'O host pode liberar o Modo acessibilidade nas regras da sala.',
+              'Com ele liberado, cada jogador escolhe se liga para si: aparece a faixa Já se sabe em cima da tabela, e a busca apaga os nomes que a tabela já descartou.',
+              'Quem está com o modo ligado ganha um ícone ao lado do nome.',
             ],
           },
           {

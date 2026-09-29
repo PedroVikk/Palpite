@@ -4,7 +4,7 @@ import Avatar from './Avatar.jsx';
 import AlertPrefs from './AlertPrefs.jsx';
 import TurnActions from './TurnActions.jsx';
 import {
-  ChartIcon, CheckIcon, ClockIcon, ExitIcon, MinusIcon, TargetIcon, UsersIcon,
+  AccessIcon, ChartIcon, CheckIcon, ClockIcon, ExitIcon, MinusIcon, TargetIcon, UsersIcon,
 } from './Icon.jsx';
 
 /** Volta do 0 ao 1 para o anel do painel; sem teto de chutes o anel fica cheio. */
@@ -120,6 +120,7 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
                   {player.name}
                   {player.id === myId && <small> (você)</small>}
                   {!player.connected && <small> · caiu</small>}
+                  {player.assist && <span className="assist-mark" title="Modo acessibilidade ligado"><AccessIcon width={12} height={12} /></span>}
                 </span>
                 <span className="pts">{player.score}</span>
                 {isTurn && <span className="state">Agora</span>}

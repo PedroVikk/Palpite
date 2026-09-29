@@ -24,7 +24,7 @@ import TimeBar from '../components/TimeBar.jsx';
 import { useTurnAlert } from '../hooks/useTurnAlert.js';
 import { usePrefs, reducedMotion } from '../lib/prefs.js';
 import { CardLog, CardPlayFx, DraftModal, HandBar } from '../components/CardPanels.jsx';
-import { AnchorIcon, CardsIcon, ClockIcon, ExitIcon, ImageIcon, MaskIcon, PaletteIcon, QuestionIcon, TargetIcon, TermoIcon, UsersIcon } from '../components/Icon.jsx';
+import { AccessIcon, AnchorIcon, CardsIcon, ClockIcon, ExitIcon, ImageIcon, MaskIcon, PaletteIcon, QuestionIcon, TargetIcon, TermoIcon, UsersIcon } from '../components/Icon.jsx';
 import { openThemePicker } from '../lib/theme.js';
 
 const RULES = { hunt: 'Caça ao segredo', duel: 'Duelo', impostor: 'Impostor', battle: 'Batalha naval', quiz: 'Qual deles?', speed: 'Velocidade' };
@@ -121,15 +121,17 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
       && !sieved.has(item.id);
   }, [universe, state.settings.scope, byPicture, impostorRound, secretId, sieveKey]);
 
-  // busca esperta: o que a tabela ainda nao descartou (o servidor manda so
-  // quando a lista cabe no estado; senao vem so a contagem)
-  const possibleKey = state.possible?.ids?.join(',') ?? '';
+  const me = state.players.find(p => p.id === myId);
+
+  // modo acessibilidade: a sala libera, cada um liga para si. So faz sentido
+  // na caca e no duelo pela tabela (sem tabela nao ha o que ler)
+  const assistOffered = Boolean(state.settings.assist) && !byPicture && !quiz && !termo && !speed && !battle && !impostorMode;
+  const assist = assistOffered && Boolean(me?.assist);
+  const possibleKey = assist ? state.possible?.join(',') ?? '' : '';
   const possibleSet = useMemo(
     () => (possibleKey ? new Set(possibleKey.split(',').map(Number)) : null),
     [possibleKey],
   );
-
-  const me = state.players.find(p => p.id === myId);
   const budget = state.settings.guessesPerPlayer;
   const myGuesses = state.rows.filter(row => row.playerId === myId).length;
 
@@ -396,13 +398,27 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
           {/* Termo: o seu tabuleiro e os dos outros; fechada a rodada, com as letras */}
           {termoRace && <TermoTable state={state} myId={myId} toast={toast} />}
 
+          {assistOffered && (
+            <button
+              type="button"
+              className={`assist-toggle ${assist ? 'on' : ''}`}
+              aria-pressed={assist}
+              onClick={() => socket.emit('room:assist', !assist)}
+            >
+              <AccessIcon width={15} height={15} />
+              <span>Modo acessibilidade</span>
+              <small>{assist ? 'Ligado: Já se sabe e busca apagando os descartados' : 'Desligado'}</small>
+              <span className="switch"><i /></span>
+            </button>
+          )}
+
           {!(battle && state.phase === 'choosing') && !quiz && !termo && !speed && (
             <HintsTable
               universe={universe}
               rows={shownRows}
               hints={!byPicture}
               counts={impostorRound}
-              possible={state.possible}
+              known={assist}
             />
           )}
 

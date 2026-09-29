@@ -20,11 +20,11 @@ function Arrow({ hint, far }) {
 /**
  * O que a tabela já garante, em uma faixa em cima dela: o valor certo de cada
  * coluna que alguém acertou, a faixa dos números pelas setas, o que já foi
- * descartado. Com a busca esperta, conta também quantos nomes ainda cabem.
+ * descartado. Só aparece para quem ligou o modo acessibilidade.
  */
-function KnownStrip({ universe, rows, possible }) {
+function KnownStrip({ universe, rows }) {
   const facts = knownFacts(universe, rows);
-  if (!facts.length && !possible) return null;
+  if (!facts.length) return null;
   return (
     <div className="known" aria-label="O que já se sabe">
       <span className="known-k">Já se sabe</span>
@@ -33,11 +33,6 @@ function KnownStrip({ universe, rows, possible }) {
           <small>{fact.label}</small> {fact.text}
         </span>
       ))}
-      {possible && (
-        <span className={`known-count ${possible.count <= 3 ? 'hot' : ''}`} title="Nomes da sala que a tabela ainda não descartou">
-          <b>{possible.count}</b> {possible.count === 1 ? 'nome possível' : 'nomes possíveis'}
-        </span>
-      )}
     </div>
   );
 }
@@ -105,7 +100,7 @@ function Symbols({ column, value }) {
  * grade propria, para poder animar e destacar a vencedora sem quebrar o
  * alinhamento das colunas.
  */
-export default function HintsTable({ universe, rows, hints = true, counts = false, possible = null }) {
+export default function HintsTable({ universe, rows, hints = true, counts = false, known = false }) {
   const [pop, setPop] = useState(null);
   const closePop = useCallback(() => setPop(null), []);
   if (!rows.length) {
@@ -163,7 +158,7 @@ export default function HintsTable({ universe, rows, hints = true, counts = fals
 
   return (
     <section className="table">
-      {hints && !counts && withSheet && <KnownStrip universe={universe} rows={rows} possible={possible} />}
+      {known && hints && !counts && withSheet && <KnownStrip universe={universe} rows={rows} />}
       <div className="tscroll">
         <div
           className={`hints ${hints ? '' : 'bare'} ${rows.length > 1 ? 'stack' : ''}`}

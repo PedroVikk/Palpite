@@ -2,8 +2,8 @@ import { formatValue, fullValue } from './format.js';
 
 /**
  * As palavras da tabela de dicas: o que uma célula quer dizer (o balão do
- * clique) e o que a tabela inteira já garante (a faixa em cima dela). Tudo sai
- * das linhas que o servidor mandou — nada aqui olha o segredo.
+ * clique) e o que a tabela inteira já garante (a faixa do modo acessibilidade).
+ * Tudo sai das linhas que o servidor mandou — nada aqui olha o segredo.
  */
 
 const listLabels = (column, values) => (values ?? []).map(v => column.labels?.[v] ?? v);

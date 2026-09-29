@@ -12,6 +12,9 @@ const LIMIT = 40;
  * @param groups   grupos ligados; vazio = todos (o dia pode nao ter categoria)
  * @param guessed  ids ja chutados na rodada, que somem da lista
  * @param inScope  recorte do universo (o anime/manga do Hunter x Hunter)
+ * @param possible modo acessibilidade: o que a tabela ainda nao descartou. O
+ *                 resto sai marcado com `out` (apagado na lista), mas no mesmo
+ *                 lugar: a busca nao sobe os possiveis nem esconde ninguem
  */
 export function search(query, { items, choosing = false, groups = [], guessed = [], inScope, possible = null }) {
   const q = normalize(query.trim());
@@ -28,20 +31,15 @@ export function search(query, { items, choosing = false, groups = [], guessed = 
   const inPool = (i) => (!groups.length || groupSet.has(i.group)) && scoped(i);
   const source = items.filter(choosing ? (i => i.eligible && inPool(i)) : inPool);
 
-  /**
-   * Busca esperta (`possible`, o que a tabela ainda nao descartou): os nomes
-   * possiveis vem primeiro e o resto desce apagado, marcado com `out`. Apagar
-   * e nao esconder: quem quiser chutar um descartado de proposito ainda pode.
-   */
-  const starts = [], contains = [], outs = [];
+  const starts = [], contains = [];
   for (const item of source) {
     if (guessedSet.has(item.id)) continue;
     // alem do nome exibido, aceita apelidos (ex.: o nome em ingles da carta)
     const names = [item.name, ...(item.aliases ?? [])].map(normalize);
-    const bucket = possible && !choosing && !possible.has(item.id) ? outs : null;
-    if (names.some(n => n.startsWith(q))) (bucket ?? starts).push(bucket ? { ...item, out: true } : item);
-    else if (names.some(n => n.includes(q))) (bucket ?? contains).push(bucket ? { ...item, out: true } : item);
+    const shown = possible && !choosing && !possible.has(item.id) ? { ...item, out: true } : item;
+    if (names.some(n => n.startsWith(q))) starts.push(shown);
+    else if (names.some(n => n.includes(q))) contains.push(shown);
     if (starts.length >= LIMIT) break;
   }
-  return [...starts, ...contains, ...outs].slice(0, LIMIT);
+  return [...starts, ...contains].slice(0, LIMIT);
 }

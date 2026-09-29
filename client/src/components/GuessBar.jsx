@@ -99,14 +99,12 @@ export default function GuessBar({
               <li
                 key={item.id}
                 className={`${i === index ? 'active' : ''} ${item.out ? 'out' : ''}`}
-                title={item.out ? 'A tabela já descartou este nome' : undefined}
                 // mousedown, nao click: o blur do input fecharia a lista antes
                 onMouseDown={e => { e.preventDefault(); pick(item); }}
                 onMouseEnter={() => setIndex(i)}
               >
                 {item.sprite && <img src={item.sprite} alt="" loading="lazy" />}
                 <span className="nm">{item.name}</span>
-                {item.out && <span className="out-tag">descartado</span>}
               </li>
             ))}
           </ul>

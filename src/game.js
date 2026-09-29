@@ -66,7 +66,7 @@ export const DEFAULT_SETTINGS = {
   speedSame: true,     // velocidade: a mesma fila de segredos para todos (ou uma para cada)
   tableHints: false,   // caca e duelo: a mesa pode pedir dicas (tamanho do nome, inicial)
   rerollScout: true,   // cartas: quem descobre mais colunas na rodada tambem ganha uma troca de draft
-  smartSearch: true,   // caca e duelo pela tabela: a busca apaga os nomes que a tabela ja descartou
+  assist: false,       // caca e duelo pela tabela: cada jogador pode ligar o modo acessibilidade para si
 };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -183,7 +183,7 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
     // (cartas desligadas, modo sem tabela): quem valida e a sala, na hora de
     // usar — assim ligar as cartas no lobby nao volta a subregra para o padrao
     rerollScout: Boolean(raw.rerollScout ?? base.rerollScout ?? true),
-    smartSearch: Boolean(raw.smartSearch ?? base.smartSearch ?? true),
+    assist: Boolean(raw.assist ?? base.assist ?? false),
   };
 }
 

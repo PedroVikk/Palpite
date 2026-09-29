@@ -22,6 +22,13 @@ export const SearchIcon = (props) => (
   </svg>
 );
 
+export const AccessIcon = (props) => (
+  <svg {...base} {...props}>
+    <circle cx="12" cy="4.5" r="1.8" />
+    <path d="M5 8.5 12 10l7-1.5M12 10v4.5M12 14.5l-3 6M12 14.5l3 6" />
+  </svg>
+);
+
 export const SendIcon = (props) => (
   <svg {...base} {...props}>
     <path d="M5 12h14M13 6l6 6-6 6" />

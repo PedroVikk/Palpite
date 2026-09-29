@@ -29,7 +29,7 @@ export function newForm(universeId = 'pokemon') {
     speedSame: true,
     tableHints: false,
     rerollScout: true,
-    smartSearch: true,
+    assist: false,
   };
 }
 
@@ -51,7 +51,7 @@ export const fromSettings = (s) => ({
   speedSame: s.speedSame ?? true,
   tableHints: Boolean(s.tableHints),
   rerollScout: s.rerollScout ?? true,
-  smartSearch: s.smartSearch ?? true,
+  assist: Boolean(s.assist),
 });
 
 /** O que cada chave vale de verdade no modo escolhido (o servidor desliga o resto). */
@@ -69,8 +69,8 @@ export function effective(f, comImagem = true) {
     cards: f.cards && !termo && !speed,
     picture: f.picture && comImagem && plain,
     tableHints: f.tableHints && plain,
-    // a busca esperta le a tabela: pela imagem nao ha tabela para ler
-    smartSearch: f.smartSearch && plain && !(f.picture && comImagem),
+    // o modo acessibilidade le a tabela: pela imagem nao ha tabela para ler
+    assist: f.assist && plain && !(f.picture && comImagem),
     rerollScout: f.rerollScout && f.cards && !termo && !speed && !quiz,
     card: f.card && impostor,
     untilRight: f.untilRight && !impostor,
@@ -96,7 +96,7 @@ export const toSettings = (f, comImagem = true) => {
     speedSame: f.speedSame,
     tableHints: on.tableHints,
     rerollScout: f.rerollScout,
-    smartSearch: f.smartSearch,
+    assist: f.assist,
   };
 };
 
@@ -227,7 +227,7 @@ export function summaryOf(f, universe, comImagem = true) {
 
   const extras = [
     on.cards && (on.rerollScout ? 'Cartas (+ detetive)' : 'Cartas'),
-    on.smartSearch && 'Busca esperta',
+    on.assist && 'Modo acessibilidade',
     on.picture && 'Imagem',
     on.tableHints && 'Dicas da mesa',
     on.card && 'Ficha dos chutes',

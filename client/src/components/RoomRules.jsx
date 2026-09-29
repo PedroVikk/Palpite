@@ -2,7 +2,7 @@ import Stepper from './Stepper.jsx';
 import { DraftStepper } from './CardsRules.jsx';
 import { effective } from '../lib/roomForm.js';
 import {
-  BulbIcon, CalendarIcon, CardIcon, CardsIcon, ClockIcon, ImageIcon, SearchIcon, SwapIcon, TargetIcon, TrophyIcon,
+  AccessIcon, BulbIcon, CalendarIcon, CardIcon, CardsIcon, ClockIcon, ImageIcon, SearchIcon, SwapIcon, TargetIcon, TrophyIcon,
 } from './Icon.jsx';
 
 /** Uma chave compacta da grade de regras. */
@@ -90,12 +90,12 @@ export default function RoomRules({ form, universe, comImagem = true, disabled =
         onClick={() => onChange({ tableHints: !form.tableHints })}
       />,
       <Toggle
-        key="smart" on={on.smartSearch} disabled={disabled || !plain || on.picture}
-        icon={<SearchIcon width={17} height={17} />} title="Busca esperta"
+        key="assist" on={on.assist} disabled={disabled || !plain || on.picture}
+        icon={<AccessIcon width={17} height={17} />} title="Modo acessibilidade"
         note={!plain ? 'Só na caça e no duelo.'
           : on.picture ? 'Pela imagem não há tabela para ler.'
-          : 'Apaga da busca quem a tabela já descartou.'}
-        onClick={() => onChange({ smartSearch: !form.smartSearch })}
+          : 'Cada jogador escolhe ligar: Já se sabe e busca que apaga os descartados.'}
+        onClick={() => onChange({ assist: !form.assist })}
       />,
     );
   }

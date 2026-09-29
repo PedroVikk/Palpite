@@ -48,7 +48,7 @@ const LIVE_PHASES = new Set(['choosing', 'drafting', 'playing', 'voting', 'lastG
 /** Segundos para cada um escolher a carta do draft. */
 const DRAFT_SECONDS = 20;
 
-/** Acima disto a lista de nomes possiveis nao vai no estado (so a contagem). */
+/** Acima disto a lista de nomes possiveis nao vai no estado. */
 const POSSIBLE_MAX = 1500;
 
 /** Quantas jogadas de carta o registro da rodada guarda. */
@@ -98,7 +98,8 @@ function createRoom(settings) {
     underdogs: {},      // draft aberto: jogador -> tirou do baralho generoso (vale nas trocas)
     rerolls: {},        // jogador -> trocas de draft guardadas (atravessam a partida, ver REROLL_LIMIT)
     cardLog: [],        // as cartas jogadas na rodada, para quem clicou rapido demais
-    possible: null,     // cache dos nomes que a tabela ainda nao descartou (ver possibleOf)
+    possible: null,     // cache dos nomes que a tabela ainda nao descartou (ver possibleIds)
+    assist: {},         // jogador -> ligou o modo acessibilidade (atravessa a partida)
     intel: {},          // Raio-X: jogador -> [{ key, value }] do segredo, so dele
     sieved: {},         // Peneira: jogador -> ids tirados da busca (ou das opcoes, no "Qual deles?")
     bets: {},           // Aposta: jogador -> true
@@ -336,11 +337,11 @@ function rowFor(room, row, revealed) {
 }
 
 /**
- * Os nomes que a tabela ainda nao descartou: o autocomplete apaga o resto e o
- * resumo em cima da tabela conta quantos sobram. So na caca e no duelo pela
+ * Os nomes que a tabela ainda nao descartou: a Peneira corta entre eles e o
+ * modo acessibilidade apaga o resto na busca. So na caca e no duelo pela
  * tabela, que e onde a mesa inteira ve as mesmas cores — no impostor elas
  * sao segredo, e pela imagem nao ha tabela. Refeito a cada chute (e so
- * nele), e sem a lista quando ela seria grande demais para ir no estado.
+ * nele).
  */
 function possibleIds(room) {
   if (!isHuntLike(room) || room.settings.picture || room.phase !== 'playing' || !room.rows.length) return null;
@@ -357,11 +358,16 @@ function possibleIds(room) {
   return room.possible.ids;
 }
 
-/** A busca esperta e uma regra da sala (`smartSearch`): desligada, a tela nao recebe nada. */
-function possibleOf(room) {
-  const ids = room.settings.smartSearch ? possibleIds(room) : null;
-  if (!ids) return null;
-  return { count: ids.length, ids: ids.length <= POSSIBLE_MAX ? ids : null };
+/**
+ * Modo acessibilidade: a sala libera (`settings.assist`) e cada jogador liga
+ * para si. So quem ligou recebe a lista; os outros nem a veem no estado.
+ */
+const assistOn = (room, playerId) => Boolean(room.settings.assist && playerId !== null && room.assist[playerId]);
+
+function possibleOf(room, viewerId) {
+  if (!assistOn(room, viewerId)) return null;
+  const ids = possibleIds(room);
+  return ids && ids.length <= POSSIBLE_MAX ? ids : null;
 }
 
 /**
@@ -392,12 +398,13 @@ function publicState(room, viewerId = null) {
         frozen: cardsOn(room) ? Boolean(room.frozen[p.id]) : undefined,
         shielded: cardsOn(room) ? Boolean(room.shields[p.id]) : undefined,
         rerolls: cardsOn(room) ? room.rerolls[p.id] ?? 0 : undefined,
+        assist: assistOn(room, p.id) || undefined,
       };
     }),
     turnPlayerId: room.turnPlayerId,
     chooserId: room.chooserId,
     rows: room.rows.map(row => rowFor(room, row, over)),
-    possible: possibleOf(room),
+    possible: possibleOf(room, viewerId),
     // pular, desistir e dica: so nos modos de turno pelo segredo
     turnActions: isHuntLike(room),
     hints: isHuntLike(room) && room.settings.tableHints ? room.hints : [],
@@ -1094,7 +1101,7 @@ function useCard(room, player, uid, socket, chosenId) {
       /**
        * Com a tabela a vista, a peneira tira 30% dos nomes que ela ainda nao
        * descartou — senao gastaria a maior parte do corte em nomes que
-       * ninguem chutaria (e que a busca esperta ja apaga).
+       * ninguem chutaria (e que o modo acessibilidade ja apaga).
        */
       const possible = new Set(possibleIds(room) ?? []);
       const alive = wrong.filter(item => possible.has(item.id));
@@ -2173,6 +2180,15 @@ function onConnection(socket) {
     if (!room || !player || room.hostId !== player.id || room.phase !== 'lobby') return;
     room.settings = sanitizeSettings(settings, room.settings);
     for (const id of Object.keys(room.guessesLeft)) room.guessesLeft[id] = guessBudget(room);
+    broadcast(room);
+  });
+
+  // modo acessibilidade: cada um liga ou desliga para si, a qualquer hora
+  socket.on('room:assist', (on) => {
+    const { room, player } = findPlayerRoom(socket);
+    if (!room || !player || !room.settings.assist) return;
+    if (on) room.assist[player.id] = true;
+    else delete room.assist[player.id];
     broadcast(room);
   });
 
