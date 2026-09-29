@@ -2411,6 +2411,44 @@ button.suspect:disabled { cursor: default; }
   .birthday-body h2 { font-size: 22px; }
 }
 
+/* ------------------------------------------------------ novidades ---- */
+
+/* a bolinha fica no canto do botao enquanto a nota mais nova nao foi aberta */
+.news-btn { position: relative; }
+.news-dot {
+  position: absolute; top: 8px; right: 6px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 0 2px var(--bar);
+}
+.modal.news { width: min(620px, 100%); display: flex; flex-direction: column; max-height: calc(100vh - 64px); overflow: hidden; }
+.news-head { padding: 24px 72px 16px 28px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.news-tag {
+  align-self: flex-start;
+  padding: 5px 12px;
+  border-radius: var(--pill);
+  background: color-mix(in srgb, var(--select) 14%, transparent);
+  color: var(--select-text);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.news-head h2 { font-size: 24px; font-weight: 800; }
+.news-list { overflow-y: auto; padding: 8px 28px 28px; min-height: 0; }
+.news-entry { padding: 20px 0; display: flex; flex-direction: column; gap: 10px; }
+.news-entry + .news-entry { border-top: 1px dashed var(--line-2); }
+.news-entry header { display: flex; align-items: center; gap: 10px; }
+.news-entry time { font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.news-entry h3 { font-size: 18px; font-weight: 800; }
+.news-section { display: flex; flex-direction: column; gap: 4px; }
+.news-section b { font-size: 13px; color: var(--select-text); }
+.news-section ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.news-section li { font-size: 14px; color: var(--text-dim); line-height: 1.55; }
+@media (max-width: 640px) {
+  .news-head { padding: 20px 64px 14px 18px; }
+  .news-head h2 { font-size: 20px; }
+  .news-list { padding: 4px 18px 20px; }
+}
+
 /* ------------------------------------------------------------------ termo */
 
 /* a casa encolhe com o tamanho do nome: 12 letras ainda cabem no celular */

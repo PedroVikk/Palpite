@@ -5,6 +5,7 @@ import { openThemePicker } from '../lib/theme.js';
 import Ambient from '../components/Ambient.jsx';
 import Avatar from '../components/Avatar.jsx';
 import MarkArt from '../components/MarkArt.jsx';
+import PatchNotes from '../components/PatchNotes.jsx';
 import {
   BackIcon, CheckIcon, ChartIcon, ClockIcon, EnterIcon, ExitIcon, FlameIcon,
   GoogleIcon, LinkIcon, PaletteIcon, PlusIcon, TargetIcon, TermoIcon, UsersIcon,
@@ -186,6 +187,8 @@ export default function HomeScreen({
           <button type="button" className="btn link" onClick={openThemePicker} title="Trocar o visual do jogo">
             <PaletteIcon width={16} height={16} /> Visual
           </button>
+
+          <PatchNotes />
 
           {/* o apelido é o nome da partida — continua editável mesmo logado,
               porque a conta identifica, não rebatiza */}
