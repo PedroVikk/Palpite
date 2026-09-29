@@ -1,4 +1,8 @@
 import { scopeLabel } from '@shared/universes.js';
+import {
+  SCORE_BATTLE_SURVIVOR, SCORE_CHOOSER_SURVIVED, SCORE_CREW_WINS, SCORE_IMPOSTOR_WINS, SCORE_RIGHT_VOTE,
+  SCORE_SPEED_EACH, SCORE_SPEED_WIN, scoreForTermo, scoreForWin,
+} from '@shared/score.js';
 import { universeMeta } from '../lib/universeMeta.js';
 import Avatar from './Avatar.jsx';
 import AlertPrefs from './AlertPrefs.jsx';
@@ -31,6 +35,58 @@ function Dial({ used, total }) {
 }
 
 /**
+ * Quanto a próxima jogada vale, em pontos, no modo da sala. A conta é a mesma
+ * do servidor (shared/score.js): o número aqui é o que ele vai pagar, não um
+ * palpite da tela. Onde o valor depende do que ainda não se sabe (a rapidez
+ * no "Qual deles?", o tabuleiro que será afundado), vai a faixa.
+ */
+function prizeOf(state, myId) {
+  const { mode, game } = state.settings;
+  // a Aposta de pé dobra o acerto (ver settleBets no servidor)
+  const bet = state.myBet ? ' com a Aposta' : '';
+  const double = (n) => (state.myBet ? n * 2 : n);
+
+  if (mode === 'speed') {
+    return { label: 'Cada acerto · terminar primeiro', value: `+${SCORE_SPEED_EACH} · +${SCORE_SPEED_WIN}` };
+  }
+  if (mode === 'impostor') {
+    if (state.role === 'impostor') return { label: 'Se você escapar da votação', value: `+${SCORE_IMPOSTOR_WINS}` };
+    return { label: 'Pegando o impostor (votando nele)', value: `+${SCORE_CREW_WINS} (+${SCORE_RIGHT_VOTE})` };
+  }
+  if (mode === 'quiz') {
+    return { label: `Acertando a pergunta${bet}, quanto antes melhor`, value: `+${double(50)} a +${double(100)}` };
+  }
+  if (mode === 'battle') {
+    // o melhor tabuleiro de pé para afundar: o que tem menos tiros gastos
+    const alive = state.cast.filter(id => id !== myId && !state.sunk?.[id]);
+    const best = Math.max(0, ...alive.map(id => scoreForWin(state.rows.filter(r => r.targetId === id).length + 1)));
+    if (!state.cast.includes(myId) || state.sunk?.[myId] || !best) return null;
+    return { label: 'Afundando agora · ficando de pé', value: `até +${best} · +${SCORE_BATTLE_SURVIVOR}` };
+  }
+  if (game === 'termo') {
+    const t = state.termo;
+    // no duelo do Termo quem escolheu a palavra so assiste
+    if (!t || state.chooserId === myId) return null;
+    const done = t.done?.[myId];
+    if (done) return done.solved ? { label: 'Você fechou a palavra', value: `+${done.points}` } : null;
+    const used = t.boards?.[myId]?.length ?? 0;
+    const first = !Object.values(t.done ?? {}).some(d => d.solved);
+    return {
+      label: first ? 'Acertando na próxima linha (e primeiro)' : 'Acertando na próxima linha',
+      value: `+${scoreForTermo(used + 1, t.tries, first)}`,
+    };
+  }
+  // duelo: quem escondeu não chuta, e só pontua se a mesa não acertar
+  if (state.chooserId === myId) {
+    return state.settings.guessesPerPlayer
+      ? { label: 'Se ninguém acertar o seu segredo', value: `+${SCORE_CHOOSER_SURVIVED}` }
+      : { label: 'Sem teto de chutes, quem esconde não pontua', value: '—' };
+  }
+  // caça e duelo: o acerto vale menos a cada chute da mesa, e o próximo conta
+  return { label: `Acertando no próximo chute${bet}`, value: `+${double(scoreForWin(state.rows.length + 1))}` };
+}
+
+/**
  * Os três painéis da direita. Tudo aqui sai do estado que o servidor já manda —
  * nenhum número é estimado, porque um placar que erra por conta própria é pior
  * do que não existir.
@@ -49,6 +105,10 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
   const epocas = universe.scope ? scopeLabel(universe, state.settings.scope) : null;
 
   const nextUp = state.players.find(p => p.id === state.turnPlayerId);
+  // o valor da próxima jogada só com a rodada aberta: no intervalo ela já pagou
+  const prize = ['playing', 'drafting', 'choosing', 'voting', 'lastGuess'].includes(state.phase)
+    ? prizeOf(state, myId)
+    : null;
 
   return (
     <aside className="side">
@@ -78,6 +138,12 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
           <span>Chutes restantes</span>
           <b>{budget ? `${me?.guessesLeft ?? 0} de ${budget}` : 'sem limite'}</b>
         </div>
+        {prize && (
+          <div className="perf-foot prize">
+            <span>{prize.label}</span>
+            <b>{prize.value}</b>
+          </div>
+        )}
       </section>
 
       {/* o cerco da sala: dá para esquecer que só a Gen 1 está valendo */}

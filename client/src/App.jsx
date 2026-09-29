@@ -147,6 +147,10 @@ export default function App() {
     socket.on('room:error', showToast);
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
+    // o socket nasce conectando (ver socket.js): numa rede rapida o `connect`
+    // pode chegar antes deste efeito, e o F5 ficaria na home com a cadeira
+    // guardada e ninguem sentando nela
+    if (socket.connected) onConnect();
     return () => {
       socket.off('room:state', setState);
       socket.off('room:error', showToast);

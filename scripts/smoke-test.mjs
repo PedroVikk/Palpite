@@ -641,14 +641,15 @@ try {
   console.log('\n== Batalha naval ==');
   const frota = await Promise.all(['Nami', 'Zoro', 'Luffy'].map(connect));
   const salaFrota = await new Promise(res => frota[0].socket.emit('room:create', {
-    name: 'Nami', settings: { mode: 'battle', universe: 'pokemon', groups: ['1'], rounds: 5, turnSeconds: 30 },
+    name: 'Nami', settings: { mode: 'battle', universe: 'pokemon', groups: ['1'], rounds: 1, turnSeconds: 30 },
   }, res));
   frota[0].id = salaFrota.playerId;
   for (const [i, g] of frota.slice(1).entries()) {
     const r = await new Promise(res => g.socket.emit('room:join', { code: salaFrota.code, name: ['Zoro', 'Luffy'][i] }, res));
     g.id = r.playerId;
   }
-  check('a batalha e uma partida de uma batalha so', salaFrota.state.settings.rounds === 1);
+  // a batalha aceita varias rodadas (uma batalha inteira cada); aqui, uma so
+  check('a partida pode ser de uma batalha so', salaFrota.state.settings.rounds === 1);
   check('e sem teto de chutes', salaFrota.state.settings.guessesPerPlayer === 0);
   frota[0].socket.emit('game:start');
   await Promise.all(frota.map(g => until(g, s => s.phase === 'choosing', 'escolha da batalha')));
@@ -924,7 +925,7 @@ try {
 
   // As cartas nos outros modos: o draft vem depois do segredo escondido (duelo,
   // batalha) ou antes da pergunta ("Qual deles?"), e o baralho so traz as
-  // cartas que tem o que fazer ali (ver `off` em src/cards.js).
+  // cartas que tem o que fazer ali (ver `needs` em src/cards.js).
   console.log('\n== Cartas em todos os modos ==');
   const semVez = ['tempo', 'duplo', 'congelar', 'pressa'];
   const olhamSegredo = ['raiox', 'peneira', 'letra', 'bussola', 'aposta'];
@@ -1016,7 +1017,8 @@ try {
     name: 'Duelista', settings: { mode: 'duel', rounds: 2, guessesPerPlayer: 0 },
   }, res));
   check('duelo fixa as rodadas', roomDuelo.state.settings.rounds === 2);
-  check('duelo recusa o "ate acertar" e mantem teto de chutes', roomDuelo.state.settings.guessesPerPlayer > 0);
+  // o infinito vale no duelo tambem: a rodada so fecha no acerto (ver sanitizeSettings)
+  check('duelo aceita o "ate acertar"', roomDuelo.state.settings.guessesPerPlayer === 0);
 
   // ------------------------------------------- sorteio de quem abre a rodada
   console.log('\n== Sorteio da largada ==');

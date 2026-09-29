@@ -42,6 +42,13 @@ const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sem I, O, 0, 1
 const RECONNECT_MS = 5 * 60 * 1000;
 const RECONNECT_MIN = RECONNECT_MS / 60000;
 
+/**
+ * No lobby a cadeira de quem caiu espera pouco: nao ha placar em jogo, e o
+ * tempo e o de um F5 — sem isto, recarregar a pagina na sala de espera tirava
+ * a pessoa da lista (e o host perdia a coroa).
+ */
+const LOBBY_GRACE_MS = 30 * 1000;
+
 /** Fases em que ha partida rolando: so nelas a cadeira vale ser guardada. */
 const LIVE_PHASES = new Set(['choosing', 'drafting', 'playing', 'voting', 'lastGuess', 'roundEnd']);
 
@@ -128,6 +135,9 @@ function createRoom(settings) {
     winnerId: null,
     message: null,
     summary: null,
+    // o host que caiu (F5, sinal ruim): a coroa passa para outro enquanto isso
+    // e volta para ele quando ele voltar (ver joinRoom)
+    returningHost: null,
     lastActivity: Date.now(),
   };
   rooms.set(room.code, room);
@@ -887,6 +897,28 @@ function endImpostorRound(room, how, finalGuess = null, leaverName = null) {
 
 // ---------------------------------------------------------------- cartas
 
+/**
+ * O retrato da sala que o baralho olha para saber quais cartas tem o que
+ * fazer nela (ver NEEDS em src/cards.js). Tirado na hora de cada sorteio: se
+ * a mesa encolhe para uma pessoa so, o proximo draft ja sai sem ataque.
+ */
+function tableOf(room) {
+  const players = activePlayers(room).length;
+  const { rounds, draftEvery } = room.settings;
+  // o proximo draft depois da rodada atual (a do draft aberto, se for o caso)
+  const nextDraft = room.round + draftEvery - ((room.round - 1) % draftEvery);
+  return {
+    mode: room.settings.mode,
+    // a vez so tem relogio com o tempo ligado e gente para revezar (ver armTurnTimer)
+    clock: room.settings.turnSeconds > 0 && players >= 2,
+    turnSeconds: room.settings.turnSeconds,
+    players,
+    // os grupos que o sorteio pode tirar de fato (o recorte tambem corta)
+    groups: new Set(pool(room).map(item => item.group)).size,
+    nextDraft: rounds === 0 || nextDraft <= rounds,
+  };
+}
+
 /** Esta rodada tem draft e ele ainda nao saiu? A cada N rodadas, a primeira sempre. */
 function draftDue(room) {
   return cardsOn(room)
@@ -903,7 +935,7 @@ const afterDraft = (room) => (isQuiz(room) ? askQuestion(room) : beginGuessing(r
  * uma — so quando ha ultimo de fato,
  * senao na primeira rodada, todo mundo zerado, seriam todos "ultimo". Mao
  * cheia nao recebe oferta: guardar carta demais vira acumular, nao escolher.
- * O baralho e o do modo da sala (ver `off` em src/cards.js).
+ * O baralho e o que a sala comporta (ver tableOf, e `needs` em src/cards.js).
  */
 function startDraft(room) {
   room.draftedRound = room.round;
@@ -913,10 +945,11 @@ function startDraft(room) {
   const someoneBehind = new Set(scores).size > 1;
   room.offers = {};
   room.underdogs = {};
+  const table = tableOf(room);
   for (const p of active) {
     if ((room.hands[p.id]?.length ?? 0) >= HAND_LIMIT) continue;
     const underdog = someoneBehind && p.score === lowest;
-    room.offers[p.id] = drawOffer(room.settings.mode, underdog);
+    room.offers[p.id] = drawOffer(table, underdog);
     room.underdogs[p.id] = underdog;
     // quem esta em ultimo e nao tem troca nenhuma leva uma: o vencedor ganha
     // trocas rodada a rodada, e sem isto o draft viraria bola de neve
@@ -1042,8 +1075,9 @@ function useCard(room, player, uid, socket, chosenId) {
   if (at < 0) return socket.emit('room:error', 'Essa carta não está na sua mão.');
   const used = hand[at];
   const card = CARDS[used.id];
-  // o draft ja so oferece as do modo; isto segura um pedido torto
-  if (card && !playsIn(used.id, room.settings.mode)) return socket.emit('room:error', `${card.name} não vale neste modo.`);
+  // o draft ja so oferece as que a sala comporta; isto segura um pedido torto,
+  // e a carta que ficou sem uso na mao (a mesa encolheu para uma pessoa so)
+  if (card && !playsIn(used.id, tableOf(room))) return socket.emit('room:error', `${card.name} não tem o que fazer nesta sala agora.`);
   const universe = universeOf(room);
   const secret = secretOf(room);
   const ofSecret = isQuiz(room) ? 'da resposta' : 'do segredo';
@@ -1228,7 +1262,7 @@ function useCard(room, player, uid, socket, chosenId) {
       const count = Math.min(2, space);
       for (let i = 0; i < count; i++) {
         room.cardSeq += 1;
-        hand.push({ uid: room.cardSeq, id: drawCard(room.settings.mode) });
+        hand.push({ uid: room.cardSeq, id: drawCard(tableOf(room)) });
       }
       detail = `: ${count} ${count === 1 ? 'carta nova' : 'cartas novas'} na mão`;
       break;
@@ -1262,7 +1296,7 @@ function useCard(room, player, uid, socket, chosenId) {
       hand.forEach((c, i) => {
         if (c.uid === used.uid) return;
         room.cardSeq += 1;
-        hand[i] = { uid: room.cardSeq, id: drawCard(room.settings.mode) };
+        hand[i] = { uid: room.cardSeq, id: drawCard(tableOf(room)) };
       });
       detail = `: ${others.length} ${others.length === 1 ? 'carta nova' : 'cartas novas'} na mão`;
       break;
@@ -2051,6 +2085,10 @@ function joinRoom(socket, room, name, playerId, cb) {
     // quem entra com a rodada em andamento so joga a partir da proxima
     room.guessesLeft[playerId] = room.phase === 'lobby' ? guessBudget(room) : 0;
   }
+  if (existing && room.returningHost === playerId) {
+    room.hostId = playerId;
+    room.returningHost = null;
+  }
   if (!room.hostId || !room.players.get(room.hostId)?.connected) room.hostId = playerId;
 
   socket.data.code = room.code;
@@ -2070,6 +2108,7 @@ function joinRoom(socket, room, name, playerId, cb) {
 
 /** Tira o jogador da sala de vez: cadeira liberada, placar esquecido. */
 function dropPlayer(room, id) {
+  if (room.returningHost === id) room.returningHost = null;
   room.players.delete(id);
   room.order = room.order.filter(x => x !== id);
   delete room.guessesLeft[id];
@@ -2086,16 +2125,33 @@ function handleDisconnect(socket, permanent) {
   const { room, player } = findPlayerRoom(socket);
   if (!room || !player) return;
   socket.leave(room.code);
+  delete socket.data.code;
 
-  const keepSeat = !permanent && room.phase !== 'lobby';
+  /**
+   * A cadeira ja e de outra conexao: a mesma pessoa voltou (F5, rede trocada)
+   * antes de o servidor perceber que a conexao velha tinha morrido — com
+   * long-polling isso leva quase um minuto. A queda que chega agora e da
+   * velha, e marcar o jogador como caido o deixaria sem vez com a aba aberta
+   * (e, passada a janela, fora da sala).
+   */
+  if (player.socketId !== socket.id) return;
+
+  const keepSeat = !permanent;
   if (keepSeat) {
     player.connected = false;
     player.leftAt = Date.now();
+    if (room.phase === 'lobby') holdLobbySeat(room, player.id);
   } else {
     dropPlayer(room, player.id);
   }
 
-  if (room.hostId === player.id) room.hostId = activePlayers(room)[0]?.id ?? null;
+  if (room.hostId === player.id) {
+    room.hostId = activePlayers(room)[0]?.id ?? null;
+    if (keepSeat) room.returningHost = player.id;
+  }
+
+  // no lobby, cair e so um F5 ate que se prove o contrario: sem recado
+  if (room.phase === 'lobby') return broadcast(room);
 
   const verb = keepSeat ? 'caiu' : 'saiu';
   const seat = keepSeat ? ` A vaga fica guardada por ${RECONNECT_MIN} minutos.` : '';
@@ -2160,6 +2216,21 @@ function handleDisconnect(socket, permanent) {
   broadcast(room);
 }
 
+/**
+ * A cadeira de quem caiu no lobby: se ele nao voltar a tempo, sai da lista.
+ * Se a partida comecar nesse meio tempo, a cadeira passa a valer como a de
+ * quem caiu com a partida rolando (a faxina la de baixo cuida dela).
+ */
+function holdLobbySeat(room, id) {
+  setTimeout(() => {
+    const p = room.players.get(id);
+    if (rooms.get(room.code) !== room || !p || p.connected || room.phase !== 'lobby') return;
+    dropPlayer(room, id);
+    if (!room.players.get(room.hostId)?.connected) room.hostId = activePlayers(room)[0]?.id ?? null;
+    broadcast(room);
+  }, LOBBY_GRACE_MS).unref();
+}
+
 /** Um socket = uma aba aberta. A identidade do jogador vem do playerId, nao daqui. */
 function onConnection(socket) {
   socket.on('room:create', ({ name, settings }, cb) => {
@@ -2213,6 +2284,32 @@ function onConnection(socket) {
     // embaralhada na largada: em ordem de chegada o host esconderia sempre primeiro
     room.chooserQueue = shuffle(activePlayers(room).map(p => p.id));
     startRound(room);
+  });
+
+  /**
+   * Fim de partida: o host leva a mesa de volta para a sala de espera, com a
+   * mesma gente e as regras de antes, para mexer no que quiser e comecar
+   * outra. O placar zera no "Começar partida", como sempre.
+   */
+  socket.on('room:reset', () => {
+    const { room, player } = findPlayerRoom(socket);
+    if (!room || !player || room.hostId !== player.id || room.phase !== 'gameOver') return;
+    clearTimer(room);
+    room.phase = 'lobby';
+    room.round = 0;
+    room.rows = [];
+    room.secret = null;
+    room.winnerId = null;
+    room.turnPlayerId = null;
+    room.chooserId = null;
+    room.message = null;
+    room.summary = null;
+    for (const p of room.players.values()) {
+      room.guessesLeft[p.id] = guessBudget(room);
+      // quem caiu durante a partida ganha o prazo do lobby para voltar
+      if (!p.connected) holdLobbySeat(room, p.id);
+    }
+    broadcast(room);
   });
 
   socket.on('game:choose', ({ pokemonId }) => {
@@ -2377,8 +2474,8 @@ function onConnection(socket) {
     const at = Number(index);
     if (!offer || !offer[at]) return;
     if (!(room.rerolls[player.id] > 0)) return socket.emit('room:error', 'Você não tem troca guardada.');
-    const fresh = rerollOne(room.settings.mode, offer, room.underdogs[player.id]);
-    if (!fresh) return socket.emit('room:error', 'O baralho deste modo não tem outra carta para trocar.');
+    const fresh = rerollOne(tableOf(room), offer, room.underdogs[player.id]);
+    if (!fresh) return socket.emit('room:error', 'O baralho desta sala não tem outra carta para trocar.');
     room.rerolls[player.id] -= 1;
     room.offers[player.id] = offer.map((id, i) => (i === at ? fresh : id));
     broadcast(room);
@@ -2394,7 +2491,7 @@ function onConnection(socket) {
     const at = hand.findIndex(c => c.uid === Number(uid) && c.id === 'recompra');
     if (at < 0) return socket.emit('room:error', 'A Recompra não está na sua mão.');
     hand.splice(at, 1);
-    room.offers[player.id] = drawOffer(room.settings.mode, room.underdogs[player.id], Math.random, offer);
+    room.offers[player.id] = drawOffer(tableOf(room), room.underdogs[player.id], Math.random, offer);
     logCard(room, { id: 'recompra', by: player.id, target: null, secret: false, text: `${player.name} usou Recompra e trocou as cartas do draft.` });
     broadcast(room);
     notice(room, 'card', `${player.name} usou Recompra no draft.`, player.id);

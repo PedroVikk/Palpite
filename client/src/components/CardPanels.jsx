@@ -17,17 +17,17 @@ import TimeBar from './TimeBar.jsx';
  */
 export const CARD_FACES = {
   tempo: { name: 'Tempo extra', rarity: 'common', colors: ['#7AB8FF', '#2F5FD0'], text: '+20 s no relógio da sua vez.' },
-  aposta: { name: 'Aposta', rarity: 'common', colors: ['#F6C453', '#C27A12'], text: 'Se você acertar esta rodada, leva o dobro. Se outro acertar, perde 20.', quiz: 'Se você acertar esta pergunta, leva o dobro. Se errar, perde 20.' },
-  peneira: { name: 'Peneira', rarity: 'common', colors: ['#7BD389', '#2E8B57'], text: 'Tira 30% dos nomes errados da sua busca nesta rodada.', quiz: 'Apaga uma opção errada da pergunta, só para você.' },
-  letra: { name: 'Letra', rarity: 'common', colors: ['#FFB3C7', '#C2185B'], text: 'Revela uma letra ao acaso do nome do segredo, e onde ela fica. Só para você.', quiz: 'Revela uma letra ao acaso do nome da resposta, e onde ela fica. Só para você.' },
+  aposta: { name: 'Aposta', rarity: 'uncommon', colors: ['#F6C453', '#C27A12'], text: 'Se você acertar esta rodada, leva o dobro. Se outro acertar, perde 20.', quiz: 'Se você acertar esta pergunta, leva o dobro. Se errar, perde 20.' },
+  peneira: { name: 'Peneira', rarity: 'uncommon', colors: ['#7BD389', '#2E8B57'], text: 'Tira 30% dos nomes errados da sua busca nesta rodada.', quiz: 'Apaga uma opção errada da pergunta, só para você.' },
+  letra: { name: 'Letra', rarity: 'legendary', colors: ['#FFB3C7', '#C2185B'], text: 'Revela uma letra ao acaso do nome do segredo, e onde ela fica. Só para você.', quiz: 'Revela uma letra ao acaso do nome da resposta, e onde ela fica. Só para você.' },
   bussola: { name: 'Bússola', rarity: 'common', colors: ['#E3CFA6', '#7C5A33'], text: 'Mostra de qual grupo é o segredo (a geração, a vila, a casa...). Só para você.', quiz: 'Mostra de qual grupo é a resposta (a geração, a vila, a casa...). Só para você.' },
-  reforco: { name: 'Reforço', rarity: 'common', colors: ['#D9F99D', '#4D7C0F'], text: 'Compra duas cartas para a sua mão.' },
+  reforco: { name: 'Reforço', rarity: 'uncommon', colors: ['#D9F99D', '#4D7C0F'], text: 'Compra duas cartas para a sua mão.' },
   raiox: { name: 'Raio-X', rarity: 'rare', colors: ['#5EEAD4', '#0E7490'], text: 'Revela uma coluna do segredo, só para você.', quiz: 'Revela uma coluna da resposta, só para você.' },
   duplo: { name: 'Chute duplo', rarity: 'rare', colors: ['#FFD84D', '#E07A10'], text: 'Nesta vez você chuta duas vezes seguidas.' },
-  embaralhar: { name: 'Embaralhar', rarity: 'rare', colors: ['#C4B5FD', '#6D28D9'], text: 'Troca todas as outras cartas da sua mão por cartas novas.' },
+  embaralhar: { name: 'Embaralhar', rarity: 'uncommon', colors: ['#C4B5FD', '#6D28D9'], text: 'Troca todas as outras cartas da sua mão por cartas novas.' },
   escudo: { name: 'Escudo', rarity: 'rare', colors: ['#CBD5E1', '#475569'], text: 'Até o fim da rodada, cartas de ataque não pegam em você.' },
   pressa: { name: 'Pressa', rarity: 'rare', target: true, attack: true, colors: ['#FDBA74', '#C2410C'], text: 'Quem você escolher tem só 15 s na próxima vez.' },
-  espiar: { name: 'Espiar', rarity: 'rare', target: true, colors: ['#F0ABFC', '#86198F'], text: 'Mostra as cartas da mão de quem você escolher. Só para você.' },
+  espiar: { name: 'Espiar', rarity: 'common', target: true, colors: ['#F0ABFC', '#86198F'], text: 'Mostra as cartas da mão de quem você escolher. Só para você.' },
   espelho: { name: 'Espelho', rarity: 'rare', colors: ['#CFFAFE', '#6366F1'], text: 'A próxima carta de ataque usada em você volta para quem usou. Ninguém vê que você tem.' },
   congelar: { name: 'Congelar', rarity: 'epic', target: true, attack: true, colors: ['#BFE9FF', '#4A90D9'], text: 'Quem você escolher perde a próxima vez.' },
   assalto: { name: 'Assalto', rarity: 'epic', target: true, attack: true, colors: ['#FF8A8A', '#9B1C31'], text: 'Rouba 25 pontos de quem você escolher.' },
@@ -36,7 +36,7 @@ export const CARD_FACES = {
   recompra: { name: 'Recompra', rarity: 'common', draft: true, colors: ['#99F6E4', '#0F766E'], text: 'No próximo draft, troca as três cartas oferecidas por três novas.' },
 };
 
-const RARITY = { common: 'Comum', rare: 'Rara', epic: 'Épica' };
+const RARITY = { common: 'Comum', uncommon: 'Incomum', rare: 'Rara', epic: 'Épica', legendary: 'Lendária' };
 const UNKNOWN = { name: 'Carta', rarity: 'common', colors: ['#C9C2B3', '#6F665A'], text: '' };
 const faceOf = (id) => CARD_FACES[id] ?? { ...UNKNOWN, name: id };
 /** O texto da carta no modo da sala (ver `quiz` em CARD_FACES). */
@@ -403,6 +403,9 @@ export function HandBar({ state, universe, myTurn, myId }) {
   const { mode } = state.settings;
   const quiz = mode === 'quiz';
   const [aiming, setAiming] = useState(null);   // a carta com alvo esperando a escolha
+  const [confirming, setConfirming] = useState(null); // a carta sem alvo esperando o "sim"
+  // a carta ampliada ao passar o mouse: na mão ela é pequena demais para ler
+  const [peek, setPeek] = useState(null);       // { id, rect }
   const perks = [];
   const sieved = state.mySieve?.length ?? 0;
   if (state.myBet) perks.push('Aposta de pé');
@@ -415,14 +418,38 @@ export function HandBar({ state, universe, myTurn, myId }) {
   if (state.myShield) perks.push('Escudo de pé até o fim da rodada');
   if (state.myMirror) perks.push('Espelho de pé, só você sabe');
 
+  /**
+   * Tocar na carta não a gasta: abre a confirmação (ou, na carta com alvo, a
+   * escolha de em quem, que já é a confirmação dela). Um toque errado na mão
+   * custava a carta.
+   */
   const play = (card) => {
     if (!myTurn || faceOf(card.id).draft) return;
+    setPeek(null);
     if (faceOf(card.id).target) setAiming(card);
-    else socket.emit('game:card', { uid: card.uid });
+    else setConfirming(card);
   };
 
+  // a vez acabou com a janela aberta (tempo, congelado): a carta não vale mais agora
   useEffect(() => {
-    if (!myTurn || aiming) return undefined;
+    if (!myTurn) {
+      setConfirming(null);
+      setAiming(null);
+    }
+  }, [myTurn]);
+  // a carta saiu da mão (Furto, Troca) enquanto se decidia
+  const handKey = hand.map(card => card.uid).join(',');
+  useEffect(() => {
+    const has = (card) => card && hand.some(c => c.uid === card.uid);
+    setConfirming(card => (has(card) ? card : null));
+    setAiming(card => (has(card) ? card : null));
+    setPeek(null);
+  }, [handKey]);
+
+  const showPeek = (id, event) => setPeek({ id, rect: event.currentTarget.getBoundingClientRect() });
+
+  useEffect(() => {
+    if (!myTurn || aiming || confirming) return undefined;
     const onKey = (event) => {
       if (!event.altKey || event.ctrlKey || event.metaKey) return;
       const at = digitOf(event);
@@ -444,16 +471,26 @@ export function HandBar({ state, universe, myTurn, myId }) {
             {hand.map((card, index) => {
               const draftOnly = Boolean(faceOf(card.id).draft);
               return (
-                <CardButton
+                // o invólucro recebe o mouse mesmo com o botão apagado (fora
+                // da vez): ver a carta vale a qualquer hora
+                <span
                   key={card.uid}
-                  id={card.id}
-                  size="sm"
-                  mode={mode}
-                  disabled={!myTurn || draftOnly}
-                  kbd={myTurn && !draftOnly ? `Alt+${index + 1}` : null}
-                  note={draftOnly ? 'Guardada para o próximo draft: lá ela troca as três cartas.' : null}
-                  onClick={() => play(card)}
-                />
+                  className="hand-slot"
+                  onPointerEnter={(event) => { if (event.pointerType === 'mouse') showPeek(card.id, event); }}
+                  onPointerLeave={() => setPeek(null)}
+                  onFocus={(event) => showPeek(card.id, event)}
+                  onBlur={() => setPeek(null)}
+                >
+                  <CardButton
+                    id={card.id}
+                    size="sm"
+                    mode={mode}
+                    disabled={!myTurn || draftOnly}
+                    kbd={myTurn && !draftOnly ? `Alt+${index + 1}` : null}
+                    note={draftOnly ? 'Guardada para o próximo draft: lá ela troca as três cartas.' : null}
+                    onClick={() => play(card)}
+                  />
+                </span>
               );
             })}
           </div>
@@ -477,6 +514,18 @@ export function HandBar({ state, universe, myTurn, myId }) {
         <p className="f-help">
           Toque numa carta (ou <kbd>Alt</kbd>+número) para usar. Depois é só {quiz ? 'responder' : 'chutar'}.
         </p>
+      )}
+      {peek && !aiming && !confirming && <CardPeek id={peek.id} rect={peek.rect} mode={mode} />}
+      {confirming && (
+        <ConfirmCardModal
+          card={confirming}
+          mode={mode}
+          onClose={() => setConfirming(null)}
+          onConfirm={() => {
+            socket.emit('game:card', { uid: confirming.uid });
+            setConfirming(null);
+          }}
+        />
       )}
       {aiming && (
         <TargetModal
@@ -590,6 +639,52 @@ function TargetModal({ card, state, myId, onClose, onPick }) {
           })}
         </ul>
         <button type="button" className="btn link" onClick={onClose}>Cancelar</button>
+      </div>
+    </Modal>
+  );
+}
+
+/** Largura da carta ampliada (a .pcard.lg) e a folga até a borda da tela. */
+const PEEK_W = 176;
+const PEEK_GAP = 12;
+
+/**
+ * A carta da mão ampliada, com o texto inteiro, enquanto o mouse está em cima
+ * dela. Flutua acima da carta (abaixo, se não couber) e não pega clique: o
+ * clique continua indo para a carta de verdade, embaixo.
+ */
+function CardPeek({ id, rect, mode }) {
+  const half = PEEK_W / 2 + PEEK_GAP;
+  const left = Math.min(Math.max(rect.left + rect.width / 2, half), innerWidth - half);
+  // cabe em cima? a carta grande tem uns 1,45 de altura por largura, mais o texto
+  const above = rect.top > PEEK_W * 1.75;
+  const style = above
+    ? { left, bottom: innerHeight - rect.top + PEEK_GAP }
+    : { left, top: rect.bottom + PEEK_GAP };
+  return (
+    <div className={`card-peek ${above ? 'up' : 'down'}`} style={style} aria-hidden="true">
+      <PlayCard id={id} size="lg" mode={mode} />
+    </div>
+  );
+}
+
+/**
+ * "Você confirma que quer usar esta carta?" — a carta grande, o que ela faz, e
+ * os dois botões. O foco fica no Usar: quem chegou por Alt+número confirma com
+ * Enter, e Esc desiste.
+ */
+function ConfirmCardModal({ card, mode, onClose, onConfirm }) {
+  const face = faceOf(card.id);
+  return (
+    <Modal label={`Usar ${face.name}`} onClose={onClose} className="confirm card-confirm" closeLabel="Cancelar">
+      <div className="modal-main">
+        <PlayCard id={card.id} size="lg" mode={mode} />
+        <h2>Usar {face.name}?</h2>
+        <p>{textOf(card.id, mode)} Depois de usada, a carta sai da sua mão.</p>
+        <div className="confirm-actions">
+          <button type="button" className="btn ghost" onClick={onClose}>Cancelar</button>
+          <button type="button" className="btn primary" onClick={onConfirm} autoFocus>Usar carta</button>
+        </div>
       </div>
     </Modal>
   );

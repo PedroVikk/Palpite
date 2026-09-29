@@ -135,7 +135,8 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   const budget = state.settings.guessesPerPlayer;
   const myGuesses = state.rows.filter(row => row.playerId === myId).length;
 
-  const restart = () => socket.emit('game:start');
+  // fim de partida: o host leva todo mundo de volta para a sala de espera
+  const reconfigure = () => socket.emit('room:reset');
 
   function submit(chosen) {
     if (!chosen) return toast('Escolha um nome da lista.');
@@ -199,8 +200,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
             universe={universe}
             myId={myId}
             isHost={isHost}
-            onRestart={restart}
-            onLeave={onLeave}
+            onReconfigure={reconfigure}
           />
         </main>
         {speed && <SpeedFx state={state} myId={myId} seenRef={speedSeen} />}

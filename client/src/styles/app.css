@@ -1436,6 +1436,9 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
   color: var(--muted);
 }
 .perf-foot b { color: var(--text-dim); font-weight: 600; }
+/* quanto a próxima jogada vale: o número que a pessoa está disputando */
+.perf-foot.prize { margin-top: 8px; padding-top: 8px; align-items: baseline; }
+.perf-foot.prize b { flex: none; color: var(--hit-text); font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; }
 
 .hint-body {
   padding: 13px 14px;
@@ -2026,6 +2029,7 @@ button.suspect:disabled { cursor: default; }
 .pcard.md { --w: 150px; }
 .pcard.lg { --w: 176px; }
 .pcard.xl { --w: min(250px, 58vw); }
+.pcard.uncommon { --frame: linear-gradient(160deg, #C8F2CF, #3FA65A 70%, #2C7A43); }
 .pcard.rare { --frame: linear-gradient(160deg, #A9D4FF, #3B6FD1 70%, #2A4FA0); }
 .pcard.epic { --frame: linear-gradient(160deg, #F0C8FF, #8A45E0 55%, #F5C451); }
 /* a épica tem um brilho que passa pela moldura de tempos em tempos */
@@ -2039,6 +2043,35 @@ button.suspect:disabled { cursor: default; }
   animation: card-shine 3.2s ease-in-out infinite;
 }
 @keyframes card-shine { 0%, 55% { transform: translateX(-60%); } 100% { transform: translateX(60%); } }
+/* a lendária, acima da épica: moldura de ouro, um halo que gira por trás e o
+   brilho passando mais vezes — dá para reconhecer de longe, na mão de alguém */
+.pcard.legendary {
+  --frame: linear-gradient(160deg, #FFF3B0, #F5B930 35%, #E0701B 60%, #FFE27A);
+  box-shadow: 0 1px 0 #FFFFFFB3 inset, 0 0 0 1px #F5C45199, 0 10px 28px -10px #E0701BB3;
+}
+.pcard.legendary::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  z-index: -1;
+  pointer-events: none;
+  background: conic-gradient(from 0deg, #FFF3B000, #FFFFFFB3, #FFF3B000 30%, #FFE27A99, #FFF3B000 65%, #FFFFFF99, #FFF3B000);
+  animation: card-halo 6s linear infinite;
+}
+.pcard.legendary::after {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 40%, #FFFFFF8C 50%, transparent 60%);
+  animation: card-shine 2.2s ease-in-out infinite;
+}
+.pcard.legendary .pc-rar { background: linear-gradient(90deg, #F5B930, #E0701B); color: #fff; }
+@keyframes card-halo { to { transform: rotate(1turn); } }
+@media (prefers-reduced-motion: reduce) {
+  .pcard.legendary::before, .pcard.legendary::after { animation: none; }
+}
 
 .pc-face {
   flex: 1;
@@ -2099,10 +2132,32 @@ button.suspect:disabled { cursor: default; }
 .hand-cards .k { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
 /* a mão em leque: cada carta um pouco torta, e a vizinha por baixo */
 .hand-row { display: flex; padding: 10px 6px 2px; }
-.hand-row .pcard-btn + .pcard-btn { margin-left: -14px; }
-.hand-row .pcard-btn:nth-child(odd) { transform: rotate(-3deg); }
-.hand-row .pcard-btn:nth-child(even) { transform: rotate(2.5deg) translateY(3px); }
-.hand-row .pcard-btn:hover:not(:disabled) { transform: translateY(-12px) rotate(0deg) scale(1.06); z-index: 1; }
+/* cada carta mora num invólucro: é ele que recebe o mouse com a carta apagada,
+   então o botão apagado deixa o ponteiro passar para ele */
+.hand-slot { position: relative; display: block; }
+.hand-slot + .hand-slot { margin-left: -14px; }
+.hand-slot:hover { z-index: 1; }
+.hand-row .pcard-btn:disabled { pointer-events: none; }
+.hand-row .hand-slot:nth-child(odd) .pcard-btn { transform: rotate(-3deg); }
+.hand-row .hand-slot:nth-child(even) .pcard-btn { transform: rotate(2.5deg) translateY(3px); }
+.hand-row .hand-slot .pcard-btn:hover:not(:disabled) { transform: translateY(-12px) rotate(0deg) scale(1.06); }
+
+/* a carta da mão ampliada, flutuando sobre ela enquanto o mouse está em cima */
+.card-peek {
+  position: fixed;
+  z-index: 60;
+  transform: translateX(-50%);
+  pointer-events: none;
+  filter: drop-shadow(0 24px 40px #00000059);
+  animation: card-peek .16s cubic-bezier(.2, .9, .3, 1.2);
+}
+.card-peek.up { transform-origin: 50% 100%; }
+.card-peek.down { transform-origin: 50% 0; }
+@keyframes card-peek { from { opacity: 0; scale: .85; } }
+@media (prefers-reduced-motion: reduce) { .card-peek { animation: none; } }
+
+/* a confirmação de usar a carta: a carta grande no alto da janela */
+.modal.card-confirm .pcard { margin-bottom: 4px; }
 .hand-intel { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
 .hand-intel .fact { font-size: 12.5px; padding: 4px 10px; border-radius: var(--pill); border: 1px solid color-mix(in srgb, var(--select) 22%, transparent); background: color-mix(in srgb, var(--select) 8%, transparent); }
 .hand-intel .fact.dim { border-color: var(--line); background: color-mix(in srgb, var(--tint) 3%, transparent); color: var(--text-dim); }

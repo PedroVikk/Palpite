@@ -2,7 +2,7 @@ import Avatar from './Avatar.jsx';
 import Reveal from './Reveal.jsx';
 import { BattleSecrets } from './BattlePanels.jsx';
 import {
-  CalendarIcon, ExitIcon, RestartIcon, TargetIcon, TrophyIcon, UsersIcon,
+  CalendarIcon, RestartIcon, TargetIcon, TrophyIcon, UsersIcon,
 } from './Icon.jsx';
 
 const ORDINAL = ['1º', '2º', '3º'];
@@ -14,7 +14,7 @@ const ORDINAL = ['1º', '2º', '3º'];
  *
  * Trofeu e pódio só aparecem se alguem pontuou: coroar um 0 a 0 e estranho.
  */
-export default function GameOver({ state, universe, myId, isHost, onRestart, onLeave }) {
+export default function GameOver({ state, universe, myId, isHost, onReconfigure }) {
   const ranking = [...state.players].sort((a, b) => b.score - a.score);
   const top = ranking[0]?.score ?? 0;
   const someoneScored = top > 0;
@@ -112,17 +112,17 @@ export default function GameOver({ state, universe, myId, isHost, onRestart, onL
         </div>
       </section>
 
+      {/* uma saída só: de volta à sala de espera, com a mesma gente, para
+          mexer nas regras e começar outra (sair continua lá no alto) */}
       <div className="game-actions">
-        <button className="btn link" onClick={onLeave}>
-          <ExitIcon width={16} height={16} /> Sair da sala
-        </button>
-        {isHost && (
-          <button className="btn primary lg" onClick={onRestart}>
-            <RestartIcon width={16} height={16} /> Jogar de novo
+        {isHost ? (
+          <button className="btn primary lg" onClick={onReconfigure}>
+            <RestartIcon width={16} height={16} /> Configurar sala de novo
           </button>
+        ) : (
+          <p className="muted center-text">Esperando o host configurar a sala de novo...</p>
         )}
       </div>
-      {!isHost && <p className="muted center-text">Esperando o host começar outra partida...</p>}
     </>
   );
 }
