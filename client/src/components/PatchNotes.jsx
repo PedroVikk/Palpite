@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LATEST_NOTE, PATCH_NOTES } from '../lib/patchNotes.js';
 import Modal from './Modal.jsx';
 import { SparkIcon } from './Icon.jsx';
@@ -7,6 +8,9 @@ import { SparkIcon } from './Icon.jsx';
  * O botao "Novidades" do topo da home e a janela com as notas. A bolinha acende
  * enquanto o navegador nao abriu a nota mais nova; abrir guarda o id dela no
  * localStorage, e a proxima atualizacao acende de novo.
+ *
+ * A janela vai para o body por portal: o botao mora no topo, e o
+ * backdrop-filter dele prende o `position: fixed` do veu dentro da barra.
  */
 const KEY = 'palpite:novidades';
 
@@ -26,7 +30,7 @@ export default function PatchNotes() {
         {fresh && <span className="news-dot" aria-label="(novo)" />}
       </button>
 
-      {open && (
+      {open && createPortal(
         <Modal label="Novidades" onClose={() => setOpen(false)} className="news">
           <div className="news-head">
             <span className="news-tag">Notas de atualização</span>
@@ -49,7 +53,8 @@ export default function PatchNotes() {
               </article>
             ))}
           </div>
-        </Modal>
+        </Modal>,
+        document.body,
       )}
     </>
   );
