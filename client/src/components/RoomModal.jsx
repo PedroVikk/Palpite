@@ -18,7 +18,7 @@ export default function RoomModal({
   return (
     <Modal
       label={room ? `Sala ${room.code}` : 'Criar nova sala'}
-      className={room ? 'room' : ''}
+      className={room ? 'room' : 'create'}
       dismissable={!room}
       closeLabel={room ? 'Sair da sala' : 'Fechar'}
       onClose={room ? onLeave : onCancel}

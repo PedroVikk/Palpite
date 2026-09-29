@@ -66,13 +66,17 @@ const STYLES = [
   },
 ];
 
+/** O nome curto do modo e do estilo, para o resumo da sala. */
+export const gameLabel = (id) => GAMES.find(g => g.id === id)?.label ?? 'Segredo';
+export const styleLabel = (id) => STYLES.find(s => s.id === id)?.label ?? 'Caça ao segredo';
+
 /** Se o estilo existe no modo escolhido. */
 export const styleFits = (game, style) =>
   game !== 'termo' || Boolean(STYLES.find(s => s.id === style)?.termo);
 
-function Options({ list, value, disabled, onChange }) {
+function Options({ list, value, disabled, onChange, className = '' }) {
   return (
-    <div className="mode-pick">
+    <div className={`mode-pick ${className}`.trim()}>
       {list.map(({ id, label, help, Icon, locked }) => (
         <button
           key={id}
@@ -98,12 +102,12 @@ export function GamePick({ value, disabled = false, onChange }) {
 }
 
 /** Os estilos de jogo, com o texto e as travas do modo escolhido. */
-export default function ModePick({ value, game = 'segredo', disabled = false, onChange }) {
+export default function ModePick({ value, game = 'segredo', disabled = false, onChange, className }) {
   const termo = game === 'termo';
   const list = STYLES.map(style => ({
     ...style,
     help: termo ? style.termo ?? style.off : style.help,
     locked: termo && !style.termo,
   }));
-  return <Options list={list} value={value} disabled={disabled} onChange={onChange} />;
+  return <Options list={list} value={value} disabled={disabled} onChange={onChange} className={className} />;
 }

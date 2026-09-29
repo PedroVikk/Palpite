@@ -13,6 +13,7 @@ import DailyScreen from './screens/DailyScreen.jsx';
 import RoomModal from './components/RoomModal.jsx';
 import BirthdayModal from './components/BirthdayModal.jsx';
 import ThemeChooser from './components/ThemeChooser.jsx';
+import NoticeFeed from './components/NoticeFeed.jsx';
 
 /** Com o que uma sala nasce. O host ajusta tudo depois, no lobby. */
 const NEW_ROOM = {
@@ -216,6 +217,7 @@ export default function App() {
   return (
     <>
       {toast && <div className="toast" role="status">{toast}</div>}
+      {state && <NoticeFeed />}
 
       {!state && daily && <DailyScreen toast={showToast} onExit={closeDaily} />}
       {(!state || inLobby) && !daily && (

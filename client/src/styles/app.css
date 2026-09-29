@@ -937,6 +937,62 @@ img.avatar { object-fit: cover; background: var(--surface-3); }
 .side-note .h { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; color: var(--select-text); margin-bottom: 6px; }
 .side-note p { font-size: 12px; color: var(--muted); line-height: 1.5; }
 
+/* criar sala: o formulário à esquerda e, na coluna da direita, os atalhos e o
+   resumo do que a mesa vai jogar */
+.modal.create { grid-template-columns: 1fr 272px; width: min(1120px, 100%); }
+.modal.create .modal-main { border-radius: var(--r-lg) 0 0 var(--r-lg); min-width: 0; }
+.create-side {
+  border-right: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0 var(--r-lg) var(--r-lg) 0;
+  padding: 74px 16px 20px;
+  gap: 22px;
+}
+.create-side h3, .form-sec h3 {
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 10px;
+}
+.presets { display: flex; flex-direction: column; gap: 6px; }
+.preset {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 10px; border-radius: var(--r-sm); text-align: left;
+  border: 1px solid transparent; background: transparent; color: var(--text);
+  transition: background .15s, border-color .15s;
+}
+.preset:hover { background: color-mix(in srgb, var(--tint) 4%, transparent); border-color: var(--line); }
+.preset.on { background: color-mix(in srgb, var(--select) 10%, transparent); border-color: color-mix(in srgb, var(--select) 30%, transparent); }
+.preset .ico {
+  flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px;
+  background: color-mix(in srgb, var(--tint) 5%, transparent); border: 1px solid var(--line); color: var(--muted);
+}
+.preset.on .ico { background: color-mix(in srgb, var(--select) 16%, transparent); border-color: transparent; color: var(--select-text); }
+.preset .tx { display: flex; flex-direction: column; min-width: 0; }
+.preset b { font-size: 13.5px; font-weight: 700; }
+.preset small { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.summary-box { margin-top: auto; padding: 14px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); }
+.summary-box dl { display: flex; flex-direction: column; gap: 7px; }
+.summary-box dl > div { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; }
+.summary-box dt { color: var(--muted); }
+.summary-box dd { font-weight: 700; text-align: right; }
+
+.form-sec { padding: 18px 0; border-top: 1px solid var(--line); }
+.form-sec:first-of-type { border-top: 0; padding-top: 0; }
+.form-sec h3.sub { margin-top: 16px; }
+.mode-pick.three { grid-template-columns: repeat(3, 1fr); }
+.mode-pick.three button:last-child:nth-child(odd) { grid-column: auto; }
+
+.room-rules { display: flex; flex-direction: column; gap: 12px; }
+.room-rules .steppers { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.rule-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.switch-row.compact { padding: 11px 12px; gap: 11px; }
+.switch-row.compact .ico { width: 32px; height: 32px; border-radius: 9px; }
+.switch-row.compact .txt b { font-size: 13.5px; }
+.switch-row.compact .txt small { font-size: 12px; }
+.switch-row.compact .switch { width: 40px; height: 22px; }
+.switch-row.compact .switch i { width: 16px; height: 16px; }
+.switch-row.compact.on .switch i { transform: translateX(18px); }
+
 /* a sala de espera é a mesma janela, só que com o código e a lista de gente na
    lateral: elas pedem mais largura do que a coluna de abas do formulário */
 .modal.room { grid-template-columns: 292px 1fr; }
@@ -1766,7 +1822,14 @@ button.suspect:disabled { cursor: default; }
 @media (max-width: 1024px) {
   .wrap, .wrap.lobby { grid-template-columns: 1fr; }
   .side { position: static; }
-  .modal, .modal.room { grid-template-columns: 1fr; }
+  .modal, .modal.room, .modal.create { grid-template-columns: 1fr; }
+  /* no celular os atalhos viram uma faixa embaixo do formulário; o resumo sai */
+  .create-side { display: flex; padding: 18px 16px; border-left: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--r-lg) var(--r-lg); }
+  .modal.create .modal-main { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  .presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .summary-box { display: none; }
+  .mode-pick.three { grid-template-columns: 1fr 1fr; }
+  .rule-grid { grid-template-columns: 1fr; }
   /* a lateral do formulário é enfeite e sai; a da sala tem o código e a lista
      de gente, que é justamente o que se olha no celular — ela vira o topo */
   .modal-side { display: none; }
@@ -2467,4 +2530,126 @@ button.suspect:disabled { cursor: default; }
 @media (max-width: 520px) {
   .speed-lane { grid-template-columns: auto minmax(0, 6rem) 1fr auto; }
   .speed-lane small { display: none; }
+}
+
+/* ------------------------------------------------- avisos, vez e tempo */
+
+/* o feed do canto direito: pulou, desistiu, dica, tempo esgotado */
+.notices {
+  position: fixed; right: 16px; bottom: 16px; z-index: 90;
+  display: flex; flex-direction: column; gap: 8px;
+  width: min(340px, calc(100vw - 32px)); pointer-events: none;
+}
+.notice {
+  --k: var(--neutral);
+  padding: 11px 14px; border-radius: var(--r-sm);
+  background: var(--surface); color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--k) 45%, transparent);
+  border-left: 5px solid var(--k);
+  box-shadow: var(--shadow-lift);
+  font-size: 13.5px; font-weight: 600; line-height: 1.35;
+  animation: notice-in .2s ease both, notice-flash .7s ease-in-out .2s 3, notice-out .3s ease 6.7s both;
+}
+.notice.skip { --k: var(--partial); }
+.notice.giveup, .notice.timeout { --k: var(--danger); }
+.notice.hint { --k: #4D8FE0; }
+.notice.win { --k: var(--hit); }
+.notice.time, .notice.next, .notice.none { --k: var(--neutral); }
+.notice.still { animation: notice-in .2s ease both, notice-out .3s ease 6.7s both; border-left-width: 9px; }
+@keyframes notice-in { from { opacity: 0; transform: translateX(16px); } }
+@keyframes notice-out { to { opacity: 0; transform: translateX(16px); } }
+@keyframes notice-flash {
+  50% { background: color-mix(in srgb, var(--k) 28%, var(--surface)); }
+}
+
+/* a sua vez: o aviso do topo pisca tres vezes e fica com a borda marcada */
+.turn-banner.mine { outline: 2px solid var(--hit); outline-offset: -2px; animation: mine-pulse .9s ease-in-out 3; }
+.turn-banner.mine.still { outline-width: 4px; animation: none; }
+@keyframes mine-pulse { 50% { outline-color: transparent; } }
+
+/* quem esta na vez brilha; os outros esmaecem */
+.queue.has-turn li:not(.now) { opacity: .62; }
+.queue li.now { box-shadow: 0 0 0 2px color-mix(in srgb, var(--hit) 55%, transparent); }
+
+/* a barra de tempo colada no campo de chute */
+.timebar { display: flex; align-items: center; gap: 12px; }
+.timebar .track { flex: 1; height: 10px; border-radius: 999px; background: var(--miss); overflow: hidden; }
+.timebar .track i { display: block; height: 100%; border-radius: inherit; background: var(--hit); transition: width .25s linear, background-color .25s; }
+.timebar.warn .track i { background: var(--partial); }
+.timebar.bad .track i { background: var(--danger); }
+.timebar .num { min-width: 44px; text-align: right; font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text-dim); }
+.timebar.last .num { font-size: 30px; line-height: 1; color: var(--danger); }
+.timebar.last:not(.still) { animation: time-shake .5s ease-in-out infinite; }
+.timebar.last:not(.still) .track i { animation: time-throb .5s ease-in-out infinite; }
+.timebar.last.still .track { outline: 3px solid var(--danger); }
+@keyframes time-shake { 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+@keyframes time-throb { 50% { opacity: .55; } }
+
+/* o card da vez na lateral: pular, pedir dica e desistir */
+.turn-card { position: relative; overflow: hidden; transition: border-color .2s, box-shadow .2s; }
+.turn-card::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 3px;
+  background: var(--line-2); transition: background .2s;
+}
+.turn-card.live { border-color: color-mix(in srgb, var(--hit) 45%, transparent); box-shadow: 0 14px 30px -22px var(--hit); }
+.turn-card.live::before { background: linear-gradient(90deg, var(--hit), var(--hit-text)); }
+.turn-card > h3 .n {
+  padding: 3px 9px; border-radius: 999px;
+  background: color-mix(in srgb, var(--tint, #fff) 6%, transparent);
+}
+.turn-card.live > h3 .n { background: color-mix(in srgb, var(--hit) 16%, transparent); color: var(--hit-text); }
+
+.turn-acts { display: flex; flex-direction: column; gap: 8px; }
+.turn-acts .act {
+  --k: var(--neutral);
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 10px 12px; border-radius: var(--r-sm); text-align: left;
+  border: 1px solid var(--line); background: color-mix(in srgb, var(--k) 5%, transparent);
+  color: var(--text); cursor: pointer;
+  transition: background .15s, border-color .15s, transform .1s;
+}
+.turn-acts .act.skip { --k: var(--partial); }
+.turn-acts .act.hint { --k: #4D8FE0; }
+.turn-acts .act.giveup { --k: var(--danger); }
+.turn-acts .act:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--k) 50%, transparent);
+  background: color-mix(in srgb, var(--k) 12%, transparent);
+}
+.turn-acts .act:active:not(:disabled) { transform: translateY(1px); }
+.turn-acts .act:disabled { opacity: .45; cursor: not-allowed; }
+.turn-acts .act .ic {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px;
+  background: color-mix(in srgb, var(--k) 18%, transparent); color: var(--k);
+}
+.turn-acts .act .tx { display: flex; flex-direction: column; min-width: 0; }
+.turn-acts .act b { font-size: 14px; font-weight: 700; }
+.turn-acts .act small { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.turn-acts .act.giveup.sure { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 16%, transparent); }
+.turn-acts .act.giveup.sure b { color: var(--danger); }
+
+.table-hints { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line-2); }
+.table-hints li {
+  display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: baseline;
+  padding: 9px 12px; border-radius: var(--r-sm); font-size: 13.5px;
+  border: 1px solid color-mix(in srgb, #4D8FE0 40%, transparent);
+  background: color-mix(in srgb, #4D8FE0 10%, transparent);
+}
+.table-hints li b { color: #4D8FE0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.table-hints li small { grid-column: 2; color: var(--muted); font-size: 11.5px; }
+
+/* painel de avisos da lateral */
+.alert-prefs { display: flex; flex-direction: column; gap: 6px; }
+.alert-prefs label { display: flex; align-items: center; gap: 9px; font-size: 13.5px; cursor: pointer; }
+.alert-prefs input { width: 16px; height: 16px; accent-color: var(--select); }
+
+@media (max-width: 720px) {
+  .notices { bottom: 12px; right: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notice { animation: none; border-left-width: 9px; }
+  .turn-banner.mine { animation: none; outline-width: 4px; }
+  .timebar.last { animation: none !important; }
+  .timebar.last .track i { animation: none !important; }
+  .timebar .track i { transition: none; }
+  .timebar.last .track { outline: 3px solid var(--danger); }
 }

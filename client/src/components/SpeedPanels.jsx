@@ -80,6 +80,9 @@ export function SpeedTrack({ state, myId }) {
   const order = Object.entries(race.runners)
     .sort((a, b) => b[1].solved - a[1].solved || (a[1].lastAt ?? Infinity) - (b[1].lastAt ?? Infinity));
 
+  // fila infinita (total 0): a barra mede contra quem esta na frente
+  const scale = race.total || Math.max(1, ...order.map(([, r]) => r.solved));
+
   return (
     <section className="speed-track" aria-label="A corrida">
       {order.map(([id, r]) => (
@@ -87,9 +90,9 @@ export function SpeedTrack({ state, myId }) {
           <Avatar name={nameOf(id)} size="sm" />
           <span className="nm">{nameOf(id)}{id === myId ? ' (você)' : ''}</span>
           <span className="bar" aria-hidden="true">
-            <i style={{ width: `${Math.min(100, (r.solved / race.total) * 100)}%` }} />
+            <i style={{ width: `${Math.min(100, (r.solved / scale) * 100)}%` }} />
           </span>
-          <span className="n"><b>{r.solved}</b>/{race.total}</span>
+          <span className="n"><b>{r.solved}</b>{race.total ? `/${race.total}` : ''}</span>
           {state.phase === 'playing' && <small>{r.tries ? `${r.tries} no atual` : ''}</small>}
         </div>
       ))}
@@ -105,6 +108,14 @@ export function speedBanner({ state, myId }) {
   if (!race) return { title: 'Velocidade', text: state.message ?? '', tone: '', icon };
   const mine = race.runners[myId];
   if (!mine) return { title: 'Corrida em andamento', text: 'Você entrou no meio: assiste esta.', tone: '', icon };
+  if (!race.total) {
+    return {
+      title: `${mine.solved} ${mine.solved === 1 ? noun.slice(0, -1) : noun} ${mine.solved === 1 ? 'resolvido' : 'resolvidos'}`,
+      text: state.message ?? 'Fila sem fim: vence quem resolver mais até o fim.',
+      tone: 'you',
+      icon,
+    };
+  }
   const left = race.total - mine.solved;
   return {
     title: `Faltam ${left} ${left === 1 ? noun.slice(0, -1) : noun}`,
@@ -141,7 +152,7 @@ export function SpeedFx({ state, myId, seenRef }) {
       key: race.seq,
       variant: won ? 'won' : mine ? 'lost' : 'watch',
       title,
-      line: mine ? `Você resolveu ${mine.solved} de ${race.total} ${noun}.` : state.message,
+      line: mine ? `Você resolveu ${mine.solved}${race.total ? ` de ${race.total}` : ''} ${noun}.` : state.message,
     });
   }, [race?.seq, race?.how]);
 

@@ -106,6 +106,8 @@ function createRoom(settings) {
     speed: null,        // velocidade: a corrida (filas, progresso de cada um, quem terminou)
     speedSeq: 0,        // velocidade: sobe a cada corrida que fecha, para a tela animar o fim
     rows: [],
+    skips: {},          // jogador -> ja pulou a vez nesta rodada (um pulo por rodada)
+    hints: [],          // dicas pedidas na rodada: [{ by, text }], a mesa inteira le
     turnPlayerId: null,
     pausedAfter: null,  // de quem era a vez quando a rodada parou (ver pauseRound)
     guessesLeft: {},
@@ -177,6 +179,16 @@ const isTermo = (room) => room.settings.game === GAMES.TERMO;
 const isTermoRace = (room) => isTermo(room) && !isBattle(room) && !isSpeed(room);
 /** Velocidade: cada um na propria fila de segredos (ou palavras), sem vez. */
 const isSpeed = (room) => room.settings.mode === MODES.SPEED;
+/**
+ * Cacada e duelo pelo segredo, de turno e sem mascara: e onde pular, desistir e
+ * pedir dica fazem sentido. No impostor a dica entregaria o papel, na batalha o
+ * tabuleiro e de cada um, e os modos sem vez nao tem a quem passar.
+ */
+const isHuntLike = (room) => !isImpostorMode(room) && !isBattle(room) && !isQuiz(room)
+  && !isSpeed(room) && !isTermo(room);
+/** Dicas que a mesa pode pedir por rodada, e o que uma dica custa sem teto de chutes. */
+const HINT_MAX = 2;
+const HINT_POINTS = 3;
 /** A rodada que acabou era a ultima? Rodadas 0 e o infinito do Termo: so o host encerra. */
 const lastRound = (room) => room.settings.rounds > 0 && room.round >= room.settings.rounds;
 
@@ -341,6 +353,13 @@ function publicState(room, viewerId = null) {
     turnPlayerId: room.turnPlayerId,
     chooserId: room.chooserId,
     rows: room.rows.map(row => rowFor(room, row, over)),
+    // pular, desistir e dica: so nos modos de turno pelo segredo
+    turnActions: isHuntLike(room),
+    hints: isHuntLike(room) && room.settings.tableHints ? room.hints : [],
+    hintMax: HINT_MAX,
+    mySkipUsed: viewerId !== null && Boolean(room.skips[viewerId]),
+    nextTurnId: isHuntLike(room) && room.phase === 'playing' && room.turnPlayerId
+      ? nextTurn(room, room.turnPlayerId) : null,
     deadline: room.deadline,
     winnerId: room.winnerId,
     message: room.message,
@@ -388,6 +407,14 @@ function broadcast(room) {
     const socket = io.sockets.sockets.get(socketId);
     socket?.emit('room:state', publicState(room, socket.data.playerId ?? null));
   }
+}
+
+/**
+ * Aviso passageiro para a sala inteira (o feed do canto da tela). Nao entra no
+ * estado: quem chega depois nao precisa ler o que ja passou.
+ */
+function notice(room, kind, text, by = null) {
+  io.to(room.code).emit('room:notice', { kind, text, by, at: Date.now() });
 }
 
 function clearTimer(room) {
@@ -495,6 +522,8 @@ function startRound(room) {
 
   room.round += 1;
   room.rows = [];
+  room.skips = {};
+  room.hints = [];
   room.pausedAfter = null;
   room.winnerId = null;
   room.message = null;
@@ -665,6 +694,11 @@ function onTurnTimeout(room) {
     room.message = `${late.name} perdeu a vez (tempo esgotado).`;
   }
   advance(room);
+  if (late) {
+    const next = room.phase === 'playing' ? room.players.get(room.turnPlayerId) : null;
+    const tail = next ? ` Vez de ${next.name}.` : '';
+    notice(room, 'timeout', `Tempo esgotado para ${late.name}.${tail}`, late.id);
+  }
 }
 
 function advance(room) {
@@ -1205,9 +1239,14 @@ async function askQuestion(room) {
   room.turnPlayerId = null;
   room.chooserId = null;
   room.askedAt = Date.now();
-  armTimer(room, room.settings.turnSeconds, () => {
-    if (room.phase === 'playing') revealQuiz(room);
-  });
+  // sem relogio a pergunta fecha quando todo mundo responder
+  if (room.settings.turnSeconds) {
+    armTimer(room, room.settings.turnSeconds, () => {
+      if (room.phase === 'playing') revealQuiz(room);
+    });
+  } else {
+    clearTimer(room);
+  }
   broadcast(room);
 }
 
@@ -1230,7 +1269,8 @@ function revealQuiz(room) {
   const universe = universeOf(room);
   const scope = scopeReach(universe, room.settings.scope);
   const column = universe.columns.find(c => c.key === q.columnKey);
-  const total = room.settings.turnSeconds * 1000;
+  // sem relogio a rapidez conta sobre 30 s, para acertar rapido ainda valer mais
+  const total = (room.settings.turnSeconds || 30) * 1000;
 
   const picks = {};
   let fastest = null;
@@ -1336,8 +1376,9 @@ function sink(room, attacker, targetId) {
 }
 
 /**
- * Fim da batalha: quem ficou de pe leva o bonus. A partida e de uma batalha
- * so, entao daqui vai direto para o placar final.
+ * Fim da batalha: quem ficou de pe leva o bonus. Cada rodada e uma batalha
+ * inteira; na ultima vai direto para o placar final, senao a proxima batalha
+ * comeca sozinha depois do intervalo, como as rodadas dos outros modos.
  */
 function endBattle(room) {
   clearTimer(room);
@@ -1348,7 +1389,13 @@ function endBattle(room) {
     survivor.score += SCORE_BATTLE_SURVIVOR;
     room.message = `${room.message ?? ''} ${survivor.name} terminou com o segredo de pé: +${SCORE_BATTLE_SURVIVOR} pontos.`.trim();
   }
-  finishMatch(room);
+  if (lastRound(room)) return finishMatch(room);
+  room.phase = 'roundEnd';
+  room.turnPlayerId = null;
+  broadcast(room);
+  armTimer(room, 12, () => {
+    if (room.phase === 'roundEnd') startRound(room);
+  });
 }
 
 /**
@@ -1754,7 +1801,8 @@ function speedGuess(room, player, { pokemonId, word } = {}, socket) {
     runner.lastAt = Date.now();
     runner.done.push({ label, sprite, tries: runner.rows.length, failed: false });
     next();
-    if (runner.solved >= race.total) return finishSpeed(room, player.id);
+    // fila infinita (total 0): ninguem termina, a corrida fecha no relogio ou pelo host
+    if (race.total && runner.solved >= race.total) return finishSpeed(room, player.id);
   } else if (isTermo(room)) {
     const tries = speedTries(room, secret);
     if (tries && runner.rows.length >= tries) {
@@ -1771,7 +1819,7 @@ function speedGuess(room, player, { pokemonId, word } = {}, socket) {
  * segredo resolvido pontua, o vencedor leva o bonus, e a partida acaba aqui:
  * a velocidade e uma corrida so.
  */
-function finishSpeed(room, winnerId) {
+function finishSpeed(room, winnerId, byHost = false) {
   clearTimer(room);
   const race = room.speed;
   const nameOf = (id) => room.players.get(id)?.name ?? 'Alguém';
@@ -1792,11 +1840,13 @@ function finishSpeed(room, winnerId) {
   room.winnerId = winnerId;
   room.speedSeq += 1;
   const secs = Math.round((Date.now() - race.startedAt) / 1000);
+  const ended = byHost ? 'Corrida encerrada pelo host' : 'Tempo esgotado';
+  const solved = winnerId ? race.runners[winnerId].solved : 0;
   room.message = how === 'finished'
     ? `${nameOf(winnerId)} terminou a fila primeiro, em ${secs}s!`
     : winnerId
-      ? `Tempo esgotado: ${nameOf(winnerId)} resolveu mais (${race.runners[winnerId].solved} de ${race.total}).`
-      : 'Tempo esgotado: ninguém resolveu nenhum.';
+      ? `${ended}: ${nameOf(winnerId)} resolveu mais (${race.total ? `${solved} de ${race.total}` : solved}).`
+      : `${ended}: ninguém resolveu nenhum.`;
   finishMatch(room);
 }
 
@@ -2115,6 +2165,70 @@ function onConnection(socket) {
     afterMiss(room, player);
   });
 
+  /**
+   * Pular, desistir e pedir dica valem na propria vez, nos modos de cacada. O
+   * pulo custa um chute (quando ha teto) e so vale uma vez por rodada; a dica
+   * custa um chute com teto, ou pontos sem ele.
+   */
+  const ownTurn = (room, player) => {
+    if (!room || !player || room.phase !== 'playing' || !isHuntLike(room)) return false;
+    if (room.turnPlayerId !== player.id) {
+      socket.emit('room:error', 'Não é a sua vez.');
+      return false;
+    }
+    return true;
+  };
+
+  socket.on('game:skip', () => {
+    const { room, player } = findPlayerRoom(socket);
+    if (!ownTurn(room, player)) return;
+    if (room.skips[player.id]) return socket.emit('room:error', 'Você já pulou uma vez nesta rodada.');
+    const next = nextTurn(room, player.id);
+    if (!next || next === player.id) return socket.emit('room:error', 'Não há para quem passar a vez.');
+    room.skips[player.id] = true;
+    const left = room.guessesLeft[player.id];
+    if (left !== null) room.guessesLeft[player.id] = Math.max(0, (left ?? 0) - 1);
+    room.message = null;
+    advance(room);
+    notice(room, 'skip', `${player.name} pulou a vez.`, player.id);
+  });
+
+  socket.on('game:giveup', () => {
+    const { room, player } = findPlayerRoom(socket);
+    if (!ownTurn(room, player)) return;
+    room.guessesLeft[player.id] = 0;
+    room.message = null;
+    // quem desiste fica sabendo a resposta; a sala so ve que ele saiu da rodada
+    socket.emit('room:notice', {
+      kind: 'giveup', text: `A resposta era ${room.secret?.name ?? '???'}.`, by: player.id, at: Date.now(),
+    });
+    advance(room);
+    notice(room, 'giveup', `${player.name} desistiu da rodada.`, player.id);
+  });
+
+  socket.on('game:hint', () => {
+    const { room, player } = findPlayerRoom(socket);
+    if (!ownTurn(room, player) || !room.secret) return;
+    if (!room.settings.tableHints) return socket.emit('room:error', 'Esta sala não tem dicas da mesa.');
+    if (room.hints.length >= HINT_MAX) return socket.emit('room:error', 'A mesa já usou as dicas desta rodada.');
+    const left = room.guessesLeft[player.id];
+    if (left !== null) {
+      if ((left ?? 0) <= 1) return socket.emit('room:error', 'Sem chutes de sobra para pagar a dica.');
+      room.guessesLeft[player.id] = left - 1;
+    } else {
+      player.score = Math.max(0, player.score - HINT_POINTS);
+    }
+    const letters = [...room.secret.name].filter(ch => /[\p{L}\p{N}]/u.test(ch));
+    const text = room.hints.length === 0
+      ? `O nome tem ${letters.length} letras.`
+      : `O nome começa com "${letters[0].toUpperCase()}".`;
+    room.hints.push({ by: player.name, text });
+    room.message = null;
+    // a dica nao passa a vez: quem pagou continua com o campo de chute
+    broadcast(room);
+    notice(room, 'hint', `${player.name} pediu uma dica.`, player.id);
+  });
+
   // cartas: a carta escolhida no draft
   socket.on('game:draft', ({ index }) => {
     const { room, player } = findPlayerRoom(socket);
@@ -2209,6 +2323,10 @@ function onConnection(socket) {
     const { room, player } = findPlayerRoom(socket);
     if (!room || !player || room.hostId !== player.id) return;
     if (!['drafting', 'playing', 'voting', 'lastGuess', 'roundEnd'].includes(room.phase)) return;
+    // velocidade: encerrar e fechar a corrida, que paga o que cada um resolveu
+    if (isSpeed(room) && room.phase === 'playing' && room.speed && !room.speed.winnerId) {
+      return finishSpeed(room, null, true);
+    }
     if (room.phase !== 'roundEnd') {
       room.message = 'Partida encerrada pelo host.';
     }

@@ -16,7 +16,7 @@ export const BIRTHDAYS = [
     title: 'Feliz aniversário, Marcus!',
     message: [
       'Te desejo muita saúde, felicidade, sucesso e muitas conquistas nessa nova fase da sua vida. Que não faltem bons momentos, pessoas especiais ao seu lado e motivos para comemorar.',
-      'Aproveita muito o seu dia, você merece! Parabéns! 🎉',
+      'Aproveita muito o seu dia, você merece! Parabéns!',
     ],
   },
 ];

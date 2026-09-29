@@ -28,7 +28,7 @@ export default function BirthdayModal() {
     <Modal key={seenKey(current)} label={current.title} onClose={close} className="birthday">
       <img className="birthday-photo" src={current.photo} alt={current.name} />
       <div className="birthday-body">
-        <span className="birthday-tag">🎂 Hoje é dia de festa</span>
+        <span className="birthday-tag">Hoje é dia de festa</span>
         <h2>{current.title}</h2>
         {current.message.map((text, i) => <p key={i}>{text}</p>)}
         <button type="button" className="btn primary lg" onClick={close}>Valeu, bora jogar!</button>

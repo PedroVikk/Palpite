@@ -200,7 +200,7 @@ export function ImpostorModal({ state, myId, universe, isHost, onClose }) {
           <span className="mark"><MaskIcon width={22} height={22} /></span>
           <div>
             <h2>{title}</h2>
-            <p>Rodada {state.round} de {state.settings.rounds}</p>
+            <p>Rodada {state.round}{state.settings.rounds ? ` de ${state.settings.rounds}` : ''}</p>
           </div>
           {clock}
         </div>

@@ -282,15 +282,15 @@ export function HandBar({ state, universe, myTurn, myId }) {
   const [aiming, setAiming] = useState(null);   // a carta com alvo esperando a escolha
   const perks = [];
   const sieved = state.mySieve?.length ?? 0;
-  if (state.myBet) perks.push('💰 Aposta de pé');
-  if (state.myExtra) perks.push('⚡ Chute a mais nesta vez');
+  if (state.myBet) perks.push('Aposta de pé');
+  if (state.myExtra) perks.push('Chute a mais nesta vez');
   if (sieved) {
     perks.push(quiz
-      ? `🧹 ${sieved} ${sieved === 1 ? 'opção apagada' : 'opções apagadas'}`
-      : `🧹 ${sieved} nomes peneirados`);
+      ? `${sieved} ${sieved === 1 ? 'opção apagada' : 'opções apagadas'}`
+      : `${sieved} nomes peneirados`);
   }
-  if (state.myShield) perks.push('🛡️ Escudo de pé até o fim da rodada');
-  if (state.myMirror) perks.push('🪞 Espelho de pé, só você sabe');
+  if (state.myShield) perks.push('Escudo de pé até o fim da rodada');
+  if (state.myMirror) perks.push('Espelho de pé, só você sabe');
 
   if (!hand.length && !intel.length && !perks.length) return null;
   return (
@@ -318,26 +318,26 @@ export function HandBar({ state, universe, myTurn, myId }) {
         <div className="hand-intel">
           {intel.map(({ key, value, of, who }) => {
             if (key === 'grupo') {
-              return <span key={key} className="fact">🧭 {of}: <b>{value}</b></span>;
+              return <span key={key} className="fact">{of}: <b>{value}</b></span>;
             }
             if (key.startsWith('espiar:')) {
               return (
                 <span key={key} className="fact">
-                  👁 Mão de {who}: <b>{value.length ? value.map(id => faceOf(id).name).join(', ') : 'vazia'}</b>
+                  Mão de {who}: <b>{value.length ? value.map(id => faceOf(id).name).join(', ') : 'vazia'}</b>
                 </span>
               );
             }
             if (key.startsWith('letra:')) {
               return (
                 <span key={key} className="fact">
-                  🔤 {key.slice(6)}ª letra{of ? ` (de ${of})` : ''}: <b>{value}</b>
+                  {key.slice(6)}ª letra{of ? ` (de ${of})` : ''}: <b>{value}</b>
                 </span>
               );
             }
             const column = universe.columns.find(c => c.key === key);
             return (
               <span key={key} className="fact">
-                🔍 {column?.label ?? key}: <b>{column ? formatValue(column, value) : String(value)}</b>
+                {column?.label ?? key}: <b>{column ? formatValue(column, value) : String(value)}</b>
               </span>
             );
           })}

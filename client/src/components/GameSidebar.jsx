@@ -1,6 +1,8 @@
 import { scopeLabel } from '@shared/universes.js';
 import { universeMeta } from '../lib/universeMeta.js';
 import Avatar from './Avatar.jsx';
+import AlertPrefs from './AlertPrefs.jsx';
+import TurnActions from './TurnActions.jsx';
 import {
   ChartIcon, CheckIcon, ClockIcon, ExitIcon, MinusIcon, TargetIcon, UsersIcon,
 } from './Icon.jsx';
@@ -50,6 +52,9 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
 
   return (
     <aside className="side">
+      {/* pular, dica e desistir: no alto da lateral, onde o olho acha na vez */}
+      {state.turnActions && state.phase === 'playing' && <TurnActions state={state} myId={myId} />}
+
       <section className="card">
         <h3><ChartIcon width={13} height={13} strokeWidth={2.2} />Seu desempenho</h3>
         <div className="perf">
@@ -96,7 +101,7 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
           {state.phase === 'choosing' ? 'Escolhendo' : (state.settings.game === 'termo' && state.settings.mode !== 'battle') || state.settings.mode === 'speed' ? 'Placar' : 'Próximo turno'}
           <span className="n">rodada {state.round}/{state.settings.rounds || '∞'}</span>
         </h3>
-        <ul className="queue">
+        <ul className={`queue ${state.phase === 'playing' && state.turnPlayerId ? 'has-turn' : ''}`}>
           {state.players.map(player => {
             const isTurn = player.id === state.turnPlayerId && state.phase === 'playing';
             const isChooser = player.id === state.chooserId;
@@ -127,7 +132,7 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
                 {state.sunk?.[player.id] && !isTurn && <span className="state">Afundou</span>}
                 {state.phase === 'choosing' && state.chosen?.includes(player.id) && <span className="state">Escondeu</span>}
                 {/* cartas: quantas na mão (nunca quais) e quem está congelado */}
-                {player.cards > 0 && <span className="cards-n" title="Cartas na mão">🃏 {player.cards}</span>}
+                {player.cards > 0 && <span className="cards-n" title="Cartas na mão">{player.cards} {player.cards === 1 ? 'carta' : 'cartas'}</span>}
                 {player.frozen && <span className="state">Congelado</span>}
                 {player.shielded && <span className="state">Escudo</span>}
               </li>
@@ -144,6 +149,11 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
                 : 'Quem acerta primeiro fecha a rodada.'}
           </p>
         )}
+      </section>
+
+      <section className="card">
+        <h3><ClockIcon width={13} height={13} strokeWidth={2.2} />Avisos</h3>
+        <AlertPrefs />
       </section>
 
       <div className="exit">

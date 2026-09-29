@@ -315,8 +315,18 @@ export default function DailyScreen({ toast, onExit }) {
             tabela e a imagem) ou o Termo. Cada desafio tem segredo proprio:
             trocar aqui e trocar de jogo, nao de jeito de olhar o mesmo */}
         <div className="seg" role="group" aria-label="Modo do diário">
-          <button type="button" className={!termo ? 'on' : ''} aria-pressed={!termo} onClick={() => pickMode('dicas')}>
+          <button type="button" className={!termo && !picture ? 'on' : ''} aria-pressed={!termo && !picture} onClick={() => pickMode('dicas')}>
             <TargetIcon width={15} height={15} /> Segredo
+          </button>
+          <button
+            type="button"
+            className={picture ? 'on' : ''}
+            aria-pressed={picture}
+            disabled={semImagem}
+            title={semImagem ? `${schema.label} não tem imagem para jogar hoje.` : 'A figura do segredo, clareando a cada erro.'}
+            onClick={() => pickMode('imagem')}
+          >
+            <ImageIcon width={15} height={15} /> Imagem
           </button>
           <button
             type="button"
@@ -329,36 +339,6 @@ export default function DailyScreen({ toast, onExit }) {
             <TermoIcon width={15} height={15} /> Termo
           </button>
         </div>
-
-        {!termo && (
-          <div className="field" style={{ marginTop: 2 }}>
-            <div className="mode-pick">
-              <button type="button" className={!picture ? 'on' : ''} onClick={() => pickMode('dicas')}>
-                <span className="ico"><TargetIcon width={17} height={17} /></span>
-                <span>
-                  <b>Dicas</b>
-                  <small>A tabela pinta a cada chute: verde, amarelo, vermelho.</small>
-                </span>
-              </button>
-              <button
-                type="button"
-                className={picture ? 'on' : ''}
-                disabled={semImagem}
-                onClick={() => pickMode('imagem')}
-              >
-                <span className="ico"><ImageIcon width={17} height={17} /></span>
-                <span>
-                  <b>Imagem</b>
-                  <small>
-                    {semImagem
-                      ? `${schema.label} não tem imagem para jogar hoje.`
-                      : 'A figura do segredo, clareando a cada erro.'}
-                  </small>
-                </span>
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* trocar de universo aqui é trocar de desafio: cada um tem o seu */}
         <section className="progress-bar">

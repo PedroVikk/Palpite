@@ -31,15 +31,16 @@ const today = () => {
 };
 
 /**
- * Onde cada universo parou hoje: resolvido (em qualquer um dos modos),
- * com chutes na tabela, ou intocado. É o selo da grade de temas.
+ * Onde cada universo parou hoje no modo escolhido no cartão: resolvido, com
+ * chutes, ou intocado. É o selo da grade de temas. No Segredo contam os dois
+ * desafios dele (a tabela e a imagem); no Termo, só o tabuleiro de letras.
  */
-function dayOf(id) {
-  const dicas = lastDaily(id);
-  const imagem = lastDaily(id, 'imagem');
-  const termo = lastDaily(id, 'termo');
-  const solved = Boolean(dicas.secret || imagem.secret || termo.secret);
-  const guesses = dicas.rows.length + imagem.rows.length + termo.rows.length;
+function dayOf(id, game) {
+  const runs = game === 'termo'
+    ? [lastDaily(id, 'termo')]
+    : [lastDaily(id), lastDaily(id, 'imagem')];
+  const solved = runs.some(run => run.secret);
+  const guesses = runs.reduce((sum, run) => sum + run.rows.length, 0);
   return { solved, guesses, started: solved || guesses > 0 };
 }
 
@@ -115,8 +116,12 @@ export default function HomeScreen({
     return { rows, secret, answer: null, last, cells, hits };
   }, [dailyUniverse, termo]);
 
-  // a grade de temas, na ordem de quem mais joga, com o selo de hoje em cada um
-  const tiles = useMemo(() => byUse(IDS).map(id => ({ id, label: UNIVERSES[id].label, ...dayOf(id) })), []);
+  // a grade de temas, na ordem de quem mais joga, com o selo de hoje em cada
+  // um — do modo escolhido no cartão, Segredo ou Termo
+  const tiles = useMemo(
+    () => byUse(IDS).map(id => ({ id, label: UNIVERSES[id].label, ...dayOf(id, dailyGame) })),
+    [dailyGame],
+  );
   const counts = useMemo(() => ({
     todos: tiles.length,
     andamento: tiles.filter(t => t.started && !t.solved).length,

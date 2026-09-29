@@ -64,6 +64,7 @@ export const DEFAULT_SETTINGS = {
   cards: false,        // cartas de efeito, com draft a cada `draftEvery` rodadas (qualquer modo)
   draftEvery: 2,       // cartas: a cada quantas rodadas sai um draft
   speedSame: true,     // velocidade: a mesma fila de segredos para todos (ou uma para cada)
+  tableHints: false,   // caca e duelo: a mesa pode pedir dicas (tamanho do nome, inicial)
 };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -107,14 +108,19 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
   //
   // Na batalha naval e o contrario: ela so acaba quando sobra um segredo de pe,
   // entao nao ha teto — com ele a batalha podia travar com tres navios boiando.
-  const untilRight = battle || (mode === MODES.HUNT && (!Number.isFinite(rawGuesses) || rawGuesses <= 0));
+  //
+  // O infinito (0) vale tambem no duelo: a rodada so fecha no acerto, e quem
+  // escondeu fica sem o bonus de defesa. No impostor nao: sem teto de voltas a
+  // mesa nunca chegaria na votacao.
+  const untilRight = battle || ((mode === MODES.HUNT || mode === MODES.DUEL)
+    && (!Number.isFinite(rawGuesses) || rawGuesses <= 0));
   const fallbackGuesses = impostor ? 2 : 6;
   // no Termo o saldo e o numero de linhas do tabuleiro, e ele tem teto proprio
   const termoTries = clamp(rawGuesses > 0 ? rawGuesses : TERMO_TRIES, TERMO_TRIES_RANGE.min, TERMO_TRIES_RANGE.max);
   /**
-   * O Termo aceita infinito (0) nos tres ajustes: rodadas sem fim (o host
-   * encerra), rodada sem relogio e tabuleiro sem teto de linhas. Nos outros
-   * modos o 0 continua caindo no padrao, como sempre.
+   * Todo modo aceita infinito (0) nas rodadas e no relogio: rodadas sem fim (o
+   * host encerra) e vez sem cronometro. Na velocidade, rodadas infinitas sao
+   * uma fila sem fim: a corrida fecha no relogio ou pelo host.
    */
   const rawRounds = Math.round(Number(raw.rounds ?? base.rounds));
   const rawSeconds = Math.round(Number(raw.turnSeconds ?? base.turnSeconds));
@@ -125,14 +131,13 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
     universe: universeId,
     groups: groups.length ? [...new Set(groups)] : [...universe.defaultGroups],
     scope,
-    // a batalha naval e uma partida de uma batalha so
+    // na batalha naval cada rodada e uma batalha inteira
     //
     // Na velocidade, `rounds` e o tamanho da fila (quantos segredos cada um
-    // tem de resolver) e `turnSeconds` e o relogio da corrida inteira — que
-    // tambem pode ser infinito, no segredo e no Termo.
-    rounds: battle ? 1 : speed ? clamp(rawRounds || 3, 1, 20)
-      : termo && rawRounds === 0 ? 0 : clamp(rawRounds || 5, 1, 20),
-    turnSeconds: (termo || speed) && rawSeconds === 0 ? 0 : clamp(rawSeconds || 45, 5, 180),
+    // tem de resolver) e `turnSeconds` e o relogio da corrida inteira.
+    rounds: rawRounds === 0 ? 0
+      : clamp(rawRounds || (battle ? 1 : speed ? 3 : 5), 1, 20),
+    turnSeconds: rawSeconds === 0 ? 0 : clamp(rawSeconds || 45, 5, 180),
     // na batalha do Termo o tabuleiro de cada alvo nao tem teto, como na do segredo
     // na velocidade do segredo errar so custa tempo: chutes sem teto
     guessesPerPlayer: speed && !termo ? 0
@@ -168,6 +173,10 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
     choices: clamp(Math.round(Number(raw.choices ?? base.choices)) || QUIZ_CHOICES.fallback, QUIZ_CHOICES.min, QUIZ_CHOICES.max),
     draftEvery: clamp(Math.round(Number(raw.draftEvery ?? base.draftEvery)) || 2, 1, 5),
     speedSame: Boolean(raw.speedSame ?? base.speedSame ?? true),
+    // as dicas da mesa so existem nos modos de turno pelo segredo, sem mascara:
+    // no impostor elas entregariam o papel, e nos outros nao ha segredo unico
+    tableHints: !impostor && !battle && !quiz && !termo && !speed
+      && Boolean(raw.tableHints ?? base.tableHints),
   };
 }
 

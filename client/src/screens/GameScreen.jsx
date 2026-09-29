@@ -20,6 +20,9 @@ import TermoTable, { TermoBattleBoard, TermoChooser, termoBanner } from '../comp
 import { TermoReveal } from '../components/TermoBoard.jsx';
 import { SpeedBoard, SpeedFx, SpeedTrack, speedBanner } from '../components/SpeedPanels.jsx';
 import Modal from '../components/Modal.jsx';
+import TimeBar from '../components/TimeBar.jsx';
+import { useTurnAlert } from '../hooks/useTurnAlert.js';
+import { usePrefs, reducedMotion } from '../lib/prefs.js';
 import { CardPlayFx, DraftModal, HandBar } from '../components/CardPanels.jsx';
 import { AnchorIcon, CardsIcon, ClockIcon, ExitIcon, ImageIcon, MaskIcon, PaletteIcon, QuestionIcon, TargetIcon, TermoIcon, UsersIcon } from '../components/Icon.jsx';
 import { openThemePicker } from '../lib/theme.js';
@@ -154,6 +157,16 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   const urgent = left !== null && left <= 10 && state.phase !== 'roundEnd';
   const roundOver = state.phase === 'roundEnd';
 
+  // avisos fora do tabuleiro: vez, tempo e titulo da aba
+  const prefs = usePrefs();
+  const clockTotal = useTurnAlert({
+    myTurn: isMyTurn && state.phase === 'playing',
+    nextIsMe: state.nextTurnId === myId,
+    left: roundOver ? null : left,
+    deadline: state.deadline,
+  });
+  const still = !prefs.flash || reducedMotion();
+
   /**
    * A janela do impostor: urna, espera do chute final e gabarito. Quem foi
    * pego fica sem ela no chute final — precisa do campo de chute livre.
@@ -192,7 +205,9 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
 
       <div className="wrap">
         <main className="board">
-          <section className={`turn-banner ${banner.tone}`}>
+          <section
+            className={`turn-banner ${banner.tone} ${isMyTurn && state.phase === 'playing' ? `mine ${still ? 'still' : ''}` : ''}`}
+          >
             <span className="badge">{banner.icon}</span>
             <div>
               <h1>{banner.title}</h1>
@@ -338,6 +353,10 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
                 onSubmit={submit}
               />}
 
+              {state.phase === 'playing' && !quiz && !termo && !speed && (
+                <TimeBar left={left} total={clockTotal} mine={isMyTurn} still={still} />
+              )}
+
               {/* quantos chutes já foram e quantos sobram, em número e em forma */}
               {state.phase === 'playing' && !quiz && !termo && !speed && (
                 <section className="progress-bar">
@@ -371,8 +390,8 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
           )}
 
           <div className="game-actions">
-            {/* rodada "ate acertar" nao fecha sozinha: o host pode encerrar */}
-            {isHost && !roundOver && untilRight && (
+            {/* o que e infinito (chutes, rodadas ou relogio) nao fecha sozinho: o host encerra */}
+            {isHost && !roundOver && (untilRight || !state.settings.rounds || !state.settings.turnSeconds) && (
               <button className="btn ghost" onClick={() => socket.emit('game:end')}>Encerrar partida</button>
             )}
           </div>
@@ -466,7 +485,7 @@ function quizBanner({ state, myId }) {
   if (state.phase === 'playing') {
     return state.myAnswer !== null
       ? { title: 'Resposta enviada', text: `${state.answered.length} de ${state.cast.length} já responderam.`, tone: '', icon: <ClockIcon width={22} height={22} /> }
-      : { title: `Pergunta ${state.round} de ${state.settings.rounds}`, text: 'Todo mundo responde junto. Quem acerta mais rápido leva mais pontos.', tone: 'you', icon: q };
+      : { title: `Pergunta ${state.round}${state.settings.rounds ? ` de ${state.settings.rounds}` : ''}`, text: 'Todo mundo responde junto. Quem acerta mais rápido leva mais pontos.', tone: 'you', icon: q };
   }
   const mine = state.quizResult?.picks?.[myId];
   return {
@@ -528,7 +547,8 @@ function battleBanner({ state, myId, universe, isMyTurn, target, canShoot, nameO
     };
   }
 
-  return { title: '', text: state.message ?? '', tone: '', icon: anchor };
+  // rodadas de batalha: entre uma e outra, o placar da que acabou
+  return { title: state.phase === 'roundEnd' ? 'Fim da batalha' : '', text: state.message ?? '', tone: '', icon: anchor };
 }
 
 function impostorBanner({ state, myId, universe, isMyTurn, nameOf }) {

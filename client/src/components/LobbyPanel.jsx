@@ -7,58 +7,15 @@ import { termoNames, termoThemeWords } from '@shared/termo.js';
 import Avatar from './Avatar.jsx';
 import UniverseSelect from './UniverseSelect.jsx';
 import UniverseIcon from './UniverseIcon.jsx';
-import Stepper from './Stepper.jsx';
-import ModePick, { GamePick, styleFits } from './ModePick.jsx';
-import { CardsSwitch, DraftStepper } from './CardsRules.jsx';
-import {
-  CalendarIcon, CardIcon, CheckIcon, ClockIcon, CopyIcon, ExitIcon, ImageIcon,
-  ShareIcon, TargetIcon, UsersIcon,
-} from './Icon.jsx';
+import ModePick, { GamePick } from './ModePick.jsx';
+import RoomRules from './RoomRules.jsx';
+import { applyRules, fromSettings, toSettings } from '../lib/roomForm.js';
+import { CheckIcon, CopyIcon, ExitIcon, ShareIcon, UsersIcon } from './Icon.jsx';
 
 /** O impostor precisa de gente para desconfiar (IMPOSTOR_MIN_PLAYERS no servidor). */
 const IMPOSTOR_MIN = 3;
 
 const MAX_SEATS = 8;
-
-/**
- * O formulario guarda `untilRight` a parte porque no servidor ele e so o
- * `guessesPerPlayer === 0`. Guardar o numero editavel aqui evita que o campo
- * "chutes por jogador" pisque enquanto o "ate acertar" esta ligado.
- */
-const fromSettings = (s) => ({
-  game: s.game ?? 'segredo',
-  mode: s.mode,
-  universe: s.universe,
-  groups: s.groups,
-  scope: s.scope ?? null,
-  rounds: s.rounds ?? 5,   // 0 e o infinito do Termo
-  turnSeconds: s.turnSeconds,
-  guessesPerPlayer: s.guessesPerPlayer || 6,
-  untilRight: s.guessesPerPlayer === 0,
-  picture: Boolean(s.picture),
-  card: Boolean(s.card),
-  choices: s.choices || 3,
-  cards: Boolean(s.cards),
-  draftEvery: s.draftEvery || 2,
-  speedSame: s.speedSame ?? true,
-});
-
-const toSettings = (f) => ({
-  game: f.game,
-  mode: f.mode,
-  universe: f.universe,
-  groups: f.groups,
-  scope: f.scope,
-  rounds: f.rounds,
-  turnSeconds: f.turnSeconds,
-  guessesPerPlayer: f.untilRight ? 0 : f.guessesPerPlayer,
-  picture: f.picture,
-  card: f.card,
-  choices: f.choices,
-  cards: f.cards,
-  draftEvery: f.draftEvery,
-  speedSame: f.speedSame,
-});
 
 /**
  * A sala de espera mora no mesmo modal em que ela foi configurada: o codigo e a
@@ -100,59 +57,9 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
   }, [items, form.groups, form.scope, form.picture, form.game, universe]);
 
   function change(patch) {
-    const next = { ...form, ...patch };
-    // no duelo o "ate acertar" nao existe: quem esconde o segredo so pontua
-    // quando os chutes dos outros acabam
-    if (next.mode === 'duel') next.untilRight = false;
-    // no impostor o saldo de chutes e o numero de voltas, e a imagem entregaria
-    // pixels do segredo a quem nao sabe. Entrar no modo volta para 2 voltas
-    if (next.mode === 'impostor') {
-      if (form.mode !== 'impostor') next.guessesPerPlayer = 2;
-      next.untilRight = false;
-      next.picture = false;
-    }
-    // "Qual deles?" e rapido: entrar no modo ja poe 10 perguntas de 15 s
-    if (next.mode === 'quiz' && form.mode !== 'quiz') {
-      next.rounds = 10;
-      next.turnSeconds = 15;
-      next.picture = false;
-    }
-    // Termo: sem figura e sem cartas, e so nos estilos que ele tem. Entrar
-    // nele poe 6 linhas; o relogio vira o da rodada inteira na corrida (caca e
-    // duelo) e volta a ser o do turno na batalha
-    if (next.game === 'termo') {
-      if (!styleFits('termo', next.mode)) next.mode = 'hunt';
-      if (form.game !== 'termo') {
-        next.guessesPerPlayer = 6;
-        next.untilRight = false;
-      }
-      const race = next.mode !== 'battle';
-      const wasRace = form.game === 'termo' && form.mode !== 'battle';
-      if (race !== wasRace) next.turnSeconds = race ? 120 : 45;
-      next.picture = false;
-      next.cards = false;
-    } else if (form.game === 'termo') {
-      // o infinito e so do Termo: de volta ao Segredo, tudo volta a ter fim
-      next.turnSeconds = 45;
-      if (next.rounds === 0) next.rounds = 5;
-    }
-    // velocidade: 3 segredos na fila e 3 minutos de corrida; sem figura nem cartas
-    if (next.mode === 'speed') {
-      if (form.mode !== 'speed') {
-        next.rounds = 3;
-        next.turnSeconds = 180;
-      }
-      next.picture = false;
-      next.cards = false;
-    } else if (form.mode === 'speed') {
-      next.rounds = 5;
-      next.turnSeconds = next.game === 'termo' && next.mode !== 'battle' ? 120 : 45;
-    }
-    // universo sem figura espelhada nao joga de imagem; trocar para um deles
-    // com a chave ligada desliga ela, em vez de sortear um segredo invisivel
-    if (!comImagem) next.picture = false;
+    const next = applyRules(form, patch, { comImagem });
     setForm(next);
-    if (isHost) socket.emit('room:settings', toSettings(next));
+    if (isHost) socket.emit('room:settings', toSettings(next, comImagem));
   }
 
   // as epocas ligadas, ja normalizadas: vazio ou torto vira "todas"
@@ -193,10 +100,6 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
   const duel = form.mode === 'duel';
   const impostor = form.mode === 'impostor';
   const battle = form.mode === 'battle';
-  const quiz = form.mode === 'quiz';
-  const termo = form.game === 'termo';
-  const speed = form.mode === 'speed';
-  const termoRace = termo && !battle;
   const minPlayers = impostor ? IMPOSTOR_MIN : duel || battle ? 2 : 1;
   const enoughPlayers = state.players.length >= minPlayers;
   const seatsLeft = Math.max(0, MAX_SEATS - state.players.length);
@@ -353,176 +256,7 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
 
           <div className="field">
             <div className="f-label">Regras da partida</div>
-
-            {/* a chave da imagem vale para as rodadas que ainda vao comecar:
-                como toda regra da sala, ela so e editavel aqui na espera */}
-            {impostor && (
-              <button
-                type="button"
-                className={`switch-row ${form.card ? 'on' : ''}`}
-                disabled={!isHost}
-                style={{ marginBottom: 10 }}
-                onClick={() => change({ card: !form.card })}
-              >
-                <span className="ico"><CardIcon width={18} height={18} /></span>
-                <span className="txt">
-                  <b>Mostrar os dados de cada chute</b>
-                  <small>
-                    Cada linha mostra as características de quem foi chutado, sem dizer quais
-                    batem com o segredo. Desligado, aparece só o número de acertos.
-                  </small>
-                </span>
-                <span className="switch"><i /></span>
-              </button>
-            )}
-
-            {/* velocidade: a mesma fila para todos, ou uma para cada */}
-            {speed && (
-              <button
-                type="button"
-                className={`switch-row ${form.speedSame ? 'on' : ''}`}
-                disabled={!isHost}
-                style={{ marginBottom: 10 }}
-                onClick={() => change({ speedSame: !form.speedSame })}
-              >
-                <span className="ico"><TargetIcon width={18} height={18} /></span>
-                <span className="txt">
-                  <b>{termo ? 'Palavras iguais para todos' : 'Segredos iguais para todos'}</b>
-                  <small>
-                    {form.speedSame
-                      ? 'Todo mundo corre atrás da mesma fila, na mesma ordem.'
-                      : 'Cada um recebe a própria fila, sorteada só para ele.'}
-                  </small>
-                </span>
-                <span className="switch"><i /></span>
-              </button>
-            )}
-
-            {/* as cartas atravessam os modos, como a imagem — menos o Termo e a velocidade */}
-            {!termo && !speed && <CardsSwitch
-              on={form.cards}
-              mode={form.mode}
-              disabled={!isHost}
-              style={{ marginBottom: quiz ? 0 : 10 }}
-              onToggle={() => change({ cards: !form.cards })}
-            />}
-
-            {/* no "Qual deles?" nao ha segredo nem chute: imagem e "ate acertar" nao se aplicam */}
-            {!quiz && !termo && !speed && <>
-            <button
-              type="button"
-              className={`switch-row ${form.picture && comImagem && !impostor && !battle ? 'on' : ''}`}
-              disabled={!isHost || !comImagem || impostor || battle}
-              style={{ marginBottom: 10 }}
-              onClick={() => change({ picture: !form.picture })}
-            >
-              <span className="ico"><ImageIcon width={18} height={18} /></span>
-              <span className="txt">
-                <b>Jogar pela imagem</b>
-                <small>
-                  {impostor
-                    ? 'No impostor, cada chute clarearia a figura para quem não sabe o segredo.'
-                    : battle
-                    ? 'Na batalha naval cada tabuleiro teria a própria figura: por ora ela é só pela tabela.'
-                    : comImagem
-                      ? 'Sem tabela de dicas: a figura do segredo clareia a cada chute errado da mesa.'
-                      : `${universe.label} não tem figuras para jogar assim.`}
-                </small>
-              </span>
-              <span className="switch"><i /></span>
-            </button>
-
-            <button
-              type="button"
-              className={`switch-row ${form.untilRight || battle ? 'on' : ''}`}
-              disabled={!isHost || duel || impostor || battle}
-              onClick={() => change({ untilRight: !form.untilRight })}
-            >
-              <span className="ico"><TargetIcon width={18} height={18} /></span>
-              <span className="txt">
-                <b>Até acertar</b>
-                <small>
-                  {impostor
-                    ? 'No impostor ninguém da mesa pode acertar: as voltas acabam na votação.'
-                    : battle
-                    ? 'A batalha só acaba quando sobra um segredo de pé, sem teto de chutes.'
-                    : duel
-                      ? 'O duelo precisa de teto de chutes para quem esconde pontuar.'
-                      : 'A rodada só fecha quando alguém acerta, sem teto de chutes.'}
-                </small>
-              </span>
-              <span className="switch"><i /></span>
-            </button>
-            </>}
-
-            <div className="steppers" style={{ marginTop: 12 }}>
-              <Stepper
-                label={quiz ? 'Perguntas' : speed ? (termo ? 'Palavras' : 'Segredos') : 'Rodadas'}
-                icon={<CalendarIcon width={14} height={14} />}
-                value={form.rounds} min={1} max={20}
-                off={battle} offValue="1"
-                hint={battle ? 'Uma batalha por partida' : speed ? 'Na fila de cada um' : form.rounds === 0 ? 'Até o host encerrar' : 'Total da partida'}
-                disabled={!isHost}
-                infinite={termo && !speed && form.rounds === 0}
-                onInfinite={termo && !speed ? () => change({ rounds: form.rounds === 0 ? 5 : 0 }) : null}
-                onChange={(v) => change({ rounds: v })}
-              />
-              <Stepper
-                label={quiz ? 'Tempo por pergunta' : speed ? 'Tempo da corrida' : termoRace ? 'Tempo da rodada' : 'Tempo por turno'}
-                icon={<ClockIcon width={14} height={14} />}
-                value={form.turnSeconds} min={5} max={180} step={5} suffix="s"
-                hint={(termo || speed) && form.turnSeconds === 0 ? 'Sem relógio'
-                  : quiz ? 'Para todos responderem' : speed ? 'Acabou, vence quem resolveu mais' : termoRace ? 'Para fechar o tabuleiro' : 'Para mandar o chute'}
-                infinite={(termo || speed) && form.turnSeconds === 0}
-                onInfinite={termo || speed
-                  ? () => change({ turnSeconds: form.turnSeconds === 0 ? (speed ? 180 : termoRace ? 120 : 45) : 0 })
-                  : null}
-                disabled={!isHost}
-                onChange={(v) => change({ turnSeconds: v })}
-              />
-              {quiz ? (
-                <Stepper
-                  label="Opções"
-                  icon={<TargetIcon width={14} height={14} />}
-                  value={form.choices} min={2} max={5}
-                  hint="Respostas por pergunta"
-                  disabled={!isHost}
-                  onChange={(v) => change({ choices: v })}
-                />
-              ) : termoRace ? (
-                <Stepper
-                  label="Tentativas"
-                  icon={<TargetIcon width={14} height={14} />}
-                  value={form.guessesPerPlayer} min={4} max={10}
-                  hint={form.untilRight ? 'Linhas sem fim' : 'Linhas do tabuleiro'}
-                  disabled={!isHost}
-                  infinite={form.untilRight}
-                  onInfinite={() => change({ untilRight: !form.untilRight })}
-                  onChange={(v) => change({ guessesPerPlayer: v })}
-                />
-              ) : <Stepper
-                label={impostor ? 'Voltas' : 'Chutes por jogador'}
-                icon={<TargetIcon width={14} height={14} />}
-                value={form.guessesPerPlayer} min={1} max={impostor ? 5 : 20}
-                off={form.untilRight || battle || speed}
-                hint={speed
-                  ? 'Errar só custa tempo'
-                  : impostor
-                  ? 'Um chute de cada por volta'
-                  : form.untilRight ? '“Até acertar” ignora o teto' : 'Máximo por rodada'}
-                disabled={!isHost}
-                /* mexer aqui desliga o "ate acertar" */
-                onChange={(v) => change({ guessesPerPlayer: v, untilRight: false })}
-              />}
-              {form.cards && !termo && (
-                <DraftStepper
-                  value={form.draftEvery}
-                  mode={form.mode}
-                  disabled={!isHost}
-                  onChange={(v) => change({ draftEvery: v })}
-                />
-              )}
-            </div>
+            <RoomRules form={form} universe={universe} comImagem={comImagem} disabled={!isHost} onChange={change} />
           </div>
         </div>
 
