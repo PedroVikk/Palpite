@@ -2439,10 +2439,21 @@ button.suspect:disabled { cursor: default; }
 .news-entry header { display: flex; align-items: center; gap: 10px; }
 .news-entry time { font-size: 12.5px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .news-entry h3 { font-size: 18px; font-weight: 800; }
-.news-section { display: flex; flex-direction: column; gap: 4px; }
-.news-section b { font-size: 13px; color: var(--select-text); }
-.news-section ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
-.news-section li { font-size: 14px; color: var(--text-dim); line-height: 1.55; }
+/* secao (Cartas, Tabela...) com os grupos dentro, cada grupo com o seu titulo */
+.news-section { display: flex; flex-direction: column; gap: 12px; margin-top: 6px; }
+.news-section h4 {
+  font-family: var(--font-body); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--select-text);
+  display: flex; align-items: center; gap: 10px;
+}
+.news-section h4::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.news-group { display: flex; flex-direction: column; gap: 4px; }
+.news-group b { font-size: 14.5px; color: var(--text); }
+/* o reset global tira o marcador das listas; aqui ele volta */
+.news-group ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; list-style: disc; }
+.news-group li::marker { color: var(--muted); }
+.news-group li { font-size: 14px; color: var(--text-dim); line-height: 1.55; }
+.news-group li ul { margin-top: 5px; gap: 3px; list-style: circle; }
 @media (max-width: 640px) {
   .news-head { padding: 20px 64px 14px 18px; }
   .news-head h2 { font-size: 20px; }

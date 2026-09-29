@@ -45,10 +45,19 @@ export default function PatchNotes() {
                 </header>
                 <h3>{note.title}</h3>
                 {note.sections.map((section, j) => (
-                  <div key={j} className="news-section">
-                    {section.head && <b>{section.head}</b>}
-                    <ul>{section.items.map((text, k) => <li key={k}>{text}</li>)}</ul>
-                  </div>
+                  <section key={j} className="news-section">
+                    {section.head && <h4>{section.head}</h4>}
+                    {section.groups.map((group, k) => (
+                      <div key={k} className="news-group">
+                        {group.head && <b>{group.head}</b>}
+                        <ul>
+                          {group.items.map((item, m) => (typeof item === 'string'
+                            ? <li key={m}>{item}</li>
+                            : <li key={m}>{item.text}<ul>{item.sub.map(sub => <li key={sub}>{sub}</li>)}</ul></li>))}
+                        </ul>
+                      </div>
+                    ))}
+                  </section>
                 ))}
               </article>
             ))}
