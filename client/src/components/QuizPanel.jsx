@@ -16,6 +16,8 @@ export default function QuizPanel({ state, myId, universe }) {
   const column = universe.columns.find(c => c.key === q.columnKey);
   const inRound = state.cast.includes(myId);
   const locked = state.phase !== 'playing' || state.myAnswer !== null || !inRound;
+  // cartas: as opções que a Peneira apagou para quem olha (só enquanto a pergunta corre)
+  const sieved = new Set(result ? [] : state.mySieve ?? []);
   const nameOf = (id) => state.players.find(p => p.id === id)?.name ?? 'alguém';
 
   // no gabarito, quem marcou cada opção
@@ -58,12 +60,14 @@ export default function QuizPanel({ state, myId, universe }) {
           const mine = (result?.picks?.[myId]?.index ?? state.myAnswer) === index;
           const right = result && index === result.answerIndex;
           const wrong = result && mine && !right;
+          const gone = sieved.has(option.id);
           return (
             <button
               key={option.id}
               type="button"
-              className={['quiz-opt', mine ? 'mine' : '', right ? 'right' : '', wrong ? 'wrong' : ''].filter(Boolean).join(' ')}
-              disabled={locked}
+              className={['quiz-opt', mine ? 'mine' : '', right ? 'right' : '', wrong ? 'wrong' : '', gone ? 'sieved' : ''].filter(Boolean).join(' ')}
+              disabled={locked || gone}
+              title={gone ? 'A Peneira apagou esta opção: não é ela' : undefined}
               onClick={() => socket.emit('game:answer', { index })}
             >
               {/* no "Quem é esse?" a figura de cada opção só chega no gabarito */}

@@ -147,7 +147,7 @@ export const MaskIcon = (props) => (
   </svg>
 );
 
-/** Leque de cartas, do modo cartas. */
+/** Leque de cartas, da chave de jogar com cartas. */
 export const CardsIcon = (props) => (
   <svg {...base} {...props}>
     <rect x="8" y="4" width="11" height="15" rx="2" transform="rotate(12 13.5 11.5)" />

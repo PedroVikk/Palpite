@@ -10,15 +10,18 @@ import { CardsIcon } from './Icon.jsx';
  * efeito, aqui e so o rosto de cada carta — nome, texto e a arte, com as duas
  * cores do quadro da ilustracao. As cores sao da carta, nao do tema: uma
  * Congelar e azul-gelo em qualquer visual, como carta de verdade.
+ *
+ * `quiz` e o texto da carta no "Qual deles?", onde nao ha segredo nem vez: la
+ * a carta fala da resposta e da pergunta.
  */
 export const CARD_FACES = {
   tempo: { name: 'Tempo extra', rarity: 'common', colors: ['#7AB8FF', '#2F5FD0'], text: '+20 s no relógio da sua vez.' },
-  aposta: { name: 'Aposta', rarity: 'common', colors: ['#F6C453', '#C27A12'], text: 'Se você acertar esta rodada, leva o dobro. Se outro acertar, perde 20.' },
-  peneira: { name: 'Peneira', rarity: 'common', colors: ['#7BD389', '#2E8B57'], text: 'Tira 30% dos nomes errados da sua busca nesta rodada.' },
-  letra: { name: 'Letra', rarity: 'common', colors: ['#FFB3C7', '#C2185B'], text: 'Revela uma letra ao acaso do nome do segredo, e onde ela fica. Só para você.' },
-  bussola: { name: 'Bússola', rarity: 'common', colors: ['#E3CFA6', '#7C5A33'], text: 'Mostra de qual grupo é o segredo (a geração, a vila, a casa...). Só para você.' },
+  aposta: { name: 'Aposta', rarity: 'common', colors: ['#F6C453', '#C27A12'], text: 'Se você acertar esta rodada, leva o dobro. Se outro acertar, perde 20.', quiz: 'Se você acertar esta pergunta, leva o dobro. Se errar, perde 20.' },
+  peneira: { name: 'Peneira', rarity: 'common', colors: ['#7BD389', '#2E8B57'], text: 'Tira 30% dos nomes errados da sua busca nesta rodada.', quiz: 'Apaga uma opção errada da pergunta, só para você.' },
+  letra: { name: 'Letra', rarity: 'common', colors: ['#FFB3C7', '#C2185B'], text: 'Revela uma letra ao acaso do nome do segredo, e onde ela fica. Só para você.', quiz: 'Revela uma letra ao acaso do nome da resposta, e onde ela fica. Só para você.' },
+  bussola: { name: 'Bússola', rarity: 'common', colors: ['#E3CFA6', '#7C5A33'], text: 'Mostra de qual grupo é o segredo (a geração, a vila, a casa...). Só para você.', quiz: 'Mostra de qual grupo é a resposta (a geração, a vila, a casa...). Só para você.' },
   reforco: { name: 'Reforço', rarity: 'common', colors: ['#D9F99D', '#4D7C0F'], text: 'Compra duas cartas para a sua mão.' },
-  raiox: { name: 'Raio-X', rarity: 'rare', colors: ['#5EEAD4', '#0E7490'], text: 'Revela uma coluna do segredo, só para você.' },
+  raiox: { name: 'Raio-X', rarity: 'rare', colors: ['#5EEAD4', '#0E7490'], text: 'Revela uma coluna do segredo, só para você.', quiz: 'Revela uma coluna da resposta, só para você.' },
   duplo: { name: 'Chute duplo', rarity: 'rare', colors: ['#FFD84D', '#E07A10'], text: 'Nesta vez você chuta duas vezes seguidas.' },
   embaralhar: { name: 'Embaralhar', rarity: 'rare', colors: ['#C4B5FD', '#6D28D9'], text: 'Troca todas as outras cartas da sua mão por cartas novas.' },
   escudo: { name: 'Escudo', rarity: 'rare', colors: ['#CBD5E1', '#475569'], text: 'Até o fim da rodada, cartas de ataque não pegam em você.' },
@@ -34,6 +37,8 @@ export const CARD_FACES = {
 const RARITY = { common: 'Comum', rare: 'Rara', epic: 'Épica' };
 const UNKNOWN = { name: 'Carta', rarity: 'common', colors: ['#C9C2B3', '#6F665A'], text: '' };
 const faceOf = (id) => CARD_FACES[id] ?? { ...UNKNOWN, name: id };
+/** O texto da carta no modo da sala (ver `quiz` em CARD_FACES). */
+const textOf = (id, mode) => faceOf(id)[mode] ?? faceOf(id).text;
 
 /** As ilustracoes, em traco branco sobre o degrade da carta. */
 const ART = {
@@ -175,7 +180,7 @@ const ART = {
  * texto embaixo. `size` so muda a largura (o resto escala junto); a pequena,
  * da mao, esconde o texto e o mostra no title.
  */
-export function PlayCard({ id, size = 'md' }) {
+export function PlayCard({ id, size = 'md', mode }) {
   const face = faceOf(id);
   return (
     <span
@@ -190,7 +195,7 @@ export function PlayCard({ id, size = 'md' }) {
           </svg>
         </span>
         <b className="pc-name">{face.name}</b>
-        {size !== 'sm' && <small className="pc-text">{face.text}</small>}
+        {size !== 'sm' && <small className="pc-text">{textOf(id, mode)}</small>}
       </span>
     </span>
   );
@@ -205,18 +210,19 @@ function CardBack({ size = 'md' }) {
   );
 }
 
-function CardButton({ id, size, onClick, disabled }) {
+function CardButton({ id, size, mode, onClick, disabled }) {
   const face = faceOf(id);
+  const text = textOf(id, mode);
   return (
     <button
       type="button"
       className="pcard-btn"
       disabled={disabled}
       onClick={onClick}
-      title={`${face.name} — ${face.text}`}
-      aria-label={`${face.name}: ${face.text}`}
+      title={`${face.name} — ${text}`}
+      aria-label={`${face.name}: ${text}`}
     >
-      <PlayCard id={id} size={size} />
+      <PlayCard id={id} size={size} mode={mode} />
     </button>
   );
 }
@@ -229,6 +235,7 @@ function CardButton({ id, size, onClick, disabled }) {
 export function DraftModal({ state }) {
   const offer = state.myOffer;
   const waiting = state.drafting.length;
+  const { mode } = state.settings;
   return (
     <Modal label="Draft de cartas" className="impostor draft" dismissable={false} onClose={() => {}}>
       <div className="modal-main">
@@ -238,15 +245,17 @@ export function DraftModal({ state }) {
             <h2>{offer ? 'Escolha uma carta' : 'Carta escolhida'}</h2>
             <p>
               {offer
-                ? 'Ela vai para a sua mão. Use na sua vez, antes de chutar.'
-                : `Esperando ${waiting === 1 ? 'mais uma pessoa' : `mais ${waiting} pessoas`} escolherem.`}
+                ? `Ela vai para a sua mão. Use ${mode === 'quiz' ? 'antes de responder' : 'na sua vez, antes de chutar'}.`
+                : waiting
+                  ? `Esperando ${waiting === 1 ? 'mais uma pessoa' : `mais ${waiting} pessoas`} escolherem.`
+                  : 'Todo mundo escolheu. A rodada já vai começar.'}
             </p>
           </div>
         </div>
         {offer ? (
           <div className="card-offer">
             {offer.map((id, index) => (
-              <CardButton key={id} id={id} size="lg" onClick={() => socket.emit('game:draft', { index })} />
+              <CardButton key={id} id={id} size="lg" mode={mode} onClick={() => socket.emit('game:draft', { index })} />
             ))}
           </div>
         ) : (
@@ -261,17 +270,25 @@ export function DraftModal({ state }) {
 
 /**
  * A mão, embaixo do aviso da vez: as cartas de quem olha, que só acendem na
- * própria vez. Ao lado, o que as cartas já deram nesta rodada — as colunas que
- * o Raio-X revelou, a aposta de pé, o chute a mais.
+ * própria vez (no "Qual deles?", enquanto a pessoa não respondeu). Ao lado, o
+ * que as cartas já deram nesta rodada — as colunas que o Raio-X revelou, a
+ * aposta de pé, o chute a mais.
  */
 export function HandBar({ state, universe, myTurn, myId }) {
   const hand = state.myHand ?? [];
   const intel = state.myIntel ?? [];
+  const { mode } = state.settings;
+  const quiz = mode === 'quiz';
   const [aiming, setAiming] = useState(null);   // a carta com alvo esperando a escolha
   const perks = [];
+  const sieved = state.mySieve?.length ?? 0;
   if (state.myBet) perks.push('💰 Aposta de pé');
   if (state.myExtra) perks.push('⚡ Chute a mais nesta vez');
-  if (state.mySieve?.length) perks.push(`🧹 ${state.mySieve.length} nomes peneirados`);
+  if (sieved) {
+    perks.push(quiz
+      ? `🧹 ${sieved} ${sieved === 1 ? 'opção apagada' : 'opções apagadas'}`
+      : `🧹 ${sieved} nomes peneirados`);
+  }
   if (state.myShield) perks.push('🛡️ Escudo de pé até o fim da rodada');
   if (state.myMirror) perks.push('🪞 Espelho de pé, só você sabe');
 
@@ -287,6 +304,7 @@ export function HandBar({ state, universe, myTurn, myId }) {
                 key={card.uid}
                 id={card.id}
                 size="sm"
+                mode={mode}
                 disabled={!myTurn}
                 onClick={() => (faceOf(card.id).target
                   ? setAiming(card)
@@ -326,7 +344,9 @@ export function HandBar({ state, universe, myTurn, myId }) {
           {perks.map(text => <span key={text} className="fact dim">{text}</span>)}
         </div>
       )}
-      {myTurn && hand.length > 0 && <p className="f-help">Toque numa carta para usar. Depois é só chutar.</p>}
+      {myTurn && hand.length > 0 && (
+        <p className="f-help">Toque numa carta para usar. Depois é só {quiz ? 'responder' : 'chutar'}.</p>
+      )}
       {aiming && (
         <TargetModal
           card={aiming}
@@ -351,6 +371,7 @@ export function HandBar({ state, universe, myTurn, myId }) {
  */
 function TargetModal({ card, state, myId, onClose, onPick }) {
   const face = faceOf(card.id);
+  const { mode } = state.settings;
   const others = state.players.filter(p => p.id !== myId);
   const why = (p) => {
     if (face.attack && p.shielded) return 'de escudo';
@@ -361,9 +382,9 @@ function TargetModal({ card, state, myId, onClose, onPick }) {
   return (
     <Modal label={`Em quem usar ${face.name}`} onClose={onClose} className="confirm target-pick" closeLabel="Cancelar">
       <div className="modal-main">
-        <PlayCard id={card.id} size="md" />
+        <PlayCard id={card.id} size="md" mode={mode} />
         <h2>Em quem usar {face.name}?</h2>
-        <p>{face.text}</p>
+        <p>{textOf(card.id, mode)}</p>
         <ul className="targets">
           {others.map(p => {
             const blocked = why(p);
@@ -499,7 +520,7 @@ export function CardPlayFx({ state, myId }) {
     >
       <span className="fx-flash" aria-hidden="true" />
       <span className="fx-glow" aria-hidden="true" />
-      <span className="fx-card">{play.id ? <PlayCard id={play.id} size="xl" /> : <CardBack size="xl" />}</span>
+      <span className="fx-card">{play.id ? <PlayCard id={play.id} size="xl" mode={state.settings.mode} /> : <CardBack size="xl" />}</span>
       <span className="fx-caption" role="status" aria-live="assertive">
         <b>{title}</b>
         {play.message && <span>{play.message}</span>}

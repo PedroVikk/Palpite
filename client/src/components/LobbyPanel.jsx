@@ -8,8 +8,9 @@ import UniverseSelect from './UniverseSelect.jsx';
 import UniverseIcon from './UniverseIcon.jsx';
 import Stepper from './Stepper.jsx';
 import ModePick from './ModePick.jsx';
+import { CardsSwitch, DraftStepper } from './CardsRules.jsx';
 import {
-  CalendarIcon, CardIcon, CardsIcon, CheckIcon, ClockIcon, CopyIcon, ExitIcon, ImageIcon,
+  CalendarIcon, CardIcon, CheckIcon, ClockIcon, CopyIcon, ExitIcon, ImageIcon,
   ShareIcon, TargetIcon, UsersIcon,
 } from './Icon.jsx';
 
@@ -35,6 +36,7 @@ const fromSettings = (s) => ({
   picture: Boolean(s.picture),
   card: Boolean(s.card),
   choices: s.choices || 3,
+  cards: Boolean(s.cards),
   draftEvery: s.draftEvery || 2,
 });
 
@@ -49,6 +51,7 @@ const toSettings = (f) => ({
   picture: f.picture,
   card: f.card,
   choices: f.choices,
+  cards: f.cards,
   draftEvery: f.draftEvery,
 });
 
@@ -150,7 +153,6 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
   const impostor = form.mode === 'impostor';
   const battle = form.mode === 'battle';
   const quiz = form.mode === 'quiz';
-  const cardsMode = form.mode === 'cards';
   const minPlayers = impostor ? IMPOSTOR_MIN : duel || battle ? 2 : 1;
   const enoughPlayers = state.players.length >= minPlayers;
   const seatsLeft = Math.max(0, MAX_SEATS - state.players.length);
@@ -325,12 +327,21 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
               </button>
             )}
 
+            {/* as cartas atravessam todos os modos, como a imagem */}
+            <CardsSwitch
+              on={form.cards}
+              mode={form.mode}
+              disabled={!isHost}
+              style={{ marginBottom: quiz ? 0 : 10 }}
+              onToggle={() => change({ cards: !form.cards })}
+            />
+
             {/* no "Qual deles?" nao ha segredo nem chute: imagem e "ate acertar" nao se aplicam */}
             {!quiz && <>
             <button
               type="button"
-              className={`switch-row ${form.picture && comImagem && !impostor && !battle && !cardsMode ? 'on' : ''}`}
-              disabled={!isHost || !comImagem || impostor || battle || cardsMode}
+              className={`switch-row ${form.picture && comImagem && !impostor && !battle ? 'on' : ''}`}
+              disabled={!isHost || !comImagem || impostor || battle}
               style={{ marginBottom: 10 }}
               onClick={() => change({ picture: !form.picture })}
             >
@@ -342,8 +353,6 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
                     ? 'No impostor, cada chute clarearia a figura para quem não sabe o segredo.'
                     : battle
                     ? 'Na batalha naval cada tabuleiro teria a própria figura: por ora ela é só pela tabela.'
-                    : cardsMode
-                    ? 'No modo cartas o Raio-X e a Peneira falam da tabela: aqui a figura fica de fora.'
                     : comImagem
                       ? 'Sem tabela de dicas: a figura do segredo clareia a cada chute errado da mesa.'
                       : `${universe.label} não tem figuras para jogar assim.`}
@@ -375,7 +384,7 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
             </button>
             </>}
 
-            <div className="steppers" style={{ marginTop: quiz ? 0 : 12 }}>
+            <div className="steppers" style={{ marginTop: 12 }}>
               <Stepper
                 label={quiz ? 'Perguntas' : 'Rodadas'}
                 icon={<CalendarIcon width={14} height={14} />}
@@ -414,13 +423,10 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
                 /* mexer aqui desliga o "ate acertar" */
                 onChange={(v) => change({ guessesPerPlayer: v, untilRight: false })}
               />}
-              {cardsMode && (
-                <Stepper
-                  label="Draft a cada"
-                  icon={<CardsIcon width={14} height={14} />}
-                  value={form.draftEvery} min={1} max={5}
-                  suffix={form.draftEvery === 1 ? ' rodada' : ' rodadas'}
-                  hint="Cada um escolhe 1 de 3 cartas"
+              {form.cards && (
+                <DraftStepper
+                  value={form.draftEvery}
+                  mode={form.mode}
                   disabled={!isHost}
                   onChange={(v) => change({ draftEvery: v })}
                 />

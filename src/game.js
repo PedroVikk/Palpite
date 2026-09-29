@@ -16,8 +16,14 @@ export const MODES = {
   IMPOSTOR: 'impostor', // todos SABEM o segredo, menos um; a mesa chuta sem entregar e vota em quem nao sabia
   BATTLE: 'battle', // cada um ESCONDE o proprio segredo e ataca o dos outros; ganha quem ficar de pe
   QUIZ: 'quiz', // "Qual deles?": pergunta de multipla escolha, todos respondem juntos, rapidez pontua
-  CARDS: 'cards', // caca ao segredo com draft de cartas de efeito a cada N rodadas
 };
+
+/**
+ * O modo cartas virou a chave `cards`, que vale em qualquer modo. Uma aba de
+ * antes da troca ainda pode pedir `mode: 'cards'`: vira caca ao segredo com
+ * cartas, que era exatamente o que o modo era.
+ */
+const LEGACY_CARDS_MODE = 'cards';
 
 /** "Qual deles?": quantas opcoes cada pergunta pode ter. */
 export const QUIZ_CHOICES = { min: 2, max: 5, fallback: 3 };
@@ -39,6 +45,7 @@ export const DEFAULT_SETTINGS = {
   picture: false,      // rodada jogada pela imagem, sem tabela de dicas
   card: false,         // impostor: a linha mostra a ficha do chutado (sem cor)
   choices: 3,          // "Qual deles?": opcoes por pergunta
+  cards: false,        // cartas de efeito, com draft a cada `draftEvery` rodadas (qualquer modo)
   draftEvery: 2,       // cartas: a cada quantas rodadas sai um draft
 };
 
@@ -59,11 +66,11 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
   const requestedScope = raw.scope ?? (universeId === base.universe ? base.scope : null);
   const scope = sanitizeScope(universe, requestedScope);
 
+  const legacyCards = raw.mode === LEGACY_CARDS_MODE;
   const mode = Object.values(MODES).includes(raw.mode) ? raw.mode : MODES.HUNT;
   const impostor = mode === MODES.IMPOSTOR;
   const battle = mode === MODES.BATTLE;
   const quiz = mode === MODES.QUIZ;
-  const cards = mode === MODES.CARDS;
 
   // "ate acertar" (guessesPerPlayer 0): a rodada so fecha quando alguem acerta,
   // sem teto de chutes. So vale no modo caca ao segredo — no duelo quem esconde
@@ -77,8 +84,7 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
   //
   // Na batalha naval e o contrario: ela so acaba quando sobra um segredo de pe,
   // entao nao ha teto — com ele a batalha podia travar com tres navios boiando.
-  // (o modo cartas e a caca ao segredo com draft: vale a mesma regra dela)
-  const untilRight = battle || ((mode === MODES.HUNT || cards) && (!Number.isFinite(rawGuesses) || rawGuesses <= 0));
+  const untilRight = battle || (mode === MODES.HUNT && (!Number.isFinite(rawGuesses) || rawGuesses <= 0));
   const fallbackGuesses = impostor ? 2 : 6;
 
   return {
@@ -102,10 +108,15 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
     //
     // Na batalha naval cada tabuleiro teria a propria figura, e a tela viraria
     // um mosaico de quadros borrados: por ora ela joga so pela tabela.
-    // No modo cartas a figura tambem fica de fora: Raio-X e Peneira falam das
-    // colunas e dos nomes, e a figura clareando por chute embaralharia as duas.
-    picture: !impostor && !battle && !quiz && !cards && Boolean(raw.picture ?? base.picture),
+    picture: !impostor && !battle && !quiz && Boolean(raw.picture ?? base.picture),
     card: Boolean(raw.card ?? base.card),
+    /**
+     * As cartas sao outra chave que atravessa os modos, como a imagem. O que
+     * muda de um modo para outro e o baralho: carta que nao tem o que fazer
+     * ali (Tempo extra sem vez, Raio-X sem segredo unico) nem sai no draft —
+     * ver `off` em src/cards.js.
+     */
+    cards: legacyCards || Boolean(raw.cards ?? base.cards),
     choices: clamp(Math.round(Number(raw.choices ?? base.choices)) || QUIZ_CHOICES.fallback, QUIZ_CHOICES.min, QUIZ_CHOICES.max),
     draftEvery: clamp(Math.round(Number(raw.draftEvery ?? base.draftEvery)) || 2, 1, 5),
   };

@@ -1,4 +1,4 @@
-import { AnchorIcon, CardsIcon, MaskIcon, QuestionIcon, SearchIcon, SwordsIcon } from './Icon.jsx';
+import { AnchorIcon, MaskIcon, QuestionIcon, SearchIcon, SwordsIcon } from './Icon.jsx';
 
 const MODES = [
   {
@@ -30,12 +30,6 @@ const MODES = [
     label: 'Qual deles?',
     help: 'Uma pergunta, algumas opções, todos respondem juntos. Rapidez pontua.',
     Icon: QuestionIcon,
-  },
-  {
-    id: 'cards',
-    label: 'Cartas',
-    help: 'Caça ao segredo com draft de cartas de efeito a cada poucas rodadas.',
-    Icon: CardsIcon,
   },
 ];
 

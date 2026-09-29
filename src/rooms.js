@@ -15,7 +15,7 @@ import {
 import { datasetOf as datasetFor } from './catalog.js';
 import { makeQuestion, makeWhoQuestion, scoreForAnswer } from './quiz.js';
 import {
-  CARDS, drawCard, drawOffer, isDraftRound, HAND_LIMIT, STEAL_POINTS, BET_PENALTY, EXTRA_SECONDS,
+  CARDS, drawCard, drawOffer, isDraftRound, playsIn, HAND_LIMIT, STEAL_POINTS, BET_PENALTY, EXTRA_SECONDS,
   RUSH_SECONDS,
 } from './cards.js';
 import { valueOf } from '../shared/universes.js';
@@ -79,12 +79,14 @@ function createRoom(settings) {
     askedAt: 0,         // "Qual deles?": quando a pergunta saiu, para medir a rapidez
     answers: {},        // "Qual deles?": jogador -> { index, ms }
     quizResult: null,   // "Qual deles?": o gabarito da rodada, depois que ela fecha
-    // modo cartas: a mao atravessa a partida; o resto vale so a rodada
+    // cartas (a chave `cards`, em qualquer modo): a mao atravessa a partida;
+    // o resto vale so a rodada
     hands: {},          // jogador -> [{ uid, id }]
     cardSeq: 0,         // para cada carta ter uid proprio (duas Peneiras na mao)
+    draftedRound: 0,    // a rodada cujo draft ja saiu (ver draftDue)
     offers: {},         // draft aberto: jogador -> as 3 cartas oferecidas
     intel: {},          // Raio-X: jogador -> [{ key, value }] do segredo, so dele
-    sieved: {},         // Peneira: jogador -> ids tirados da busca dele
+    sieved: {},         // Peneira: jogador -> ids tirados da busca (ou das opcoes, no "Qual deles?")
     bets: {},           // Aposta: jogador -> true
     extraTurns: {},     // Chute duplo: jogador -> chutes a mais nesta vez
     // a ultima carta jogada, para a mesa ver a carta na tela; o `seq` sobe a
@@ -157,7 +159,17 @@ const activePlayers = (room) => room.order.map(id => room.players.get(id)).filte
 const isImpostorMode = (room) => room.settings.mode === MODES.IMPOSTOR;
 const isBattle = (room) => room.settings.mode === MODES.BATTLE;
 const isQuiz = (room) => room.settings.mode === MODES.QUIZ;
-const isCards = (room) => room.settings.mode === MODES.CARDS;
+/** As cartas sao uma chave da sala, nao um modo: valem em qualquer um. */
+const cardsOn = (room) => Boolean(room.settings.cards);
+
+/**
+ * O segredo que as cartas de informacao olham (Raio-X, Letra, Bussola,
+ * Peneira). No "Qual deles?" nao ha segredo: o que se procura e a resposta
+ * certa da pergunta.
+ */
+const secretOf = (room) => (isQuiz(room)
+  ? room.question?.options[room.question.answerIndex] ?? null
+  : room.secret);
 
 /** A pergunta do jeito que vai para a tela: sem a resposta. */
 function questionFor(room) {
@@ -178,8 +190,8 @@ function questionFor(room) {
 }
 
 /**
- * O que so quem olha pode ver no modo cartas: a propria mao, as cartas do
- * draft aberto, o que o Raio-X revelou e o que a Peneira tirou da busca.
+ * O que so quem olha pode ver das cartas: a propria mao, as cartas do draft
+ * aberto, o que o Raio-X revelou e o que a Peneira tirou da busca.
  */
 function cardsStateFor(room, viewerId) {
   return {
@@ -242,7 +254,8 @@ function rowFor(room, row, revealed) {
 function publicState(room, viewerId = null) {
   const over = room.phase === 'roundEnd' || room.phase === 'gameOver';
   const impostorMode = isImpostorMode(room);
-  const inRound = impostorMode && ['playing', 'voting', 'lastGuess'].includes(room.phase);
+  // o draft abre depois do sorteio: o papel ja vale nele
+  const inRound = impostorMode && ['drafting', 'playing', 'voting', 'lastGuess'].includes(room.phase);
   const isImpostor = impostorMode && viewerId !== null && viewerId === room.impostorId;
   const showSecret = over || (inRound && !isImpostor);
   return {
@@ -256,10 +269,10 @@ function publicState(room, viewerId = null) {
       return {
         id: p.id, name: p.name, score: p.score, connected: p.connected,
         guessesLeft: guessesOf(room, p.id),
-        // modo cartas: a sala ve quantas cartas cada um tem, nunca quais
-        cards: isCards(room) ? (room.hands[p.id]?.length ?? 0) : undefined,
-        frozen: isCards(room) ? Boolean(room.frozen[p.id]) : undefined,
-        shielded: isCards(room) ? Boolean(room.shields[p.id]) : undefined,
+        // cartas: a sala ve quantas cartas cada um tem, nunca quais
+        cards: cardsOn(room) ? (room.hands[p.id]?.length ?? 0) : undefined,
+        frozen: cardsOn(room) ? Boolean(room.frozen[p.id]) : undefined,
+        shielded: cardsOn(room) ? Boolean(room.shields[p.id]) : undefined,
       };
     }),
     turnPlayerId: room.turnPlayerId,
@@ -287,8 +300,8 @@ function publicState(room, viewerId = null) {
     answered: isQuiz(room) && room.phase === 'playing' ? Object.keys(room.answers) : [],
     myAnswer: isQuiz(room) && viewerId ? room.answers[viewerId]?.index ?? null : null,
     quizResult: isQuiz(room) && over ? room.quizResult : null,
-    // modo cartas: a propria mao inteira; dos outros, so quantas (em players)
-    ...(isCards(room) ? cardsStateFor(room, viewerId) : {}),
+    // cartas: a propria mao inteira; dos outros, so quantas (em players)
+    ...(cardsOn(room) ? cardsStateFor(room, viewerId) : {}),
     // com a urna aberta so aparece quem ja votou; em quem, so quando ela fecha
     voted: room.phase === 'voting' ? Object.keys(room.votes) : [],
     myVote: room.phase === 'voting' && viewerId ? room.votes[viewerId] ?? null : null,
@@ -442,7 +455,7 @@ function startRound(room) {
   room.guessesLeft = {};
   for (const p of room.players.values()) room.guessesLeft[p.id] = guessBudget(room);
 
-  if (isQuiz(room)) return askQuestion(room);
+  if (isQuiz(room)) return draftDue(room) ? startDraft(room) : askQuestion(room);
 
   if (isBattle(room)) {
     // todo mundo esconde ao mesmo tempo; quem nao escolher a tempo ganha um
@@ -486,8 +499,6 @@ function startRound(room) {
     room.impostorId = nextChooser(room);
     room.cast = activePlayers(room).map(p => p.id);
   }
-  // modo cartas: a cada N rodadas, o draft vem antes do primeiro chute
-  if (isCards(room) && isDraftRound(room.round, room.settings.draftEvery)) return startDraft(room);
   beginGuessing(room);
 }
 
@@ -504,6 +515,10 @@ function armTurnTimer(room) {
 }
 
 function beginGuessing(room) {
+  // cartas: o draft vem antes do primeiro chute — depois do segredo escondido
+  // no duelo e na batalha, para quem esconde nao perder a escolha para ele
+  if (draftDue(room)) return startDraft(room);
+
   /**
    * A escada da imagem fica pronta antes de o primeiro chute chegar. Gerar
    * custa uns 40 ms e `publicState` e sincrono: sem adiantar isto, o quadro
@@ -587,6 +602,20 @@ function advance(room) {
   room.turnPlayerId = next;
   armTurnTimer(room);
   broadcast(room);
+}
+
+/**
+ * O chute errou: a vez passa — a nao ser que quem chutou tenha um Chute duplo
+ * de pe (e saldo para ele), e ai a vez fica com ele para mais um.
+ */
+function afterMiss(room, player) {
+  if (cardsOn(room) && room.extraTurns[player.id] && hasGuessLeft(guessesOf(room, player.id))) {
+    room.extraTurns[player.id] -= 1;
+    room.message = `${player.name} chuta de novo (Chute duplo).`;
+    armTurnTimer(room);
+    return broadcast(room);
+  }
+  advance(room);
 }
 
 /**
@@ -689,13 +718,25 @@ function endImpostorRound(room, how, finalGuess = null, leaverName = null) {
 
 // ---------------------------------------------------------------- cartas
 
+/** Esta rodada tem draft e ele ainda nao saiu? A cada N rodadas, a primeira sempre. */
+function draftDue(room) {
+  return cardsOn(room)
+    && isDraftRound(room.round, room.settings.draftEvery)
+    && room.draftedRound !== room.round;
+}
+
+/** Segue a rodada de onde o draft a parou: a pergunta, ou o primeiro chute. */
+const afterDraft = (room) => (isQuiz(room) ? askQuestion(room) : beginGuessing(room));
+
 /**
  * Abre o draft: cada um recebe 3 cartas e fica com 1. Quem esta em ultimo tira
  * de um baralho mais generoso (ver drawOffer) — so quando ha ultimo de fato,
  * senao na primeira rodada, todo mundo zerado, seriam todos "ultimo". Mao
  * cheia nao recebe oferta: guardar carta demais vira acumular, nao escolher.
+ * O baralho e o do modo da sala (ver `off` em src/cards.js).
  */
 function startDraft(room) {
+  room.draftedRound = room.round;
   const active = activePlayers(room);
   const scores = active.map(p => p.score);
   const lowest = Math.min(...scores);
@@ -703,9 +744,9 @@ function startDraft(room) {
   room.offers = {};
   for (const p of active) {
     if ((room.hands[p.id]?.length ?? 0) >= HAND_LIMIT) continue;
-    room.offers[p.id] = drawOffer(someoneBehind && p.score === lowest);
+    room.offers[p.id] = drawOffer(room.settings.mode, someoneBehind && p.score === lowest);
   }
-  if (!Object.keys(room.offers).length) return beginGuessing(room);
+  if (!Object.keys(room.offers).length) return afterDraft(room);
   room.phase = 'drafting';
   room.turnPlayerId = null;
   room.message = 'Draft: escolha uma das três cartas.';
@@ -727,13 +768,17 @@ function finishDraft(room) {
     if (room.players.has(id)) giveCard(room, id, offer[Math.floor(Math.random() * offer.length)]);
   }
   room.offers = {};
-  room.message = 'Cartas na mão. Use na sua vez, antes de chutar.';
-  beginGuessing(room);
+  room.message = isQuiz(room)
+    ? 'Cartas na mão. Use antes de responder.'
+    : 'Cartas na mão. Use na sua vez, antes de chutar.';
+  afterDraft(room);
 }
 
 /** Todo mundo conectado ja escolheu: nao precisa esperar o relogio. */
 function maybeFinishDraft(room) {
-  if (room.phase !== 'drafting') return;
+  // `asking`: o draft ja fechou e a pergunta do "Qual deles?" esta saindo (a
+  // silhueta demora um pouco) — fechar de novo soltaria duas perguntas
+  if (room.phase !== 'drafting' || room.asking) return;
   const waiting = Object.keys(room.offers).filter(id => room.players.get(id)?.connected);
   if (!waiting.length) finishDraft(room);
 }
@@ -757,11 +802,36 @@ function settleBets(room, winnerId, points) {
 }
 
 /**
+ * A Aposta no "Qual deles?": ali todo mundo pode acertar a mesma pergunta,
+ * entao ela e de cada um — acertou, dobra o que a resposta rendeu; errou (ou
+ * nao respondeu), perde.
+ */
+function settleQuizBets(room, picks) {
+  const notes = [];
+  for (const id of Object.keys(room.bets)) {
+    const p = room.players.get(id);
+    if (!p) continue;
+    const pick = picks[id];
+    if (pick?.correct) {
+      p.score += pick.points;
+      pick.points *= 2;
+      notes.push(`${p.name} tinha apostado: +${pick.points / 2} de bônus`);
+    } else {
+      const lost = Math.min(BET_PENALTY, p.score);
+      p.score -= lost;
+      notes.push(`${p.name} apostou e perdeu ${lost}`);
+    }
+  }
+  return notes.length ? ` ${notes.join('; ')}.` : '';
+}
+
+/**
  * Usa uma carta da mao. So na propria vez, antes de chutar: a carta e parte
- * da jogada, e fora da vez ela atropelaria o turno de outro. Carta que nao
- * pode fazer nada agora (Tempo extra sem relogio, Assalto em quem nao tem
- * ponto) e recusada e continua na mao — a recusa vem sempre antes de gastar
- * o Espelho de alguem.
+ * da jogada, e fora da vez ela atropelaria o turno de outro. (No "Qual
+ * deles?" nao ha vez: a carta vale enquanto a pessoa nao respondeu.) Carta
+ * que nao pode fazer nada agora (Tempo extra sem relogio, Assalto em quem nao
+ * tem ponto) e recusada e continua na mao — a recusa vem sempre antes de
+ * gastar o Espelho de alguem.
  */
 function useCard(room, player, uid, socket, chosenId) {
   const hand = room.hands[player.id] ?? [];
@@ -769,7 +839,11 @@ function useCard(room, player, uid, socket, chosenId) {
   if (at < 0) return socket.emit('room:error', 'Essa carta não está na sua mão.');
   const used = hand[at];
   const card = CARDS[used.id];
+  // o draft ja so oferece as do modo; isto segura um pedido torto
+  if (card && !playsIn(used.id, room.settings.mode)) return socket.emit('room:error', `${card.name} não vale neste modo.`);
   const universe = universeOf(room);
+  const secret = secretOf(room);
+  const ofSecret = isQuiz(room) ? 'da resposta' : 'do segredo';
   let detail = '';
   let targetId = null;   // de quem a carta mexe no jogo, quando mexe
   let reflected = false; // o Espelho do alvo devolveu a carta
@@ -808,8 +882,18 @@ function useCard(room, player, uid, socket, chosenId) {
       room.bets[player.id] = true;
       break;
     case 'peneira': {
+      if (isQuiz(room)) {
+        // no "Qual deles?" a peneira apaga uma opcao errada; sobram sempre
+        // duas, senao a carta entregaria a resposta
+        const out = new Set(room.sieved[player.id] ?? []);
+        const wrong = room.question.options.filter(o => o.id !== secret.id && !out.has(o.id));
+        if (wrong.length < 2) return socket.emit('room:error', 'Já sobraram só duas opções: não há o que apagar.');
+        room.sieved[player.id] = [...out, shuffle(wrong)[0].id];
+        detail = ': uma opção errada a menos';
+        break;
+      }
       const out = new Set([...(room.sieved[player.id] ?? []), ...room.rows.map(r => r.id)]);
-      const wrong = pool(room).filter(item => item.id !== room.secret.id && !out.has(item.id));
+      const wrong = pool(room).filter(item => item.id !== secret.id && !out.has(item.id));
       if (!wrong.length) return socket.emit('room:error', 'Não sobrou nome errado para peneirar.');
       const take = shuffle(wrong).slice(0, Math.max(1, Math.round(wrong.length * 0.3))).map(item => item.id);
       room.sieved[player.id] = [...(room.sieved[player.id] ?? []), ...take];
@@ -824,10 +908,10 @@ function useCard(room, player, uid, socket, chosenId) {
       const candidates = pool(room);
       const informative = (c) => new Set(candidates.map(item => JSON.stringify(valueOf(item, c.key, scope) ?? null))).size > 1;
       const hidden = universe.columns.filter(c => !seen.has(c.key) && informative(c));
-      if (!hidden.length) return socket.emit('room:error', 'Você já viu todas as colunas do segredo.');
+      if (!hidden.length) return socket.emit('room:error', `Você já viu todas as colunas ${ofSecret}.`);
       const column = hidden[Math.floor(Math.random() * hidden.length)];
-      (room.intel[player.id] ??= []).push({ key: column.key, value: valueOf(room.secret, column.key, scope) ?? null });
-      detail = ` e viu ${column.label.toLowerCase()} do segredo`;
+      (room.intel[player.id] ??= []).push({ key: column.key, value: valueOf(secret, column.key, scope) ?? null });
+      detail = ` e viu ${column.label.toLowerCase()} ${ofSecret}`;
       break;
     }
     case 'duplo':
@@ -917,12 +1001,12 @@ function useCard(room, player, uid, socket, chosenId) {
     }
     case 'bussola': {
       if ((room.intel[player.id] ?? []).some(i => i.key === 'grupo')) {
-        return socket.emit('room:error', 'Você já sabe de qual grupo é o segredo.');
+        return socket.emit('room:error', `Você já sabe de qual grupo é ${isQuiz(room) ? 'a resposta' : 'o segredo'}.`);
       }
-      const group = universe.groups?.find(g => g.id === room.secret?.group);
-      if (!group) return socket.emit('room:error', 'Este segredo não tem grupo para mostrar.');
+      const group = universe.groups?.find(g => g.id === secret?.group);
+      if (!group) return socket.emit('room:error', `${isQuiz(room) ? 'Esta resposta' : 'Este segredo'} não tem grupo para mostrar.`);
       (room.intel[player.id] ??= []).push({ key: 'grupo', value: group.label, of: universe.groupLabel ?? 'Grupo' });
-      detail = ' e viu de qual grupo é o segredo';
+      detail = ` e viu de qual grupo é ${isQuiz(room) ? 'a resposta' : 'o segredo'}`;
       break;
     }
     case 'reforco': {
@@ -931,7 +1015,7 @@ function useCard(room, player, uid, socket, chosenId) {
       const count = Math.min(2, space);
       for (let i = 0; i < count; i++) {
         room.cardSeq += 1;
-        hand.push({ uid: room.cardSeq, id: drawCard() });
+        hand.push({ uid: room.cardSeq, id: drawCard(room.settings.mode) });
       }
       detail = `: ${count} ${count === 1 ? 'carta nova' : 'cartas novas'} na mão`;
       break;
@@ -948,14 +1032,14 @@ function useCard(room, player, uid, socket, chosenId) {
        * pontuação não dizem nada. A chave leva a posição, então dá para usar
        * mais de uma Letra na mesma rodada e ir montando o nome.
        */
-      const name = String(room.secret?.name ?? '');
+      const name = String(secret?.name ?? '');
       const seen = new Set((room.intel[player.id] ?? []).map(i => i.key));
       const open = [...name].map((ch, i) => ({ ch, i }))
         .filter(({ ch, i }) => /[\p{L}\p{N}]/u.test(ch) && !seen.has(`letra:${i + 1}`));
-      if (!open.length) return socket.emit('room:error', 'Você já viu todas as letras do segredo.');
+      if (!open.length) return socket.emit('room:error', `Você já viu todas as letras ${ofSecret}.`);
       const { ch, i } = open[Math.floor(Math.random() * open.length)];
       (room.intel[player.id] ??= []).push({ key: `letra:${i + 1}`, value: ch.toUpperCase(), of: [...name].length });
-      detail = ' e viu uma letra do segredo';
+      detail = ` e viu uma letra ${ofSecret}`;
       break;
     }
     case 'embaralhar': {
@@ -965,7 +1049,7 @@ function useCard(room, player, uid, socket, chosenId) {
       hand.forEach((c, i) => {
         if (c.uid === used.uid) return;
         room.cardSeq += 1;
-        hand[i] = { uid: room.cardSeq, id: drawCard() };
+        hand[i] = { uid: room.cardSeq, id: drawCard(room.settings.mode) };
       });
       detail = `: ${others.length} ${others.length === 1 ? 'carta nova' : 'cartas novas'} na mão`;
       break;
@@ -1094,6 +1178,7 @@ function revealQuiz(room) {
   room.message = right
     ? `Era ${answer}. ${right === 1 ? 'Só 1 acertou' : `${right} acertaram`}; o mais rápido foi ${room.players.get(fastest.id)?.name ?? 'alguém'}.`
     : `Era ${answer}. Ninguém acertou.`;
+  if (cardsOn(room)) room.message += settleQuizBets(room, picks);
   room.winnerId = fastest?.id ?? null;
   room.phase = 'roundEnd';
 
@@ -1210,7 +1295,7 @@ function battleShot(room, player, guess, targetId, socket) {
   });
   room.message = null;
   if (comparison.correct) return sink(room, player, targetId);
-  advance(room);
+  afterMiss(room, player);
 }
 
 /**
@@ -1222,7 +1307,7 @@ function leaveBattle(room, id) {
   delete room.secrets[id];
   delete room.sunk[id];
   if (room.phase === 'choosing') return maybeStartBattle(room);
-  if (room.phase === 'playing' && afloat(room).length <= 1) return endBattle(room);
+  if (['drafting', 'playing'].includes(room.phase) && afloat(room).length <= 1) return endBattle(room);
 }
 
 /** Chute final do impostor pego: acerto vira a rodada, erro a entrega a mesa. */
@@ -1266,7 +1351,7 @@ function endRound(room, winnerId) {
     const points = scoreForWin(room.rows.length);
     winner.score += points;
     room.message = `${winner.name} acertou: ${room.secret.name}! +${points} pontos.`;
-    if (isCards(room)) room.message += settleBets(room, winnerId, points);
+    if (cardsOn(room)) room.message += settleBets(room, winnerId, points);
   } else {
     room.message = `Ninguém acertou. Era ${room.secret?.name ?? '???'}.`;
     if (room.settings.mode === MODES.DUEL && room.chooserId) {
@@ -1369,7 +1454,7 @@ function handleDisconnect(socket, permanent) {
 
   // o impostor saiu de vez: nao ha mais quem pegar, e a mesa leva a rodada
   if (!keepSeat && isImpostorMode(room) && room.impostorId === player.id
-    && ['playing', 'voting', 'lastGuess'].includes(room.phase)) {
+    && ['drafting', 'playing', 'voting', 'lastGuess'].includes(room.phase)) {
     return endImpostorRound(room, 'left', null, player.name);
   }
   // saiu de vez da batalha naval: o tabuleiro dele some, e a batalha pode ter
@@ -1377,7 +1462,8 @@ function handleDisconnect(socket, permanent) {
   if (!keepSeat && isBattle(room) && room.cast.includes(player.id)) {
     room.message = `${player.name} saiu da batalha.`;
     leaveBattle(room, player.id);
-    if (room.phase !== 'playing') return broadcast(room);
+    // no draft ele ainda pode ser o ultimo que faltava escolher (logo abaixo)
+    if (room.phase !== 'playing' && room.phase !== 'drafting') return broadcast(room);
   }
   if (room.phase === 'playing' && room.turnPlayerId === player.id) {
     room.message = `${player.name} ${verb} no meio do turno.${seat}`;
@@ -1395,7 +1481,7 @@ function handleDisconnect(socket, permanent) {
     room.message = `${player.name} ${verb}: o segredo foi sorteado.`;
     return beginGuessing(room);
   }
-  // cartas: se so faltava ele escolher no draft, o draft fecha agora
+  // cartas: se so faltava ele escolher no draft, o draft fecha agora (em qualquer modo)
   if (room.phase === 'drafting') {
     broadcast(room);
     return maybeFinishDraft(room);
@@ -1453,6 +1539,7 @@ function onConnection(socket) {
     }
     for (const p of room.players.values()) p.score = 0;
     room.hands = {};   // partida nova, mao vazia
+    room.draftedRound = 0;
     room.round = 0;
     // embaralhada na largada: em ordem de chegada o host esconderia sempre primeiro
     room.chooserQueue = shuffle(activePlayers(room).map(p => p.id));
@@ -1529,17 +1616,10 @@ function onConnection(socket) {
       // no impostor so ele consegue acertar: a mesa e barrada logo acima
       return isImpostorMode(room) ? endImpostorRound(room, 'guessed') : endRound(room, player.id);
     }
-    // Chute duplo: a vez fica com ele para mais um chute (se ainda tiver saldo)
-    if (isCards(room) && room.extraTurns[player.id] && hasGuessLeft(guessesOf(room, player.id))) {
-      room.extraTurns[player.id] -= 1;
-      room.message = `${player.name} chuta de novo (Chute duplo).`;
-      armTurnTimer(room);
-      return broadcast(room);
-    }
-    advance(room);
+    afterMiss(room, player);
   });
 
-  // modo cartas: a carta escolhida no draft
+  // cartas: a carta escolhida no draft
   socket.on('game:draft', ({ index }) => {
     const { room, player } = findPlayerRoom(socket);
     if (!room || !player || room.phase !== 'drafting') return;
@@ -1553,11 +1633,16 @@ function onConnection(socket) {
     maybeFinishDraft(room);
   });
 
-  // modo cartas: usar uma carta da mao, na propria vez
+  // cartas: usar uma carta da mao, na propria vez (no "Qual deles?", antes de responder)
   socket.on('game:card', ({ uid, targetId }) => {
     const { room, player } = findPlayerRoom(socket);
-    if (!room || !player || !isCards(room) || room.phase !== 'playing') return;
-    if (room.turnPlayerId !== player.id) return socket.emit('room:error', 'Cartas só na sua vez, antes de chutar.');
+    if (!room || !player || !cardsOn(room) || room.phase !== 'playing') return;
+    if (isQuiz(room)) {
+      if (!room.cast.includes(player.id)) return socket.emit('room:error', 'Você entrou no meio da pergunta: usa na próxima.');
+      if (player.id in room.answers) return socket.emit('room:error', 'Cartas só antes de responder.');
+    } else if (room.turnPlayerId !== player.id) {
+      return socket.emit('room:error', 'Cartas só na sua vez, antes de chutar.');
+    }
     useCard(room, player, uid, socket, targetId);
   });
 
@@ -1591,7 +1676,7 @@ function onConnection(socket) {
   socket.on('game:end', () => {
     const { room, player } = findPlayerRoom(socket);
     if (!room || !player || room.hostId !== player.id) return;
-    if (!['playing', 'voting', 'lastGuess', 'roundEnd'].includes(room.phase)) return;
+    if (!['drafting', 'playing', 'voting', 'lastGuess', 'roundEnd'].includes(room.phase)) return;
     if (room.phase !== 'roundEnd') {
       room.message = 'Partida encerrada pelo host.';
     }

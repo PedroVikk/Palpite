@@ -588,10 +588,26 @@ duas e 210 com três.
 | **Impostor** | Todo mundo vê o secreto, **menos um** jogador, tirado da mesma fila do duelo. Cada um chuta por um número fixo de voltas, e a mesa vê só **quantas colunas** cada chute acertou em cheio, não quais. Quem sabe não pode chutar o secreto; se o impostor chutar, ganha na hora. Quando as voltas acabam, todos votam. Empate salva o impostor, e quem for pego ainda tem **um chute final** para dizer o secreto. Precisa de 3 jogadores. |
 | **Batalha naval** | **Cada um esconde o próprio secreto**, todos ao mesmo tempo (dois não escondem o mesmo). Na sua vez você escolhe o **alvo** e chuta contra o secreto dele; cada jogador tem um tabuleiro próprio, e os tabuleiros são públicos. Quem tem o secreto descoberto **afunda** e sai da batalha: não atira mais, só assiste. A partida é **uma batalha só**, sem teto de chutes, e acaba quando sobra um secreto de pé. Precisa de 2 jogadores. |
 | **Qual deles?** | A cada rodada sai uma **pergunta de múltipla escolha** montada das colunas do tema — qual deles tem tal tipo, qual NÃO tem, qual é o mais pesado, qual estreou primeiro — com 2 a 5 opções (o host escolhe). **Todos respondem ao mesmo tempo**, uma vez só; a pergunta fecha quando todo mundo respondeu ou o tempo acaba, e o gabarito mostra o valor de cada opção e quem marcou o quê. Sem segredo, sem vez. Nos temas de figura recortada (Pokémon, Ben 10, Ordem Paranormal e as armas do Valorant), uma pergunta em quatro é o **"Quem é esse Pokémon?!"**: a figura em preto, gerada no servidor e embutida na pergunta, e as opções só com nome — a cor acende no gabarito. |
-| **Cartas** | A caça ao segredo com **draft de cartas**: a cada N rodadas (o host escolhe, de 1 a 5) cada jogador recebe 3 cartas e fica com 1. A sala vê quantas cartas cada um tem, nunca quais. Carta se usa na própria vez, antes de chutar: Tempo extra (+20 s), Aposta (acertou, dobra; outro acertou, perde 20), Peneira (tira 30% dos nomes errados da sua busca), Raio-X (revela uma coluna do segredo só para você), Chute duplo, e as de ataque, mais raras — Congelar (o próximo perde a vez) e Assalto (rouba 25 do líder). Quem está em último tira cartas raras com mais frequência. |
 
-**Jogar pela imagem** é um interruptor, não um terceiro modo: ele atravessa os
-dois de cima. Ligado, a rodada não tem tabela de dicas — o que está na tela é a
+**Jogar com cartas** é um interruptor, não um modo: vale em qualquer um dos
+cinco. Ligado, a cada N rodadas (o host escolhe, de 1 a 5) cada jogador recebe
+3 cartas e fica com 1. A sala vê quantas cartas cada um tem, nunca quais. Carta
+se usa na própria vez, antes de chutar — no "Qual deles?", que não tem vez,
+antes de responder. São 17: as de informação (Raio-X, Letra, Bússola, Peneira,
+Espiar), as de jogada (Tempo extra, Chute duplo, Aposta, Reforço, Embaralhar,
+Escudo, Espelho) e as de ataque, mais raras e com alvo escolhido (Congelar,
+Pressa, Assalto, Furto, Troca). Quem está em último tira cartas raras com mais
+frequência.
+
+O baralho muda com o modo, porque nem toda carta tem o que fazer em todos. No
+"Qual deles?" saem as que dependem de vez (Tempo, Chute duplo, Congelar,
+Pressa), e as de informação falam da resposta certa — a Peneira apaga uma
+opção errada. Na batalha naval cada um tem o próprio segredo, então saem as que
+olham "o segredo", e o draft é um só, na largada. No duelo e na batalha o draft
+vem depois de esconder o segredo; no impostor, a Aposta fica de fora.
+
+**Jogar pela imagem** é outro interruptor: ele atravessa a caça ao segredo e o
+duelo. Ligado, a rodada não tem tabela de dicas — o que está na tela é a
 figura do secreto, e ela clareia um degrau a cada chute errado da mesa. Vale
 para as rodadas que ainda vão começar, como toda regra da sala. Universo sem
 miniatura espelhada (os Carros) mostra a chave apagada, e no duelo quem esconde
@@ -621,6 +637,9 @@ volta a ser o próximo quando reconecta.
 - **Jogar pela imagem** (desligado por padrão) — a rodada passa a ser jogada
   pela figura do secreto, sem tabela de dicas. Só aparece em universo que tenha
   miniatura espelhada.
+- **Jogar com cartas** (desligado por padrão, vale em qualquer modo) — o draft
+  de cartas de efeito, e **Draft a cada** 1 a 5 rodadas (2 por padrão; na
+  batalha naval é um draft só).
 - **Até acertar** (ligado por padrão na caça ao segredo) — a rodada só fecha
   quando alguém acerta, sem teto de chutes; o host pode cortar pelo botão
   **Encerrar partida**. Mexer em *Chutes por jogador* desliga essa opção. No

@@ -820,13 +820,14 @@ try {
   check('no maximo 5 opcoes, e sem imagem', salaMuitas.state.settings.choices === 5 && salaMuitas.state.settings.picture === false);
   for (const g of plateia) g.socket.close();
 
-  // ----------------------------------------------------------- modo cartas
-  // Caca ao segredo com draft: a cada N rodadas cada um recebe 3 cartas e fica
-  // com 1; a mao e secreta (a sala ve so quantas), e carta se usa na propria vez.
-  console.log('\n== Modo cartas ==');
+  // ----------------------------------------------------------- cartas
+  // A chave `cards`, aqui na caca ao segredo: a cada N rodadas cada um recebe
+  // 3 cartas e fica com 1; a mao e secreta (a sala ve so quantas), e carta se
+  // usa na propria vez.
+  console.log('\n== Cartas ==');
   const mesaCartas = await Promise.all(['Lia', 'Rui'].map(connect));
   const salaCartas = await new Promise(res => mesaCartas[0].socket.emit('room:create', {
-    name: 'Lia', settings: { mode: 'cards', universe: 'pokemon', groups: ['1'], rounds: 3, turnSeconds: 30, draftEvery: 2 },
+    name: 'Lia', settings: { mode: 'hunt', cards: true, universe: 'pokemon', groups: ['1'], rounds: 3, turnSeconds: 30, draftEvery: 2 },
   }, res));
   mesaCartas[0].id = salaCartas.playerId;
   const entrouRui = await new Promise(res => mesaCartas[1].socket.emit('room:join', { code: salaCartas.code, name: 'Rui' }, res));
@@ -892,9 +893,12 @@ try {
   // rodada 2 nao tem draft (a cada 2), rodada 3 tem
   mesaCartas[0].socket.emit('game:end');
   await until(mesaCartas[0], st => st.phase === 'gameOver', 'fim das cartas');
+  // uma aba de antes da troca ainda pede o antigo modo cartas: vira caca com cartas
   const salaDraft = await new Promise(res => mesaCartas[0].socket.emit('room:create', {
     name: 'Lia', settings: { mode: 'cards', universe: 'pokemon', groups: ['1'], rounds: 3, draftEvery: 2 },
   }, res));
+  check('o antigo modo cartas vira caca ao segredo com cartas',
+    salaDraft.state.settings.mode === 'hunt' && salaDraft.state.settings.cards === true);
   mesaCartas[0].socket.emit('game:start');
   await until(mesaCartas[0], st => st.code === salaDraft.code && st.phase === 'drafting', 'draft solo');
   mesaCartas[0].socket.emit('game:draft', { index: 2 });
@@ -910,10 +914,83 @@ try {
   await until(mesaCartas[0], st => st.round === 2 && (st.phase === 'playing' || st.phase === 'drafting'), 'rodada 2');
   check('a cada 2 rodadas: a rodada 2 nao tem draft', mesaCartas[0].state.phase === 'playing');
   const salaCartasCfg = await new Promise(res => mesaCartas[1].socket.emit('room:create', {
-    name: 'Rui', settings: { mode: 'cards', draftEvery: 9, picture: true },
+    name: 'Rui', settings: { mode: 'hunt', cards: true, draftEvery: 9, picture: true },
   }, res));
-  check('draft de 1 a 5 rodadas, e sem imagem', salaCartasCfg.state.settings.draftEvery === 5 && salaCartasCfg.state.settings.picture === false);
+  check('draft de 1 a 5 rodadas, e cartas convivem com a imagem',
+    salaCartasCfg.state.settings.draftEvery === 5 && salaCartasCfg.state.settings.picture === true);
+  const salaSemCartas = await new Promise(res => mesaCartas[1].socket.emit('room:create', { name: 'Rui', settings: {} }, res));
+  check('sala nasce sem cartas', salaSemCartas.state.settings.cards === false && salaSemCartas.state.myHand === undefined);
   for (const g of mesaCartas) g.socket.close();
+
+  // As cartas nos outros modos: o draft vem depois do segredo escondido (duelo,
+  // batalha) ou antes da pergunta ("Qual deles?"), e o baralho so traz as
+  // cartas que tem o que fazer ali (ver `off` em src/cards.js).
+  console.log('\n== Cartas em todos os modos ==');
+  const semVez = ['tempo', 'duplo', 'congelar', 'pressa'];
+  const olhamSegredo = ['raiox', 'peneira', 'letra', 'bussola', 'aposta'];
+
+  const [duelo1, duelo2] = await Promise.all(['Duo1', 'Duo2'].map(connect));
+  const salaDuoCartas = await new Promise(res => duelo1.socket.emit('room:create', {
+    name: 'Duo1', settings: { mode: 'duel', cards: true, universe: 'pokemon', groups: ['1'], rounds: 2, turnSeconds: 30, guessesPerPlayer: 3 },
+  }, res));
+  duelo1.id = salaDuoCartas.playerId;
+  duelo2.id = (await new Promise(res => duelo2.socket.emit('room:join', { code: salaDuoCartas.code, name: 'Duo2' }, res))).playerId;
+  duelo1.socket.emit('game:start');
+  await until(duelo1, s => s.phase === 'choosing', 'duelo com cartas: escolha');
+  const escondeDuo = [duelo1, duelo2].find(g => g.id === duelo1.state.chooserId);
+  escondeDuo.socket.emit('game:choose', { pokemonId: 25 });
+  await Promise.all([duelo1, duelo2].map(g => until(g, s => s.phase === 'drafting', 'duelo com cartas: draft')));
+  check('no duelo, o draft vem depois de esconder o segredo', [duelo1, duelo2].every(g => g.state.myOffer?.length === 3));
+  for (const g of [duelo1, duelo2]) g.socket.emit('game:draft', { index: 0 });
+  await Promise.all([duelo1, duelo2].map(g => until(g, s => s.phase === 'playing', 'duelo com cartas: chutes')));
+  check('e depois dele a rodada segue com o segredo escolhido', duelo1.state.turnPlayerId && duelo1.state.turnPlayerId !== duelo1.state.chooserId);
+  for (const g of [duelo1, duelo2]) g.socket.close();
+
+  const naviosCartas = await Promise.all(['Nav1', 'Nav2', 'Nav3'].map(connect));
+  const salaNavCartas = await new Promise(res => naviosCartas[0].socket.emit('room:create', {
+    name: 'Nav1', settings: { mode: 'battle', cards: true, universe: 'pokemon', groups: ['1'], turnSeconds: 30 },
+  }, res));
+  naviosCartas[0].id = salaNavCartas.playerId;
+  for (const g of naviosCartas.slice(1)) {
+    g.id = (await new Promise(res => g.socket.emit('room:join', { code: salaNavCartas.code, name: g.name }, res))).playerId;
+  }
+  naviosCartas[0].socket.emit('game:start');
+  await until(naviosCartas[0], s => s.phase === 'choosing', 'batalha com cartas: escolha');
+  naviosCartas.forEach((g, i) => g.socket.emit('game:choose', { pokemonId: [1, 4, 7][i] }));
+  await Promise.all(naviosCartas.map(g => until(g, s => s.phase === 'drafting', 'batalha com cartas: draft')));
+  const ofertasNav = naviosCartas.flatMap(g => g.state.myOffer ?? []);
+  check('na batalha, o draft vem depois de todos esconderem', naviosCartas.every(g => g.state.myOffer?.length === 3));
+  check('e o baralho da batalha nao traz carta que olha "o segredo"', ofertasNav.every(id => !olhamSegredo.includes(id)));
+  for (const g of naviosCartas) g.socket.emit('game:draft', { index: 0 });
+  await Promise.all(naviosCartas.map(g => until(g, s => s.phase === 'playing', 'batalha com cartas: tiros')));
+  check('e a batalha comeca com uma carta na mao de cada um', naviosCartas.every(g => g.state.myHand.length === 1));
+  for (const g of naviosCartas) g.socket.close();
+
+  const plateiaCartas = await Promise.all(['Qz1', 'Qz2'].map(connect));
+  const salaQzCartas = await new Promise(res => plateiaCartas[0].socket.emit('room:create', {
+    name: 'Qz1', settings: { mode: 'quiz', cards: true, universe: 'pokemon', groups: ['1'], rounds: 2, turnSeconds: 30, choices: 5 },
+  }, res));
+  plateiaCartas[0].id = salaQzCartas.playerId;
+  plateiaCartas[1].id = (await new Promise(res => plateiaCartas[1].socket.emit('room:join', { code: salaQzCartas.code, name: 'Qz2' }, res))).playerId;
+  plateiaCartas[0].socket.emit('game:start');
+  await Promise.all(plateiaCartas.map(g => until(g, s => s.phase === 'drafting', 'quiz com cartas: draft')));
+  check('no "Qual deles?", o draft vem antes da pergunta', plateiaCartas.every(g => g.state.myOffer?.length === 3 && !g.state.question));
+  check('e o baralho dele nao traz carta de vez', plateiaCartas.flatMap(g => g.state.myOffer).every(id => !semVez.includes(id)));
+  for (const g of plateiaCartas) g.socket.emit('game:draft', { index: 0 });
+  await Promise.all(plateiaCartas.map(g => until(g, s => s.phase === 'playing' && s.question, 'quiz com cartas: pergunta')));
+  // sem vez, qualquer um usa antes de responder; depois de responder, nao
+  const [qzA, qzB] = plateiaCartas;
+  qzA.socket.emit('game:card', { uid: qzA.state.myHand[0].uid, targetId: qzB.id });
+  await sleep(200);
+  check('sem vez: a carta vale antes de responder', !qzA.errors.some(e => /sua vez|antes de responder/.test(e)));
+  qzB.socket.emit('game:answer', { index: 0 });
+  await until(qzB, s => s.myAnswer === 0, 'quiz com cartas: respondeu');
+  if (qzB.state.myHand.length) {
+    qzB.socket.emit('game:card', { uid: qzB.state.myHand[0].uid, targetId: qzA.id });
+    await sleep(200);
+    check('respondeu, a carta espera a proxima pergunta', qzB.errors.some(e => /antes de responder/.test(e)));
+  }
+  for (const g of plateiaCartas) g.socket.close();
 
   // ----------------------------------------------------------- padroes e duelo
   console.log('\n== Padrao e cronometro ==');

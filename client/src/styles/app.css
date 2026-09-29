@@ -1903,6 +1903,9 @@ button.suspect:disabled { cursor: default; }
 .quiz-opt.mine { border-color: color-mix(in srgb, var(--select) 70%, transparent); background: color-mix(in srgb, var(--select) 12%, transparent); }
 .quiz-opt.right { border-color: color-mix(in srgb, var(--hit) 70%, transparent); background: color-mix(in srgb, var(--hit) 14%, transparent); animation: quiz-right .45s ease both; }
 .quiz-opt.wrong { border-color: color-mix(in srgb, var(--danger) 70%, transparent); background: color-mix(in srgb, var(--danger) 18%, transparent); }
+/* cartas: a opção que a Peneira apagou fica riscada, e não se clica */
+.quiz-opt.sieved { opacity: .38; filter: grayscale(1); }
+.quiz-opt.sieved .nm { text-decoration: line-through; }
 @keyframes quiz-right { 0% { transform: scale(.96); } 60% { transform: scale(1.03); } 100% { transform: scale(1); } }
 .quiz-foot { margin: 16px 0 0; text-align: center; font-size: 13.5px; color: var(--text-dim); }
 @media (max-width: 640px) {
