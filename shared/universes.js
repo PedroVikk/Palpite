@@ -576,6 +576,36 @@ const DESENHOS_AGE_PT = {
   crianca: 'Criança', adolescente: 'Adolescente', adulto: 'Adulto', idoso: 'Idoso',
 };
 
+const ANIMAIS_CLASS_PT = {
+  mamifero: 'Mamífero', ave: 'Ave', reptil: 'Réptil', anfibio: 'Anfíbio', peixe: 'Peixe',
+  inseto: 'Inseto', aracnideo: 'Aracnídeo', crustaceo: 'Crustáceo', molusco: 'Molusco',
+  outro: 'Outro invertebrado',
+};
+
+/** Quem come sangue e resposta propria: o mosquito nao e carnivoro de cabeca. */
+const ANIMAIS_DIET_PT = {
+  carnivoro: 'Carnívoro', herbivoro: 'Herbívoro', onivoro: 'Onívoro', sangue: 'Sangue',
+};
+
+/** O bicho de casa e de fazenda mora em "Casa e fazenda"; a praga da rua, em "Cidade". */
+const ANIMAIS_HABITAT_PT = {
+  floresta: 'Floresta', campo: 'Campo e savana', deserto: 'Deserto', montanha: 'Montanha',
+  gelo: 'Gelo', mar: 'Mar', rio: 'Água doce', casa: 'Casa e fazenda', cidade: 'Cidade',
+};
+
+const ANIMAIS_CONTINENT_PT = {
+  sa: 'América do Sul', na: 'América do Norte', eu: 'Europa', af: 'África',
+  as: 'Ásia', oc: 'Oceania', an: 'Antártida',
+};
+
+const ANIMAIS_MOVE_PT = { anda: 'Anda', voa: 'Voa', nada: 'Nada', rasteja: 'Rasteja' };
+
+/** Faixas de dez em dez vezes: o teto de cada uma entra nela. */
+const ANIMAIS_WEIGHT_PT = {
+  1: 'Até 10 g', 2: '10 g a 1 kg', 3: '1 a 10 kg', 4: '10 a 100 kg',
+  5: '100 kg a 1 t', 6: '1 a 10 t', 7: 'Mais de 10 t',
+};
+
 export const UNIVERSES = {
   pokemon: {
     id: 'pokemon',
@@ -1547,6 +1577,40 @@ export const UNIVERSES = {
       // o ano do desenho, nao do personagem: 2 anos de tolerancia, e quem acerta
       // a epoca da infancia leva o amarelo
       { key: 'debutYear', label: 'Estreia', kind: 'number', nearby: 2, quiz: ['Qual deles estreou por último?', 'Qual deles estreou primeiro?'] },
+    ],
+  },
+
+  animais: {
+    id: 'animais',
+    label: 'Animais',
+    secretLabel: 'o animal secreto',
+    dataFile: 'animais.json',
+    // sem trava no dia: 278 bichos cabem numa partida, e a classe sozinha nao
+    // e linha do tempo nenhuma para girar
+    groupLabel: 'Classes',
+    groups: [
+      { id: 'mamiferos', label: 'Mamíferos' },
+      { id: 'aves', label: 'Aves' },
+      { id: 'repteis', label: 'Répteis e anfíbios' },
+      { id: 'peixes', label: 'Peixes' },
+      { id: 'invertebrados', label: 'Invertebrados' },
+    ],
+    defaultGroups: ['mamiferos', 'aves', 'repteis', 'peixes', 'invertebrados'],
+    columns: [
+      // o grupo e largo (Invertebrados), a coluna separa o inseto da aranha, e
+      // o sapo do lagarto
+      { key: 'klass', label: 'Classe', kind: 'text', labels: ANIMAIS_CLASS_PT },
+      { key: 'diet', label: 'Alimentação', kind: 'text', labels: ANIMAIS_DIET_PT },
+      // `list`, ate tres: a capivara e da agua doce e do campo, e fecha
+      // amarelo contra o jacare
+      { key: 'habitat', label: 'Habitat', kind: 'list', labels: ANIMAIS_HABITAT_PT },
+      // onde vive solto. O bicho do mundo todo (o cachorro, a baleia) tem os
+      // seis continentes, e fecha amarelo contra qualquer um
+      { key: 'continents', label: 'Continente', kind: 'list', labels: ANIMAIS_CONTINENT_PT },
+      { key: 'move', label: 'Locomoção', kind: 'list', labels: ANIMAIS_MOVE_PT },
+      // a faixa, nao o numero: ninguem sabe que o leao pesa 190 kg, mas todo
+      // mundo sabe que ele pesa mais que um cachorro e menos que um cavalo
+      { key: 'weight', label: 'Peso', kind: 'number', labels: ANIMAIS_WEIGHT_PT, quiz: ['Qual deles é o mais pesado?', 'Qual deles é o mais leve?'] },
     ],
   },
 };

@@ -47,6 +47,7 @@ const META = {
   bandas:           ['BD', '#A78BFA', '#5B21B6', 'Do rock ao pagode, em grupo',      1299],
   deuses:           ['DE', '#E8D39A', '#8C6D2C', 'Do Olimpo aos orixás',             34201],
   desenhos:         ['TV', '#7FDBFF', '#1F6FB2', 'Cartoon, Nick e Disney',           742406443],
+  animais:          ['AN', '#9ED67A', '#3E7B27', 'Do beija-flor à baleia-azul',      35694],
 };
 
 const FALLBACK = ['??', '#8FA3BF', '#3C4B63', '', null];

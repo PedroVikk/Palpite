@@ -138,6 +138,7 @@ Desenhe o de: <UNIVERSO> — <SÍMBOLO>
 | `bandas` | Bandas | palheta de guitarra, ponta arredondada para baixo |
 | `deuses` | Deuses | fachada de templo grego, com o vão do meio livre para o "?" |
 | `desenhos` | Desenhos animados | TV de tubo com antena, a tela vazada para o "?" |
+| `animais` | Animais | pegada de pata: o coxim grande é o miolo liso sob o "?", quatro dedos em arco em cima |
 
 ## 6. Universo novo: o checklist
 
