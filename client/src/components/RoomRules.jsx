@@ -1,7 +1,9 @@
 import Stepper from './Stepper.jsx';
 import { DraftStepper } from './CardsRules.jsx';
 import { effective } from '../lib/roomForm.js';
-import { BulbIcon, CalendarIcon, CardIcon, CardsIcon, ClockIcon, ImageIcon, TargetIcon } from './Icon.jsx';
+import {
+  BulbIcon, CalendarIcon, CardIcon, CardsIcon, ClockIcon, ImageIcon, SearchIcon, SwapIcon, TargetIcon, TrophyIcon,
+} from './Icon.jsx';
 
 /** Uma chave compacta da grade de regras. */
 function Toggle({ on, disabled, icon, title, note, onClick }) {
@@ -87,6 +89,14 @@ export default function RoomRules({ form, universe, comImagem = true, disabled =
           : 'Tamanho do nome e inicial, pagos na vez.'}
         onClick={() => onChange({ tableHints: !form.tableHints })}
       />,
+      <Toggle
+        key="smart" on={on.smartSearch} disabled={disabled || !plain || on.picture}
+        icon={<SearchIcon width={17} height={17} />} title="Busca esperta"
+        note={!plain ? 'Só na caça e no duelo.'
+          : on.picture ? 'Pela imagem não há tabela para ler.'
+          : 'Apaga da busca quem a tabela já descartou.'}
+        onClick={() => onChange({ smartSearch: !form.smartSearch })}
+      />,
     );
   }
 
@@ -132,7 +142,7 @@ export default function RoomRules({ form, universe, comImagem = true, disabled =
             label="Voltas"
             icon={<TargetIcon width={14} height={14} />}
             value={form.guessesPerPlayer} min={1} max={5}
-            hint="Um chute de cada por volta"
+            hint={form.guessesPerPlayer === 1 ? 'Cada um chuta 1 vez antes da votação' : `Cada um chuta ${form.guessesPerPlayer} vezes antes da votação`}
             disabled={disabled}
             onChange={(v) => onChange({ guessesPerPlayer: v })}
           />
@@ -165,6 +175,32 @@ export default function RoomRules({ form, universe, comImagem = true, disabled =
       </div>
 
       {toggles.length > 0 && <div className="rule-grid">{toggles}</div>}
+
+      {/* as subregras das cartas moram embaixo da chave, presas a ela: só
+          existem com as cartas ligadas */}
+      {on.cards && (
+        <div className="subrules">
+          <div className="sub-head">
+            <span className="ico"><SwapIcon width={16} height={16} /></span>
+            <div>
+              <b>Trocas no draft</b>
+              <small>Cada troca vira uma carta oferecida por outra. Guarda até 2.</small>
+            </div>
+          </div>
+          <ul className="sub-facts">
+            <li><TrophyIcon width={14} height={14} /> Quem vence a rodada ganha 1 troca.</li>
+            <li><CardsIcon width={14} height={14} /> Quem está em último e não tem nenhuma ganha 1 no draft.</li>
+            <li><SwapIcon width={14} height={14} /> A carta Recompra troca as três de uma vez.</li>
+          </ul>
+          <Toggle
+            on={on.rerollScout} disabled={disabled || quiz}
+            icon={<SearchIcon width={17} height={17} />} title="Melhor detetive"
+            note={quiz ? 'O "Qual deles?" não tem tabela para descobrir.'
+              : 'Quem descobrir mais colunas (sem vencer) também ganha 1 troca.'}
+            onClick={() => onChange({ rerollScout: !form.rerollScout })}
+          />
+        </div>
+      )}
     </div>
   );
 }

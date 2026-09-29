@@ -4,7 +4,7 @@
  * Nos ultimos 5 s o numero cresce e a barra pulsa (o CSS desliga o movimento
  * com prefers-reduced-motion ou com o piscar desligado).
  */
-export default function TimeBar({ left, total, mine, still = false }) {
+export default function TimeBar({ left, total, mine, still = false, label = 'Tempo do turno' }) {
   if (left === null || !total) return null;
   const ratio = Math.max(0, Math.min(1, left / total));
   const tone = ratio > 0.5 ? 'ok' : ratio > 0.2 ? 'warn' : 'bad';
@@ -13,7 +13,7 @@ export default function TimeBar({ left, total, mine, still = false }) {
     <div
       className={`timebar ${tone} ${last ? 'last' : ''} ${mine ? 'mine' : ''} ${still ? 'still' : ''}`}
       role="progressbar"
-      aria-label="Tempo do turno"
+      aria-label={label}
       aria-valuemin={0}
       aria-valuemax={total}
       aria-valuenow={left}

@@ -12,7 +12,7 @@ import { SearchIcon, SendIcon } from './Icon.jsx';
  * para servir tanto a partida quanto o desafio diario.
  */
 export default function GuessBar({
-  items, guessedIds, groups = [], inScope, active, choosing = false, focusKey, onSubmit,
+  items, guessedIds, groups = [], inScope, active, choosing = false, focusKey, onSubmit, possible = null,
 }) {
   const [query, setQuery] = useState('');
   const [index, setIndex] = useState(0);
@@ -23,8 +23,8 @@ export default function GuessBar({
 
   const suggestions = useMemo(() => {
     if (!query.trim()) return [];
-    return search(query, { items, choosing, groups, guessed: guessedIds, inScope });
-  }, [query, items, choosing, groups, guessedIds, inScope]);
+    return search(query, { items, choosing, groups, guessed: guessedIds, inScope, possible });
+  }, [query, items, choosing, groups, guessedIds, inScope, possible]);
 
   useEffect(() => { setIndex(0); }, [query]);
 
@@ -98,13 +98,15 @@ export default function GuessBar({
             {suggestions.map((item, i) => (
               <li
                 key={item.id}
-                className={i === index ? 'active' : ''}
+                className={`${i === index ? 'active' : ''} ${item.out ? 'out' : ''}`}
+                title={item.out ? 'A tabela já descartou este nome' : undefined}
                 // mousedown, nao click: o blur do input fecharia a lista antes
                 onMouseDown={e => { e.preventDefault(); pick(item); }}
                 onMouseEnter={() => setIndex(i)}
               >
                 {item.sprite && <img src={item.sprite} alt="" loading="lazy" />}
                 <span className="nm">{item.name}</span>
+                {item.out && <span className="out-tag">descartado</span>}
               </li>
             ))}
           </ul>

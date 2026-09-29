@@ -66,6 +66,14 @@ export const RestartIcon = (props) => (
   </svg>
 );
 
+/** O vai e vem da troca: uma seta indo, outra voltando. */
+export const SwapIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M4 8h14M14 4l4 4-4 4" />
+    <path d="M20 16H6M10 12l-4 4 4 4" />
+  </svg>
+);
+
 export const ClockIcon = (props) => (
   <svg {...base} {...props}>
     <circle cx="12" cy="12" r="9" />

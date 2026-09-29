@@ -84,6 +84,11 @@ export const CARDS = {
     name: 'Troca', rarity: 'epic', attack: true, target: true,
     text: 'Troca a sua mão inteira com a de quem você escolher.',
   },
+  // a unica que nao se usa na vez: fica na mao ate o proximo draft (`draft`)
+  recompra: {
+    name: 'Recompra', rarity: 'common', attack: false, draft: true,
+    text: 'No próximo draft, troca as três cartas oferecidas por três novas.',
+  },
 };
 
 /** A carta tem o que fazer no modo `mode`? */
@@ -91,6 +96,12 @@ export const playsIn = (id, mode) => Boolean(CARDS[id]) && !CARDS[id].off?.inclu
 
 /** Quantas cartas saem por draft, e quantas cabem na mao. */
 export const OFFER_SIZE = 3;
+/**
+ * Trocas de draft guardadas: quem vence a rodada ganha uma (e, com a
+ * subregra, quem mais descobriu colunas). O teto e baixo de proposito — a
+ * troca e um empurrao para quem ganhou, nao uma bola de neve.
+ */
+export const REROLL_LIMIT = 2;
 export const HAND_LIMIT = 5;
 export const STEAL_POINTS = 25;
 export const BET_PENALTY = 20;
@@ -114,12 +125,27 @@ function pickWeighted(weights, mode, skip = [], rng = Math.random) {
   return left.find(card => (roll -= weights[CARDS[card].rarity]) < 0) ?? left.at(-1);
 }
 
-/** Tres cartas diferentes, do baralho do modo, para um jogador escolher uma. */
-export function drawOffer(mode, underdog = false, rng = Math.random) {
+/**
+ * Tres cartas diferentes, do baralho do modo, para um jogador escolher uma.
+ * `avoid` sao as que ja estavam na mesa (a Recompra): saem outras, enquanto
+ * o baralho do modo tiver.
+ */
+export function drawOffer(mode, underdog = false, rng = Math.random, avoid = []) {
   const weights = WEIGHTS[underdog ? 'underdog' : 'normal'];
   const offer = [];
-  while (offer.length < OFFER_SIZE) offer.push(pickWeighted(weights, mode, offer, rng));
+  while (offer.length < OFFER_SIZE) {
+    const fresh = pickWeighted(weights, mode, [...offer, ...avoid], rng);
+    offer.push(fresh && !offer.includes(fresh) ? fresh : pickWeighted(weights, mode, offer, rng));
+  }
   return offer;
+}
+
+/**
+ * A troca de uma carta so do draft: sai outra, diferente das que ja estao na
+ * mesa, pelo mesmo peso que a oferta daquele jogador teve.
+ */
+export function rerollOne(mode, offer, underdog = false, rng = Math.random) {
+  return pickWeighted(WEIGHTS[underdog ? 'underdog' : 'normal'], mode, offer, rng);
 }
 
 /**

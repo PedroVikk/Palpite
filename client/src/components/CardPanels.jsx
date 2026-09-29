@@ -3,7 +3,8 @@ import { socket } from '../socket.js';
 import { formatValue } from '../lib/format.js';
 import Modal from './Modal.jsx';
 import Avatar from './Avatar.jsx';
-import { CardsIcon } from './Icon.jsx';
+import { CardsIcon, ChevronIcon, SwapIcon } from './Icon.jsx';
+import TimeBar from './TimeBar.jsx';
 
 /**
  * O baralho, do lado da tela. Espelha src/cards.js: o servidor e quem aplica o
@@ -32,6 +33,7 @@ export const CARD_FACES = {
   assalto: { name: 'Assalto', rarity: 'epic', target: true, attack: true, colors: ['#FF8A8A', '#9B1C31'], text: 'Rouba 25 pontos de quem você escolher.' },
   furto: { name: 'Furto', rarity: 'epic', target: true, attack: true, colors: ['#A1A1AA', '#27272A'], text: 'Pega uma carta ao acaso da mão de quem você escolher.' },
   troca: { name: 'Troca', rarity: 'epic', target: true, attack: true, colors: ['#FCD34D', '#DB2777'], text: 'Troca a sua mão inteira com a de quem você escolher.' },
+  recompra: { name: 'Recompra', rarity: 'common', draft: true, colors: ['#99F6E4', '#0F766E'], text: 'No próximo draft, troca as três cartas oferecidas por três novas.' },
 };
 
 const RARITY = { common: 'Comum', rare: 'Rara', epic: 'Épica' };
@@ -166,6 +168,15 @@ const ART = {
       <path d="M54 42H14M22 33l-9 9 9 9" />
     </>
   ),
+  recompra: (
+    <>
+      <rect x="8" y="16" width="16" height="23" rx="2.5" transform="rotate(-10 16 27)" />
+      <rect x="24" y="14" width="16" height="23" rx="2.5" fill="currentColor" fillOpacity=".22" />
+      <rect x="40" y="16" width="16" height="23" rx="2.5" transform="rotate(10 48 27)" />
+      <path d="M16 50a17 9 0 0 0 32 0" />
+      <path d="M48 44v6h-6" />
+    </>
+  ),
   furto: (
     <>
       <rect x="30" y="22" width="22" height="30" rx="3" transform="rotate(14 41 37)" fill="currentColor" fillOpacity=".22" />
@@ -210,32 +221,92 @@ function CardBack({ size = 'md' }) {
   );
 }
 
-function CardButton({ id, size, mode, onClick, disabled }) {
+function CardButton({ id, size, mode, onClick, disabled, kbd = null, note = null }) {
   const face = faceOf(id);
-  const text = textOf(id, mode);
+  const text = note ?? textOf(id, mode);
   return (
     <button
       type="button"
       className="pcard-btn"
       disabled={disabled}
       onClick={onClick}
-      title={`${face.name} — ${text}`}
+      title={`${face.name} — ${text}${kbd ? ` (${kbd})` : ''}`}
       aria-label={`${face.name}: ${text}`}
+      aria-keyshortcuts={kbd ?? undefined}
     >
       <PlayCard id={id} size={size} mode={mode} />
+      {kbd && <kbd className="pc-kbd" aria-hidden="true">{kbd}</kbd>}
     </button>
   );
 }
 
+/** A tecla veio de dentro de um campo de texto? Ali o número é do nome, não do atalho. */
+const typing = (event) => Boolean(event.target.closest?.('input, textarea, select, [contenteditable="true"]'));
+
+/** O número da tecla (Digit1 -> 0), pelo código físico: com Shift o `key` vira "!" */
+const digitOf = (event) => (/^Digit[1-9]$/.test(event.code) ? Number(event.code.slice(5)) - 1 : null);
+
+/** Quanto dura a subida da carta escolhida antes de ela ir para a mão. */
+const PICK_MS = 460;
+
 /**
- * O draft: as três cartas oferecidas, das quais se leva uma. Enquanto os
- * outros escolhem, a janela fica esperando — e fecha sozinha quando a rodada
- * começa, porque a fase deixa de ser o draft.
+ * O draft: as três cartas oferecidas, das quais se leva uma. Elas chegam
+ * distribuídas uma a uma e ficam flutuando; a escolhida sobe e as outras caem
+ * antes do pedido sair. A barra embaixo é o prazo do servidor — quem não
+ * escolhe a tempo leva uma sorteada. Enquanto os outros escolhem, a janela
+ * fica esperando, e fecha sozinha quando a rodada começa.
+ *
+ * Embaixo de cada carta fica o vai e vem: gasta uma troca guardada e troca só
+ * aquela carta (a nova entra girando no lugar). Com uma Recompra na mão, dá
+ * para trocar as três de uma vez. Atalhos: 1–3 escolhe, Shift+1–3 troca, R
+ * usa a Recompra.
  */
-export function DraftModal({ state }) {
+export function DraftModal({ state, left, total, still }) {
   const offer = state.myOffer;
   const waiting = state.drafting.length;
   const { mode } = state.settings;
+  // o detetive conta colunas da tabela: no "Qual deles?" nao ha
+  const rerollScout = state.settings.rerollScout && mode !== 'quiz';
+  const rerolls = state.myRerolls ?? 0;
+  const redraw = (state.myHand ?? []).find(card => card.id === 'recompra');
+  const [picked, setPicked] = useState(null);
+  // as cartas da primeira mesa entram distribuídas; as que chegam por troca, girando
+  const dealt = useRef(null);
+  if (offer && !dealt.current) dealt.current = new Set(offer);
+
+  const pick = (index) => {
+    if (picked !== null || !offer?.[index]) return;
+    setPicked(index);
+    setTimeout(() => socket.emit('game:draft', { index }), PICK_MS);
+  };
+  const reroll = (index) => {
+    if (picked !== null || rerolls < 1 || !offer?.[index]) return;
+    socket.emit('game:reroll', { index });
+  };
+  const spendRedraw = () => {
+    if (picked !== null || !redraw || !offer) return;
+    socket.emit('game:redraft', { uid: redraw.uid });
+  };
+
+  // tudo aqui é por referência nova a cada estado: o efeito relê a cada troca
+  useEffect(() => {
+    if (!offer || picked !== null) return undefined;
+    const onKey = (event) => {
+      if (typing(event) || event.ctrlKey || event.metaKey || event.altKey) return;
+      const at = digitOf(event);
+      if (at !== null && at < offer.length) {
+        event.preventDefault();
+        if (event.shiftKey) reroll(at); else pick(at);
+      } else if (event.code === 'KeyR' && !event.shiftKey && redraw) {
+        event.preventDefault();
+        spendRedraw();
+      }
+    };
+    addEventListener('keydown', onKey);
+    return () => removeEventListener('keydown', onKey);
+  });
+
+  const hurry = offer && picked === null && left !== null && left <= 5;
   return (
     <Modal label="Draft de cartas" className="impostor draft" dismissable={false} onClose={() => {}}>
       <div className="modal-main">
@@ -251,17 +322,66 @@ export function DraftModal({ state }) {
                   : 'Todo mundo escolheu. A rodada já vai começar.'}
             </p>
           </div>
+          {offer && (
+            <span
+              className={`reroll-bank ${rerolls ? 'has' : ''}`}
+              title={`Ganhe trocas vencendo a rodada${rerollScout ? ' ou descobrindo mais colunas' : ''}. Guarda até 2.`}
+            >
+              <SwapIcon width={15} height={15} />
+              <b>{rerolls}</b> {rerolls === 1 ? 'troca' : 'trocas'}
+            </span>
+          )}
         </div>
         {offer ? (
-          <div className="card-offer">
-            {offer.map((id, index) => (
-              <CardButton key={id} id={id} size="lg" mode={mode} onClick={() => socket.emit('game:draft', { index })} />
+          <>
+            <div className={`card-offer deal ${picked !== null ? 'picked' : ''} ${hurry ? 'hurry' : ''}`}>
+              {offer.map((id, index) => (
+                <span
+                  key={`${index}:${id}`}
+                  className={`offer-slot ${dealt.current?.has(id) ? '' : 'fresh'} ${picked === index ? 'chosen' : picked !== null ? 'passed' : ''}`}
+                  style={{ '--i': index, '--n': offer.length }}
+                >
+                  <CardButton id={id} size="lg" mode={mode} disabled={picked !== null} kbd={String(index + 1)} onClick={() => pick(index)} />
+                  <button
+                    type="button"
+                    className="reroll"
+                    disabled={picked !== null || rerolls < 1}
+                    onClick={() => reroll(index)}
+                    title={rerolls ? `Trocar só esta carta (Shift+${index + 1})` : 'Sem trocas guardadas'}
+                    aria-label={`Trocar ${faceOf(id).name} por outra carta`}
+                  >
+                    <SwapIcon width={16} height={16} />
+                  </button>
+                </span>
+              ))}
+            </div>
+            {redraw && (
+              <button type="button" className="redraw" disabled={picked !== null} onClick={spendRedraw} aria-keyshortcuts="R">
+                <PlayCard id="recompra" size="sm" />
+                <span>
+                  <b>Usar Recompra</b>
+                  <small>Troca as três cartas de uma vez. Ela sai da sua mão.</small>
+                </span>
+                <kbd>R</kbd>
+              </button>
+            )}
+            <p className="draft-keys">
+              <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> escolhe · <kbd>Shift</kbd>+número troca uma
+              {!rerolls && <> · <span className="muted">sem trocas: vença uma rodada{rerollScout ? ' ou descubra mais colunas' : ''} para ganhar</span></>}
+            </p>
+          </>
+        ) : (
+          <div className="card-offer settled">
+            {state.myHand.map((card, index) => (
+              <span key={card.uid} className="offer-slot" style={{ '--i': index }}>
+                <PlayCard id={card.id} size="sm" />
+              </span>
             ))}
           </div>
-        ) : (
-          <div className="card-offer">
-            {state.myHand.map(card => <PlayCard key={card.uid} id={card.id} size="sm" />)}
-          </div>
+        )}
+        <TimeBar left={left} total={total} mine={Boolean(offer)} still={still} label="Tempo para escolher" />
+        {offer && left !== null && (
+          <p className="draft-note">Sem escolha até o fim do tempo, uma das três vem sorteada.</p>
         )}
       </div>
     </Modal>
@@ -273,6 +393,9 @@ export function DraftModal({ state }) {
  * própria vez (no "Qual deles?", enquanto a pessoa não respondeu). Ao lado, o
  * que as cartas já deram nesta rodada — as colunas que o Raio-X revelou, a
  * aposta de pé, o chute a mais.
+ *
+ * Na vez, Alt+1–5 usa a carta daquela posição: o campo de chute está com o
+ * foco, e número sozinho ali é parte de nome ("7 Colored Fish").
  */
 export function HandBar({ state, universe, myTurn, myId }) {
   const hand = state.myHand ?? [];
@@ -292,6 +415,25 @@ export function HandBar({ state, universe, myTurn, myId }) {
   if (state.myShield) perks.push('Escudo de pé até o fim da rodada');
   if (state.myMirror) perks.push('Espelho de pé, só você sabe');
 
+  const play = (card) => {
+    if (!myTurn || faceOf(card.id).draft) return;
+    if (faceOf(card.id).target) setAiming(card);
+    else socket.emit('game:card', { uid: card.uid });
+  };
+
+  useEffect(() => {
+    if (!myTurn || aiming) return undefined;
+    const onKey = (event) => {
+      if (!event.altKey || event.ctrlKey || event.metaKey) return;
+      const at = digitOf(event);
+      if (at === null || !hand[at]) return;
+      event.preventDefault();
+      play(hand[at]);
+    };
+    addEventListener('keydown', onKey);
+    return () => removeEventListener('keydown', onKey);
+  });
+
   if (!hand.length && !intel.length && !perks.length) return null;
   return (
     <section className="hand">
@@ -299,53 +441,42 @@ export function HandBar({ state, universe, myTurn, myId }) {
         <span className="k">Sua mão {hand.length ? `· ${hand.length}` : ''}</span>
         {hand.length ? (
           <div className="hand-row">
-            {hand.map(card => (
-              <CardButton
-                key={card.uid}
-                id={card.id}
-                size="sm"
-                mode={mode}
-                disabled={!myTurn}
-                onClick={() => (faceOf(card.id).target
-                  ? setAiming(card)
-                  : socket.emit('game:card', { uid: card.uid }))}
-              />
-            ))}
+            {hand.map((card, index) => {
+              const draftOnly = Boolean(faceOf(card.id).draft);
+              return (
+                <CardButton
+                  key={card.uid}
+                  id={card.id}
+                  size="sm"
+                  mode={mode}
+                  disabled={!myTurn || draftOnly}
+                  kbd={myTurn && !draftOnly ? `Alt+${index + 1}` : null}
+                  note={draftOnly ? 'Guardada para o próximo draft: lá ela troca as três cartas.' : null}
+                  onClick={() => play(card)}
+                />
+              );
+            })}
           </div>
         ) : <small className="muted">Sem cartas. O próximo draft traz mais.</small>}
+        {state.myRerolls > 0 && (
+          <span className="reroll-bank has" title="Trocas guardadas para o próximo draft">
+            <SwapIcon width={14} height={14} /> <b>{state.myRerolls}</b> {state.myRerolls === 1 ? 'troca' : 'trocas'}
+          </span>
+        )}
       </div>
       {(intel.length > 0 || perks.length > 0) && (
         <div className="hand-intel">
-          {intel.map(({ key, value, of, who }) => {
-            if (key === 'grupo') {
-              return <span key={key} className="fact">{of}: <b>{value}</b></span>;
-            }
-            if (key.startsWith('espiar:')) {
-              return (
-                <span key={key} className="fact">
-                  Mão de {who}: <b>{value.length ? value.map(id => faceOf(id).name).join(', ') : 'vazia'}</b>
-                </span>
-              );
-            }
-            if (key.startsWith('letra:')) {
-              return (
-                <span key={key} className="fact">
-                  {key.slice(6)}ª letra{of ? ` (de ${of})` : ''}: <b>{value}</b>
-                </span>
-              );
-            }
-            const column = universe.columns.find(c => c.key === key);
-            return (
-              <span key={key} className="fact">
-                {column?.label ?? key}: <b>{column ? formatValue(column, value) : String(value)}</b>
-              </span>
-            );
+          {intel.map((entry) => {
+            const { label, value } = describeIntel(entry, universe);
+            return <span key={entry.key} className="fact">{label}: <b>{value}</b></span>;
           })}
           {perks.map(text => <span key={text} className="fact dim">{text}</span>)}
         </div>
       )}
       {myTurn && hand.length > 0 && (
-        <p className="f-help">Toque numa carta para usar. Depois é só {quiz ? 'responder' : 'chutar'}.</p>
+        <p className="f-help">
+          Toque numa carta (ou <kbd>Alt</kbd>+número) para usar. Depois é só {quiz ? 'responder' : 'chutar'}.
+        </p>
       )}
       {aiming && (
         <TargetModal
@@ -359,6 +490,62 @@ export function HandBar({ state, universe, myTurn, myId }) {
           }}
         />
       )}
+    </section>
+  );
+}
+
+const LOG_KEY = 'palpite:cardlog';
+const readLogOpen = () => { try { return localStorage.getItem(LOG_KEY) === 'open'; } catch { return false; } };
+const saveLogOpen = (open) => { try { localStorage.setItem(LOG_KEY, open ? 'open' : 'closed'); } catch { /* sem storage, vale só nesta tela */ } };
+
+/** "agora", "há 40 s", "há 3 min": o registro é de uma rodada, não passa disso. */
+function ago(at, now) {
+  const s = Math.max(0, Math.round((now - at) / 1000));
+  if (s < 10) return 'agora';
+  if (s < 60) return `há ${s} s`;
+  return `há ${Math.floor(s / 60)} min`;
+}
+
+/**
+ * O registro das cartas da rodada, para quem clicou rápido demais na carta
+ * que passou na tela. Recolhido, mostra só a última jogada numa linha; aberto,
+ * a rodada inteira, a mais nova em cima. A escolha fica guardada no
+ * navegador. As jogadas que mexeram com quem olha ganham destaque.
+ */
+export function CardLog({ state, myId }) {
+  const log = state.cardLog ?? [];
+  const [open, setOpen] = useState(readLogOpen);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const handle = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(handle);
+  }, []);
+  if (!log.length) return null;
+
+  const toggle = () => setOpen(o => { saveLogOpen(!o); return !o; });
+  const shown = open ? [...log].reverse() : [log.at(-1)];
+  return (
+    <section className={`card-log ${open ? 'open' : ''}`}>
+      <button type="button" className="cl-head" aria-expanded={open} onClick={toggle}>
+        <CardsIcon width={16} height={16} />
+        <b>Cartas da rodada</b>
+        <span className="n">{log.length}</span>
+        <span className="cl-hint">{open ? 'Recolher' : log.length > 1 ? 'Ver todas' : 'Abrir'}</span>
+        <ChevronIcon className="chev" width={16} height={16} />
+      </button>
+      <ol className="cl-list">
+        {shown.map(entry => {
+          const face = entry.id ? faceOf(entry.id) : UNKNOWN;
+          const mine = entry.by === myId || entry.target === myId;
+          return (
+            <li key={entry.seq} className={mine ? 'me' : ''}>
+              <i className="cl-chip" style={{ '--c1': face.colors[0], '--c2': face.colors[1] }} aria-hidden="true" />
+              <span className="tx">{entry.text}</span>
+              <time>{ago(entry.at, now)}</time>
+            </li>
+          );
+        })}
+      </ol>
     </section>
   );
 }
@@ -408,6 +595,71 @@ function TargetModal({ card, state, myId, onClose, onPick }) {
   );
 }
 
+/** As cartas que mostram algo só para quem usou: na jogada, elas viram. */
+const REVEALS = new Set(['bussola', 'raiox', 'letra', 'espiar']);
+
+/**
+ * Uma entrada de myIntel em palavras: o rótulo, o valor e, na Letra, a
+ * posição e o tamanho do nome. É o mesmo texto da faixa ao lado da mão.
+ */
+function describeIntel(entry, universe) {
+  const { key, value, of, who } = entry;
+  if (key === 'grupo') return { label: of, value };
+  if (key.startsWith('espiar:')) {
+    return { label: `Mão de ${who}`, value: value.length ? value.map(id => faceOf(id).name).join(', ') : 'vazia', list: value };
+  }
+  if (key.startsWith('letra:')) {
+    const at = Number(key.slice(6));
+    return { label: `${at}ª letra${of ? ` de ${of}` : ''}`, value, at, of };
+  }
+  const column = universe?.columns.find(c => c.key === key);
+  return { label: column?.label ?? key, value: column ? formatValue(column, value) : String(value) };
+}
+
+/** O que a carta `id` acabou de mostrar, se a entrada é mesmo dela. */
+function revealOf(entry, id, universe) {
+  if (!entry) return null;
+  const { key } = entry;
+  const mine = id === 'bussola' ? key === 'grupo'
+    : id === 'letra' ? key.startsWith('letra:')
+      : id === 'espiar' ? key.startsWith('espiar:')
+        : key !== 'grupo' && !key.includes(':');
+  return mine ? describeIntel(entry, universe) : null;
+}
+
+/**
+ * O verso da carta que virou: a mesma moldura e as mesmas cores, e no lugar
+ * da ilustração, o que ela mostrou. Na Letra, o nome em casas vazias com a
+ * letra na posição dela; no Espiar, as cartas da mão espiada.
+ */
+function RevealCard({ id, reveal }) {
+  const face = faceOf(id);
+  const slots = reveal.at && reveal.of && reveal.of <= 16
+    ? Array.from({ length: reveal.of }, (_, i) => (i + 1 === reveal.at ? reveal.value : ''))
+    : null;
+  return (
+    <span className={`pcard xl ${face.rarity} reveal`} style={{ '--c1': face.colors[0], '--c2': face.colors[1] }}>
+      <span className="pc-face">
+        <span className="pc-reveal">
+          <small className="rv-k">{reveal.label}</small>
+          {reveal.list ? (
+            reveal.list.length ? (
+              <span className="rv-hand">{reveal.list.map((card, i) => <PlayCard key={i} id={card} size="sm" />)}</span>
+            ) : <b className="rv-v">Vazia</b>
+          ) : (
+            <b className={`rv-v ${String(reveal.value).length > 14 ? 'long' : ''}`}>{reveal.value}</b>
+          )}
+          {slots && (
+            <span className="rv-slots">{slots.map((ch, i) => <i key={i} className={ch ? 'on' : ''}>{ch}</i>)}</span>
+          )}
+        </span>
+        <b className="pc-name">{face.name}</b>
+        <small className="pc-text">Só você está vendo.</small>
+      </span>
+    </span>
+  );
+}
+
 /** Quanto dura a saída da carta depois do clique. */
 const OUT_MS = 420;
 
@@ -426,7 +678,7 @@ const OUT_MS = 420;
  * Várias jogadas seguidas fazem fila, uma por clique. O que já estava na mesa
  * quando a tela abriu (F5, entrar no meio) não entra na fila.
  */
-export function CardPlayFx({ state, myId }) {
+export function CardPlayFx({ state, myId, universe }) {
   const last = state.lastCard;
   const seen = useRef(last?.seq ?? 0);
   const [queue, setQueue] = useState([]);
@@ -463,6 +715,11 @@ export function CardPlayFx({ state, myId }) {
       reflected: Boolean(last.reflected),
       message: state.message,
       to,
+      // carta de informação usada por quem olha: o servidor põe o que ela
+      // mostrou no fim de myIntel, no mesmo estado que anuncia a jogada
+      reveal: last.by === myId && !last.reflected && REVEALS.has(last.id)
+        ? revealOf(state.myIntel?.at(-1), last.id, universe)
+        : null,
     }]);
     // so a jogada nova importa; o resto do estado e lido no momento dela
   }, [last?.seq]);
@@ -520,7 +777,14 @@ export function CardPlayFx({ state, myId }) {
     >
       <span className="fx-flash" aria-hidden="true" />
       <span className="fx-glow" aria-hidden="true" />
-      <span className="fx-card">{play.id ? <PlayCard id={play.id} size="xl" mode={state.settings.mode} /> : <CardBack size="xl" />}</span>
+      <span className="fx-card">
+        {play.reveal ? (
+          <span className="fx-flip">
+            <span className="fx-side front"><PlayCard id={play.id} size="xl" mode={state.settings.mode} /></span>
+            <span className="fx-side back"><RevealCard id={play.id} reveal={play.reveal} /></span>
+          </span>
+        ) : play.id ? <PlayCard id={play.id} size="xl" mode={state.settings.mode} /> : <CardBack size="xl" />}
+      </span>
       <span className="fx-caption" role="status" aria-live="assertive">
         <b>{title}</b>
         {play.message && <span>{play.message}</span>}

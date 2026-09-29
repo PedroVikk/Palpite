@@ -120,12 +120,17 @@
 
 /* nanquim: os quadros levam traço grosso, e o que é "tinta cheia" na tabela
    (o carimbo e a retícula) ganha contorno como nos balões */
-[data-theme="manga"] :is(.card, .hub-card, .table, .turn-banner, .reveal, .secret-image, .quiz, .hand, .modal, .theme-dock, .room-back) {
+[data-theme="manga"] :is(.card, .hub-card, .table, .turn-banner, .reveal, .secret-image, .quiz, .hand, .card-log, .modal, .theme-dock, .room-back) {
   border-width: 2.5px;
 }
-[data-theme="manga"] :is(.cell.hit, .cell.partial, .cell.close, .mini.hit, .mini.part, .theme-tile .seal) {
+[data-theme="manga"] :is(.cell.hit, .cell.partial, .cell.close, .mini.hit, .mini.part, .theme-tile .seal, .termo-tile.hit, .termo-tile.near) {
   border: 2px solid #111111;
 }
+/* errou leva traço mais fino: é quadro de fundo, não o que salta da página */
+[data-theme="manga"] :is(.cell.miss, .termo-tile.miss) { border-width: 1.5px; }
+/* acertou salta do quadro: sombra de nanquim e a letra contornada */
+[data-theme="manga"] :is(.cell.hit, .termo-tile.hit) { box-shadow: 3px 3px 0 #111111; text-shadow: 1px 1px 0 #111111; }
+[data-theme="manga"] :is(.cell.partial, .cell.close) { box-shadow: none; }
 [data-theme="manga"] :is(.btn.primary, .btn.violet, .btn-guess, .tc-btn) { border: 2px solid #111111; }
 [data-theme="manga"] :is(.silhouette, .tc-stage, .secret-image .frame, .reveal .portrait) { border-width: 2.5px; }
 [data-theme="manga"] :is(.silhouette, .tc-stage, .secret-image .frame) .mark-art { background: #111111; }
@@ -136,6 +141,9 @@
 }
 [data-theme="manga"] .tc-stage .qm { transform: rotate(8deg) translate(12px, 8px); }
 [data-theme="manga"] .theme-tile.on { box-shadow: 4px 4px 0 #D7263D; }
+/* o resumo da tabela e o balão da célula falam a mesma tinta da tabela */
+[data-theme="manga"] :is(.known-chip.hit, .known-chip.partial, .reroll, .cell-pop) { border: 2px solid #111111; }
+[data-theme="manga"] .hints-row.newest .cell.guess::after { border: 2px solid #111111; }
 
 /* ---------------------------------------------------------------- Mesa */
 

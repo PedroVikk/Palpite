@@ -28,6 +28,8 @@ export function newForm(universeId = 'pokemon') {
     draftEvery: 2,
     speedSame: true,
     tableHints: false,
+    rerollScout: true,
+    smartSearch: true,
   };
 }
 
@@ -48,6 +50,8 @@ export const fromSettings = (s) => ({
   draftEvery: s.draftEvery || 2,
   speedSame: s.speedSame ?? true,
   tableHints: Boolean(s.tableHints),
+  rerollScout: s.rerollScout ?? true,
+  smartSearch: s.smartSearch ?? true,
 });
 
 /** O que cada chave vale de verdade no modo escolhido (o servidor desliga o resto). */
@@ -65,6 +69,9 @@ export function effective(f, comImagem = true) {
     cards: f.cards && !termo && !speed,
     picture: f.picture && comImagem && plain,
     tableHints: f.tableHints && plain,
+    // a busca esperta le a tabela: pela imagem nao ha tabela para ler
+    smartSearch: f.smartSearch && plain && !(f.picture && comImagem),
+    rerollScout: f.rerollScout && f.cards && !termo && !speed && !quiz,
     card: f.card && impostor,
     untilRight: f.untilRight && !impostor,
   };
@@ -88,6 +95,8 @@ export const toSettings = (f, comImagem = true) => {
     draftEvery: f.draftEvery,
     speedSame: f.speedSame,
     tableHints: on.tableHints,
+    rerollScout: f.rerollScout,
+    smartSearch: f.smartSearch,
   };
 };
 
@@ -140,38 +149,46 @@ export function applyRules(form, patch, { comImagem = true } = {}) {
   return next;
 }
 
-/** Os atalhos da criacao: um clique monta a partida inteira. */
+/**
+ * Os atalhos da criacao: um clique monta a partida inteira. `group` separa a
+ * coluna em "Caça ao segredo" e "Outros jeitos".
+ */
+export const PRESET_GROUPS = [
+  { id: 'caca', label: 'Caça ao segredo' },
+  { id: 'outros', label: 'Outros jeitos' },
+];
+
 export const PRESETS = [
   {
-    id: 'rapida', label: 'Partida rápida', note: '3 rodadas · 30 s · até acertar',
+    id: 'rapida', group: 'caca', label: 'Partida rápida', note: '3 rodadas · 30 s · até acertar',
     patch: { game: 'segredo', mode: 'hunt', rounds: 3, turnSeconds: 30, untilRight: true, cards: false, picture: false, tableHints: false },
   },
   {
-    id: 'classica', label: 'Clássica', note: '5 rodadas · 45 s · 6 chutes',
+    id: 'classica', group: 'caca', label: 'Clássica', note: '5 rodadas · 45 s · 6 chutes',
     patch: { game: 'segredo', mode: 'hunt', rounds: 5, turnSeconds: 45, untilRight: false, guessesPerPlayer: 6, cards: false, picture: false, tableHints: false },
   },
   {
-    id: 'semfim', label: 'Sem fim', note: 'Rodadas, tempo e chutes infinitos',
+    id: 'semfim', group: 'caca', label: 'Sem fim', note: 'Rodadas, tempo e chutes infinitos',
     patch: { game: 'segredo', mode: 'hunt', rounds: 0, turnSeconds: 0, untilRight: true, cards: false, picture: false },
   },
   {
-    id: 'imagem', label: 'Pela imagem', note: '5 rodadas · 45 s · figura borrada',
+    id: 'imagem', group: 'caca', label: 'Pela imagem', note: '5 rodadas · 45 s · figura borrada',
     patch: { game: 'segredo', mode: 'hunt', rounds: 5, turnSeconds: 45, untilRight: true, picture: true, cards: false, tableHints: false },
   },
   {
-    id: 'termo', label: 'Termo', note: '5 rodadas · 2 min · 6 linhas',
+    id: 'termo', group: 'outros', label: 'Termo', note: '5 rodadas · 2 min · 6 linhas',
     patch: { game: 'termo', mode: 'hunt', rounds: 5, turnSeconds: 120, untilRight: false, guessesPerPlayer: 6 },
   },
   {
-    id: 'impostor', label: 'Impostor', note: '5 rodadas · 45 s · 2 voltas',
+    id: 'impostor', group: 'outros', label: 'Impostor', note: '5 rodadas · 45 s · 2 voltas',
     patch: { game: 'segredo', mode: 'impostor', rounds: 5, turnSeconds: 45, guessesPerPlayer: 2, untilRight: false, cards: false },
   },
   {
-    id: 'quiz', label: 'Qual deles?', note: '10 perguntas · 15 s · 3 opções',
+    id: 'quiz', group: 'outros', label: 'Qual deles?', note: '10 perguntas · 15 s · 3 opções',
     patch: { game: 'segredo', mode: 'quiz', rounds: 10, turnSeconds: 15, choices: 3, cards: false },
   },
   {
-    id: 'cartas', label: 'Com cartas', note: '5 rodadas · 45 s · draft a cada 2',
+    id: 'cartas', group: 'outros', label: 'Com cartas', note: '5 rodadas · 45 s · draft a cada 2',
     patch: { game: 'segredo', mode: 'hunt', rounds: 5, turnSeconds: 45, untilRight: true, cards: true, draftEvery: 2 },
   },
 ];
@@ -209,7 +226,8 @@ export function summaryOf(f, universe, comImagem = true) {
     : `${f.guessesPerPlayer} por jogador`;
 
   const extras = [
-    on.cards && 'Cartas',
+    on.cards && (on.rerollScout ? 'Cartas (+ detetive)' : 'Cartas'),
+    on.smartSearch && 'Busca esperta',
     on.picture && 'Imagem',
     on.tableHints && 'Dicas da mesa',
     on.card && 'Ficha dos chutes',

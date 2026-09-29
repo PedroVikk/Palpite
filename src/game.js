@@ -65,6 +65,8 @@ export const DEFAULT_SETTINGS = {
   draftEvery: 2,       // cartas: a cada quantas rodadas sai um draft
   speedSame: true,     // velocidade: a mesma fila de segredos para todos (ou uma para cada)
   tableHints: false,   // caca e duelo: a mesa pode pedir dicas (tamanho do nome, inicial)
+  rerollScout: true,   // cartas: quem descobre mais colunas na rodada tambem ganha uma troca de draft
+  smartSearch: true,   // caca e duelo pela tabela: a busca apaga os nomes que a tabela ja descartou
 };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -177,6 +179,11 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
     // no impostor elas entregariam o papel, e nos outros nao ha segredo unico
     tableHints: !impostor && !battle && !quiz && !termo && !speed
       && Boolean(raw.tableHints ?? base.tableHints),
+    // as duas guardam a preferencia de quem montou a sala mesmo onde nao valem
+    // (cartas desligadas, modo sem tabela): quem valida e a sala, na hora de
+    // usar — assim ligar as cartas no lobby nao volta a subregra para o padrao
+    rerollScout: Boolean(raw.rerollScout ?? base.rerollScout ?? true),
+    smartSearch: Boolean(raw.smartSearch ?? base.smartSearch ?? true),
   };
 }
 
@@ -186,6 +193,37 @@ export const isUntilRight = (settings) => settings.guessesPerPlayer === 0;
 // ---------------------------------------------------------------- comparacao
 
 const isEmpty = (value) => value === null || value === undefined || value === '';
+
+/**
+ * A ordem de cada coluna numerica no dataset, para a seta dupla: "longe" e
+ * estar a mais de um quarto do catalogo de distancia, contado em itens e nao
+ * em valor. Assim a mesma regra serve ao peso (onde um outlier de 999 kg
+ * esmagaria qualquer proporcao), ao ano de estreia e a geracao. O catalogo
+ * registra na subida; sem registro (o navegador) nao ha seta dupla.
+ */
+const RANKS = new Map();
+export const FAR_SHARE = 0.25;
+
+export function registerRanks(universeId, column, list) {
+  const values = list.map(item => item[column.key]).filter(v => typeof v === 'number').sort((a, b) => a - b);
+  if (values.length) RANKS.set(`${universeId}:${column.key}`, values);
+}
+
+/** Quantos valores do catalogo ficam abaixo de `v` (busca binaria). */
+function rankOf(sorted, v) {
+  let lo = 0, hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] < v) lo = mid + 1; else hi = mid;
+  }
+  return lo;
+}
+
+function isFar(rankKey, a, b) {
+  const sorted = RANKS.get(rankKey);
+  if (!sorted) return false;
+  return Math.abs(rankOf(sorted, a) - rankOf(sorted, b)) / sorted.length > FAR_SHARE;
+}
 
 /**
  * Numero: acerto, "quase" (dentro da tolerancia) ou erro + seta.
@@ -200,8 +238,10 @@ const isEmpty = (value) => value === null || value === undefined || value === ''
  * `blank` (o ATK de uma magia de Yu-Gi-Oh), vazio e a resposta — "essa carta
  * nao tem ATK" —, entao duas cartas sem o campo fecham verde e uma com e outra
  * sem fecham erro, so que sem seta: nao existe maior nem menor que "nao tem".
+ *
+ * Erro longe (ver FAR_SHARE) leva `far`, que vira a seta dupla na tabela.
  */
-function compareNumber(guessValue, secretValue, { tolerance = 0, nearby = 0, blank = null } = {}) {
+function compareNumber(guessValue, secretValue, { tolerance = 0, nearby = 0, blank = null } = {}, rankKey = null) {
   const semChute = isEmpty(guessValue);
   const semSegredo = isEmpty(secretValue);
   if (semChute || semSegredo) {
@@ -211,10 +251,17 @@ function compareNumber(guessValue, secretValue, { tolerance = 0, nearby = 0, bla
   if (guessValue === secretValue) return { status: 'hit', hint: null };
   const distancia = Math.abs(guessValue - secretValue);
   const close = distancia <= Math.max(nearby, Math.abs(secretValue) * tolerance);
-  return { status: close ? 'close' : 'miss', hint: guessValue < secretValue ? 'up' : 'down' };
+  const result = { status: close ? 'close' : 'miss', hint: guessValue < secretValue ? 'up' : 'down' };
+  if (!close && rankKey && isFar(rankKey, guessValue, secretValue)) result.far = true;
+  return result;
 }
 
-/** Listas: conjuntos iguais -> verde, alguma interseccao -> amarelo. */
+/**
+ * Listas: conjuntos iguais -> verde, alguma interseccao -> amarelo. No
+ * amarelo vai tambem quais valores bateram (`match`) e se o segredo tem mais
+ * algum (`more`): "Verde bate, falta algo" ensina mais que "alguma bate", e e
+ * o que a celula conta no clique.
+ */
 function compareList(guessValue, secretValue) {
   const a = Array.isArray(guessValue) ? guessValue : [];
   const b = Array.isArray(secretValue) ? secretValue : [];
@@ -223,7 +270,8 @@ function compareList(guessValue, secretValue) {
   const setB = new Set(b);
   const shared = a.filter(v => setB.has(v));
   if (shared.length === a.length && a.length === b.length) return { status: 'hit', hint: null };
-  return { status: shared.length ? 'partial' : 'miss', hint: null };
+  if (!shared.length) return { status: 'miss', hint: null };
+  return { status: 'partial', hint: null, match: shared, more: b.length > shared.length };
 }
 
 /**
@@ -239,7 +287,7 @@ function compareSlot(column, guess, secret, scope) {
   return { status: 'miss', hint: null };
 }
 
-function compareColumn(column, guess, secret, scope) {
+function compareColumn(column, guess, secret, scope, universeId = null) {
   const value = valueOf(guess, column.key, scope);
   const expected = valueOf(secret, column.key, scope);
   switch (column.kind) {
@@ -248,7 +296,7 @@ function compareColumn(column, guess, secret, scope) {
     case 'list':
       return compareList(value, expected);
     case 'number':
-      return compareNumber(value, expected, column);
+      return compareNumber(value, expected, column, universeId && `${universeId}:${column.key}`);
     default: {
       if (isEmpty(value ?? null) || isEmpty(expected ?? null)) return { status: 'unknown', hint: null };
       return { status: value === expected ? 'hit' : 'miss', hint: null };
@@ -266,7 +314,7 @@ export function compareGuess(guess, secret, universe, scope = null) {
   for (const column of universe.columns) {
     cells[column.key] = {
       value: valueOf(guess, column.key, scope) ?? null,
-      ...compareColumn(column, guess, secret, scope),
+      ...compareColumn(column, guess, secret, scope, universe.id),
     };
   }
   return {
@@ -276,6 +324,68 @@ export function compareGuess(guess, secret, universe, scope = null) {
     correct: guess.id === secret.id,
     cells,
   };
+}
+
+/**
+ * O item `candidate` ainda pode ser o segredo, pelo que a tabela mostrou? E
+ * so refazer cada linha com ele no lugar do segredo e ver se as cores e as
+ * setas batem. `guessOf` acha o item chutado de cada linha.
+ */
+export function consistentWith(candidate, rows, guessOf, universe, scope = null) {
+  for (const row of rows) {
+    if (!row.cells) continue;
+    const guess = guessOf(row.id);
+    if (!guess) continue;
+    if (guess.id === candidate.id) return Boolean(row.correct);
+    for (const column of universe.columns) {
+      const seen = row.cells[column.key];
+      if (!seen) continue;
+      const again = compareColumn(column, guess, candidate, scope, universe.id);
+      if (again.status !== seen.status || (again.hint ?? null) !== (seen.hint ?? null)) return false;
+      // a seta dupla e o "quais bateram" tambem sao informacao na tela
+      if (Boolean(again.far) !== Boolean(seen.far)) return false;
+      if (seen.match && (String(again.match) !== String(seen.match) || Boolean(again.more) !== Boolean(seen.more))) return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * As colunas que cada jogador descobriu na rodada: a primeira linha que pinta
+ * uma coluna de verde leva o credito. A linha do acerto nao conta — ela pinta
+ * tudo de uma vez, e o premio e de quem foi abrindo caminho. Cada tabuleiro
+ * (`targetId`, na batalha) tem as proprias colunas.
+ */
+export function discoveriesOf(rows) {
+  const seen = new Set();
+  const count = {};
+  const first = {};
+  rows.forEach((row, at) => {
+    if (row.correct || !row.cells || !row.playerId) return;
+    for (const [key, cell] of Object.entries(row.cells)) {
+      const id = `${row.targetId ?? ''}:${key}`;
+      if (cell.status !== 'hit' || seen.has(id)) continue;
+      seen.add(id);
+      count[row.playerId] = (count[row.playerId] ?? 0) + 1;
+      first[row.playerId] ??= at;
+    }
+  });
+  return { count, first };
+}
+
+/**
+ * O melhor detetive da rodada: quem descobriu mais colunas (no minimo 2 — uma
+ * so e sorte de primeiro chute). Empate fica com quem comecou a descobrir
+ * antes.
+ */
+export function scoutOf(rows) {
+  const { count, first } = discoveriesOf(rows);
+  let best = null;
+  for (const [id, n] of Object.entries(count)) {
+    if (n < 2) continue;
+    if (!best || n > best.n || (n === best.n && first[id] < first[best.id])) best = { id, n };
+  }
+  return best;
 }
 
 // ---------------------------------------------------------------- pontuacao

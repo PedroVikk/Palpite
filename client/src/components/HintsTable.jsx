@@ -1,6 +1,81 @@
+import { useCallback, useEffect, useState } from 'react';
 import { formatValue, fullValue } from '../lib/format.js';
+import { explainCell, knownFacts } from '../lib/hintText.js';
 
 const ARROW = { up: '▲', down: '▼' };
+
+/**
+ * A seta da célula de número. Longe (o servidor marca `far`) ela vem dobrada:
+ * ▲▲ quer dizer "bem maior", ▲ sozinha "maior, mas não tão longe".
+ */
+function Arrow({ hint, far }) {
+  if (!ARROW[hint]) return null;
+  return (
+    <span className={`arrow ${far ? 'far' : ''}`} aria-label={far ? `bem ${hint === 'up' ? 'maior' : 'menor'}` : undefined}>
+      {ARROW[hint]}{far && ARROW[hint]}
+    </span>
+  );
+}
+
+/**
+ * O que a tabela já garante, em uma faixa em cima dela: o valor certo de cada
+ * coluna que alguém acertou, a faixa dos números pelas setas, o que já foi
+ * descartado. Com a busca esperta, conta também quantos nomes ainda cabem.
+ */
+function KnownStrip({ universe, rows, possible }) {
+  const facts = knownFacts(universe, rows);
+  if (!facts.length && !possible) return null;
+  return (
+    <div className="known" aria-label="O que já se sabe">
+      <span className="known-k">Já se sabe</span>
+      {facts.map(fact => (
+        <span key={fact.key} className={`known-chip ${fact.tone}`}>
+          <small>{fact.label}</small> {fact.text}
+        </span>
+      ))}
+      {possible && (
+        <span className={`known-count ${possible.count <= 3 ? 'hot' : ''}`} title="Nomes da sala que a tabela ainda não descartou">
+          <b>{possible.count}</b> {possible.count === 1 ? 'nome possível' : 'nomes possíveis'}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * O balão do clique: o que a célula quer dizer. Mora fora da grade (fixed),
+ * porque a tabela rola de lado e cortaria o balão na borda.
+ */
+function CellPop({ pop, onClose }) {
+  useEffect(() => {
+    const close = () => onClose();
+    const onKey = (event) => { if (event.key === 'Escape') onClose(); };
+    addEventListener('scroll', close, true);
+    addEventListener('resize', close);
+    addEventListener('keydown', onKey);
+    // o clique que abriu ainda está subindo: fechar só no próximo
+    const handle = setTimeout(() => addEventListener('click', close), 0);
+    return () => {
+      clearTimeout(handle);
+      removeEventListener('scroll', close, true);
+      removeEventListener('resize', close);
+      removeEventListener('keydown', onKey);
+      removeEventListener('click', close);
+    };
+  }, [onClose]);
+  const below = pop.rect.top < 140;
+  const left = Math.min(Math.max(pop.rect.left + pop.rect.width / 2, 150), innerWidth - 150);
+  return (
+    <div
+      className={`cell-pop ${pop.status} ${below ? 'below' : ''}`}
+      role="tooltip"
+      style={{ left, top: below ? pop.rect.bottom + 10 : pop.rect.top - 10 }}
+    >
+      <b>{pop.title}</b>
+      <span>{pop.text}</span>
+    </div>
+  );
+}
 
 /**
  * Coluna que tem simbolo (os elementos de chakra do Naruto) mostra o simbolo, e
@@ -30,7 +105,9 @@ function Symbols({ column, value }) {
  * grade propria, para poder animar e destacar a vencedora sem quebrar o
  * alinhamento das colunas.
  */
-export default function HintsTable({ universe, rows, hints = true, counts = false }) {
+export default function HintsTable({ universe, rows, hints = true, counts = false, possible = null }) {
+  const [pop, setPop] = useState(null);
+  const closePop = useCallback(() => setPop(null), []);
   if (!rows.length) {
     return (
       <p className="empty-hint">
@@ -77,11 +154,19 @@ export default function HintsTable({ universe, rows, hints = true, counts = fals
   const minWidth = hints && !countsOnly ? `${lead + hintColumns.length * 94}px` : '0';
   const newest = rows[rows.length - 1];
 
+  const openPop = (event, row, column, cell) => {
+    const id = `${row.id}:${column.key}`;
+    if (pop?.id === id) return setPop(null);
+    const rect = event.currentTarget.getBoundingClientRect();
+    setPop({ id, rect, status: cell.status, ...explainCell(universe, column, cell) });
+  };
+
   return (
     <section className="table">
+      {hints && !counts && withSheet && <KnownStrip universe={universe} rows={rows} possible={possible} />}
       <div className="tscroll">
         <div
-          className={`hints ${hints ? '' : 'bare'}`}
+          className={`hints ${hints ? '' : 'bare'} ${rows.length > 1 ? 'stack' : ''}`}
           style={{ '--hint-cols': columns, '--hint-min': minWidth }}
         >
           {hints && (
@@ -120,13 +205,22 @@ export default function HintsTable({ universe, rows, hints = true, counts = fals
                   ? 'sem dado para comparar'
                   : fullValue(column, cell.value);
                 const comSimbolo = column.icons && cell.status !== 'unknown' && cell.value != null;
+                const id = `${row.id}:${column.key}`;
                 return (
-                  <div key={column.key} className={`cell ${cell.status}`} title={title}>
+                  <button
+                    type="button"
+                    key={column.key}
+                    className={`cell ${cell.status} ${pop?.id === id ? 'popped' : ''}`}
+                    title={title}
+                    aria-expanded={pop?.id === id}
+                    onClick={(event) => openPop(event, row, column, cell)}
+                  >
                     {comSimbolo
                       ? <Symbols column={column} value={cell.value} />
                       : <span>{formatValue(column, cell.value)}</span>}
-                    {ARROW[cell.hint] && <span className="arrow">{ARROW[cell.hint]}</span>}
-                  </div>
+                    <Arrow hint={cell.hint} far={cell.far} />
+                    {cell.match && <span className="match-dots" aria-hidden="true">{cell.match.length}/{(cell.value ?? []).length}</span>}
+                  </button>
                 );
               })}
             </div>
@@ -147,8 +241,10 @@ export default function HintsTable({ universe, rows, hints = true, counts = fals
         <span className="k"><i className="sw partial" />Chegou perto</span>
         <span className="k"><i className="sw miss" />Errou</span>
         <span className="spacer" />
-        <span className="k">▲ o segredo é maior · ▼ é menor</span>
+        <span className="k">▲ o segredo é maior · ▲▲ bem maior · ▼ menor</span>
+        <span className="k dim">Toque numa célula para ler o que ela diz</span>
       </div>}
+      {pop && <CellPop pop={pop} onClose={closePop} />}
     </section>
   );
 }

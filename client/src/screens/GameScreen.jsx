@@ -23,7 +23,7 @@ import Modal from '../components/Modal.jsx';
 import TimeBar from '../components/TimeBar.jsx';
 import { useTurnAlert } from '../hooks/useTurnAlert.js';
 import { usePrefs, reducedMotion } from '../lib/prefs.js';
-import { CardPlayFx, DraftModal, HandBar } from '../components/CardPanels.jsx';
+import { CardLog, CardPlayFx, DraftModal, HandBar } from '../components/CardPanels.jsx';
 import { AnchorIcon, CardsIcon, ClockIcon, ExitIcon, ImageIcon, MaskIcon, PaletteIcon, QuestionIcon, TargetIcon, TermoIcon, UsersIcon } from '../components/Icon.jsx';
 import { openThemePicker } from '../lib/theme.js';
 
@@ -120,6 +120,14 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
       && !(hideSecret && item.id === secretId)
       && !sieved.has(item.id);
   }, [universe, state.settings.scope, byPicture, impostorRound, secretId, sieveKey]);
+
+  // busca esperta: o que a tabela ainda nao descartou (o servidor manda so
+  // quando a lista cabe no estado; senao vem so a contagem)
+  const possibleKey = state.possible?.ids?.join(',') ?? '';
+  const possibleSet = useMemo(
+    () => (possibleKey ? new Set(possibleKey.split(',').map(Number)) : null),
+    [possibleKey],
+  );
 
   const me = state.players.find(p => p.id === myId);
   const budget = state.settings.guessesPerPlayer;
@@ -259,6 +267,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
                   <span className="muted">Esperando o host puxar a próxima rodada...</span>
                 )}
               </div>
+              {withCards && <CardLog state={state} myId={myId} />}
             </>
           ) : (
             <>
@@ -323,6 +332,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
               {withCards && state.phase === 'playing' && (
                 <HandBar state={state} universe={universe} myTurn={canPlayCard} myId={myId} />
               )}
+              {withCards && state.phase === 'playing' && <CardLog state={state} myId={myId} />}
 
               {/* Termo: escolher a palavra que se esconde (duelo e batalha) e,
                   na batalha, o tabuleiro do alvo com o teclado */}
@@ -351,6 +361,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
                 choosing={isMyChoice}
                 focusKey={state.phase}
                 onSubmit={submit}
+                possible={possibleSet}
               />}
 
               {state.phase === 'playing' && !quiz && !termo && !speed && (
@@ -386,7 +397,13 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
           {termoRace && <TermoTable state={state} myId={myId} toast={toast} />}
 
           {!(battle && state.phase === 'choosing') && !quiz && !termo && !speed && (
-            <HintsTable universe={universe} rows={shownRows} hints={!byPicture} counts={impostorRound} />
+            <HintsTable
+              universe={universe}
+              rows={shownRows}
+              hints={!byPicture}
+              counts={impostorRound}
+              possible={state.possible}
+            />
           )}
 
           <div className="game-actions">
@@ -405,8 +422,8 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
         />
       </div>
 
-      {withCards && state.phase === 'drafting' && <DraftModal state={state} />}
-      {withCards && <CardPlayFx state={state} myId={myId} />}
+      {withCards && state.phase === 'drafting' && <DraftModal state={state} left={left} total={clockTotal} still={still} />}
+      {withCards && <CardPlayFx state={state} myId={myId} universe={universe} />}
       {speed && <SpeedFx state={state} myId={myId} seenRef={speedSeen} />}
 
       {showModal && (

@@ -17,7 +17,9 @@
  *  - jogo (`--hit`, `--partial`, `--miss`): a tabela de dicas e mais nada. É a
  *    única informação que se lê pela cor, então acertou e chegou perto diferem
  *    também em claridade, e errar é neutro — vermelho de erro fica para
- *    `--danger` (tempo acabando, voto errado), que não aparece na tabela.
+ *    `--danger` (tempo acabando, voto errado), que não aparece na tabela. A
+ *    exceção é o Mangá, que pinta o erro de vermelho, mas com textura própria
+ *    (`--miss-bg`, opcional; sem ele a célula usa `--miss`).
  *
  * Tons translúcidos saem de `color-mix()` no próprio app.css a partir desses
  * tokens (`--tint` é "a tinta" do tema: branco nos escuros, a cor do texto nos
@@ -183,9 +185,9 @@
 }
 
 /* ------------------------------------------------------------ E · Mangá */
-/* Página de mangá: tinta preta, retícula e o círculo vermelho que marca acerto
-   nas provas japonesas. Acertou = carimbo, perto = retícula, errou = página em
-   branco — dá para ler a tabela sem enxergar cor nenhuma. */
+/* Página de mangá colorido: tinta preta, retícula e traço grosso. Acertou =
+   verde chapado, perto = amarelo com retícula, errou = vermelho hachurado — a
+   textura muda junto com a cor, então dá para ler a tabela sem enxergar cor. */
 [data-theme="manga"] {
   color-scheme: light;
   --bg: #F7F3EA;
@@ -223,16 +225,19 @@
   --select-text: #111111;
   --select-shadow: 3px 3px 0 #D7263D;
 
-  --hit: #D7263D;
+  /* cada estado tem cor E textura, como tinta de mangá colorido: acertou é
+     tinta chapada, perto é retícula de pontos, errou é hachura diagonal */
+  --hit: #1E9E57;
   --hit-ink: #FFFFFF;
-  --hit-text: #C21F35;
-  --partial: #FFFFFF;
-  --partial-bg: radial-gradient(#11111166 1.2px, transparent 1.5px) 0 0 / 5px 5px, #FFFFFF;
+  --hit-text: #157A42;
+  --partial: #FFD23F;
+  --partial-bg: radial-gradient(#11111170 1.2px, transparent 1.5px) 0 0 / 5px 5px, #FFD23F;
   --partial-ink: #111111;
-  --partial-text: #111111;
+  --partial-text: #8A5E00;
   --miss: #FFFFFF;
-  --miss-ink: #8A847A;
-  --miss-line: #11111133;
+  --miss-bg: repeating-linear-gradient(135deg, #D7263D2E 0 1.5px, transparent 1.5px 6px), #FBD3D8;
+  --miss-ink: #8E1426;
+  --miss-line: #111111;
   --danger: #D7263D;
   --danger-ink: #FFFFFF;
   --neutral: #B8B2A7;

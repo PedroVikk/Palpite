@@ -19,6 +19,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { UNIVERSES, getUniverse, scopeKeys } from '../shared/universes.js';
 import { termoCatSizes, termoNames, termoThemeWords } from '../shared/termo.js';
+import { registerRanks } from './game.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -84,6 +85,8 @@ for (const universe of Object.values(UNIVERSES)) {
   const mirrored = useMirror(list, universe.id);
   const index = buildIndex(list, scopeKeys(universe));
   catalog.set(universe.id, { list, byId: new Map(list.map(item => [item.id, item])), index });
+  // a ordem de cada coluna numerica, para a seta dupla (ver FAR_SHARE)
+  for (const column of universe.columns) if (column.kind === 'number') registerRanks(universe.id, column, list);
   console.log(
     `${universe.label}: ${list.length} jogáveis`
     + ` (de ${bruto.length} no dataset,`

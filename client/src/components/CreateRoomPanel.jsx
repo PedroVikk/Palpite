@@ -3,7 +3,7 @@ import { getUniverse, roomDefaults } from '@shared/universes.js';
 import { useDataset } from '../hooks/useDataset.js';
 import { canPlayPicture } from '../lib/picture.js';
 import {
-  PRESETS, applyPreset, applyRules, newForm, presetOn, summaryOf, toSettings,
+  PRESETS, PRESET_GROUPS, applyPreset, applyRules, newForm, presetOn, summaryOf, toSettings,
 } from '../lib/roomForm.js';
 import UniverseSelect from './UniverseSelect.jsx';
 import UniverseIcon from './UniverseIcon.jsx';
@@ -26,9 +26,11 @@ const PRESET_ICON = {
 
 /**
  * A sala nasce já configurada: as regras são escolhidas antes de existir código
- * para compartilhar. À direita ficam os atalhos (um clique monta a partida
- * inteira) e o resumo do que a mesa vai jogar. Criada, este painel dá lugar ao
- * da sala dentro do mesmo modal.
+ * para compartilhar. À esquerda, onde o olho começa, ficam os atalhos (um
+ * clique monta a partida inteira), em dois grupos, e embaixo deles o resumo do
+ * que a mesa vai jogar — a coluna acompanha a rolagem, então o resumo segue à
+ * vista enquanto se mexe nas regras. Criada, este painel dá lugar ao da sala
+ * dentro do mesmo modal.
  */
 export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
   const [form, setForm] = useState(() => newForm('pokemon'));
@@ -60,6 +62,54 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
 
   return (
     <>
+      <aside className="modal-side create-side">
+        <div className="create-rail">
+          <section>
+            <h3>Atalhos</h3>
+            <p className="rail-note">Um clique monta a partida. Dá para ajustar tudo depois.</p>
+            {PRESET_GROUPS.map(group => (
+              <div key={group.id} className="preset-group">
+                <span className="pg-k">{group.label}</span>
+                <div className="presets">
+                  {PRESETS.filter(preset => preset.group === group.id).map(preset => {
+                    const Icon = PRESET_ICON[preset.id];
+                    const on = presetOn(form, preset);
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        className={`preset ${on ? 'on' : ''}`}
+                        aria-pressed={on}
+                        onClick={() => setForm(f => applyPreset(f, preset, opts))}
+                      >
+                        <span className="ico"><Icon width={16} height={16} /></span>
+                        <span className="tx">
+                          <b>{preset.label}</b>
+                          <small>{preset.note}</small>
+                        </span>
+                        {on && <CheckIcon className="pick" width={14} height={14} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </section>
+
+          <section className="summary-box">
+            <h3>Resumo</h3>
+            <dl>
+              {summaryOf(form, universe, comImagem).map(row => (
+                <div key={row.k}>
+                  <dt>{row.k}</dt>
+                  <dd>{row.v}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        </div>
+      </aside>
+
       <div className="modal-main">
         <div className="modal-title">
           <UniverseIcon universe={form.universe} />
@@ -138,45 +188,6 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
           </button>
         </div>
       </div>
-
-      <aside className="modal-side create-side">
-        <section>
-          <h3>Atalhos</h3>
-          <div className="presets">
-            {PRESETS.map(preset => {
-              const Icon = PRESET_ICON[preset.id];
-              const on = presetOn(form, preset);
-              return (
-                <button
-                  key={preset.id}
-                  type="button"
-                  className={`preset ${on ? 'on' : ''}`}
-                  aria-pressed={on}
-                  onClick={() => setForm(f => applyPreset(f, preset, opts))}
-                >
-                  <span className="ico"><Icon width={16} height={16} /></span>
-                  <span className="tx">
-                    <b>{preset.label}</b>
-                    <small>{preset.note}</small>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="summary-box">
-          <h3>Resumo</h3>
-          <dl>
-            {summaryOf(form, universe, comImagem).map(row => (
-              <div key={row.k}>
-                <dt>{row.k}</dt>
-                <dd>{row.v}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      </aside>
     </>
   );
 }
