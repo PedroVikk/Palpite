@@ -9,7 +9,8 @@ import GuessBar from '../components/GuessBar.jsx';
 import HintsTable from '../components/HintsTable.jsx';
 import SecretImage from '../components/SecretImage.jsx';
 import Reveal from '../components/Reveal.jsx';
-import { CheckIcon, ClockIcon, ExitIcon, ImageIcon, PaletteIcon, TargetIcon } from '../components/Icon.jsx';
+import TermoBoard, { TermoReveal } from '../components/TermoBoard.jsx';
+import { CheckIcon, ClockIcon, ExitIcon, ImageIcon, PaletteIcon, TargetIcon, TermoIcon } from '../components/Icon.jsx';
 import { openThemePicker } from '../lib/theme.js';
 
 /** "2026-08-27" -> "27/08". Sem Date, que reinterpretaria no fuso local. */
@@ -23,9 +24,14 @@ const startingUniverse = () => {
   const asked = params().get('diario');
   return UNIVERSES[asked] ? asked : DEFAULT_UNIVERSE;
 };
-const startingMode = () => (params().get('modo') === 'imagem' ? 'imagem' : 'dicas');
+const DAILY_MODES = ['dicas', 'imagem', 'termo'];
+const startingMode = () => {
+  const asked = params().get('modo');
+  return DAILY_MODES.includes(asked) ? asked : 'dicas';
+};
 
-const EMPTY = { rows: [], secret: null, ticket: null };
+const EMPTY = { rows: [], secret: null, ticket: null, answer: null };
+const MODE_LABEL = { imagem: 'de imagem', termo: 'de termo' };
 
 /**
  * Desafio do dia: sem sala, sem turno, chutes ilimitados. O segredo e o mesmo
@@ -55,12 +61,20 @@ export default function DailyScreen({ toast, onExit }) {
   const items = useDataset(universe) ?? [];
   const solved = Boolean(progress.secret);
   const picture = mode === 'imagem';
+  const termo = mode === 'termo';
+  /**
+   * O Termo tem fim sem acerto: as linhas acabam. Ai o servidor conta quem
+   * era (`answer`), mas o dia nao vira resolvido — `secret` segue vazio.
+   */
+  const tries = info?.termo?.tries ?? 6;
+  const termoLost = termo && !solved && (Boolean(progress.answer) || progress.rows.length >= tries);
+  const over = solved || termoLost;
 
   useEffect(() => {
     let alive = true;
     setInfo(null);
     setProgress(EMPTY);
-    history.replaceState(null, '', `?diario=${universe}${picture ? '&modo=imagem' : ''}`);
+    history.replaceState(null, '', `?diario=${universe}${mode !== 'dicas' ? `&modo=${mode}` : ''}`);
 
     /**
      * O bilhete do degrau da imagem vai junto do pedido, senao a primeira tela
@@ -69,7 +83,7 @@ export default function DailyScreen({ toast, onExit }) {
      * dia e o servidor, e bilhete de ontem simplesmente nao confere.
      */
     const saved = loadDaily(gameToday(), universe, mode);
-    const ticket = picture && saved.ticket ? `&t=${encodeURIComponent(saved.ticket)}` : '';
+    const ticket = mode !== 'dicas' && saved.ticket ? `&t=${encodeURIComponent(saved.ticket)}` : '';
 
     fetch(`/api/daily/${universe}?modo=${mode}${ticket}`)
       .then(async (res) => {
@@ -80,10 +94,10 @@ export default function DailyScreen({ toast, onExit }) {
          * aba da imagem aberta — e ai a tela cai na tabela, em vez de ficar
          * carregando para sempre um desafio que nao existe.
          */
-        if (res.status === 503 && picture) {
+        if (res.status === 503 && mode !== 'dicas') {
           if (alive) {
             setMode('dicas');
-            toast(`${schema.label} não tem desafio de imagem hoje.`);
+            toast(`${schema.label} não tem desafio ${MODE_LABEL[mode]} hoje.`);
           }
           return null;
         }
@@ -98,8 +112,8 @@ export default function DailyScreen({ toast, onExit }) {
       })
       .catch(() => {
         if (!alive) return;
-        toast(picture
-          ? 'Não consegui carregar o desafio de imagem de hoje.'
+        toast(mode !== 'dicas'
+          ? `Não consegui carregar o desafio ${MODE_LABEL[mode]} de hoje.`
           : 'Não consegui carregar o desafio de hoje.');
       });
 
@@ -148,6 +162,48 @@ export default function DailyScreen({ toast, onExit }) {
     }
   }, [info, solved, sending, universe, mode, progress.rows, progress.ticket, toast]);
 
+  /**
+   * Um chute do Termo: a palavra vai crua, o servidor pinta. O bilhete que
+   * volta conta as linhas gastas, e e ele que libera o nome quando elas acabam.
+   */
+  const submitWord = useCallback(async (word) => {
+    if (!info || over || sending) return;
+    setSending(true);
+    try {
+      const ticket = progress.ticket ? `&t=${encodeURIComponent(progress.ticket)}` : '';
+      const res = await fetch(`/api/daily/${universe}/termo?palavra=${encodeURIComponent(word)}${ticket}`);
+      const data = await res.json().catch(() => null);
+      if (data?.date && data.date !== info.date) {
+        pruneDaily(data.date);
+        setRound(n => n + 1);
+        return toast('O dia virou — desafio novo!');
+      }
+      if (!res.ok) {
+        // o bilhete diz que as linhas ja acabaram (outra aba, por exemplo)
+        if (res.status === 409 && data?.secret) {
+          const next = { ...progress, answer: data.secret };
+          setProgress(next);
+          saveDaily(info.date, universe, next, mode);
+        }
+        return toast(data?.error ?? 'Não consegui enviar o chute.');
+      }
+
+      const next = {
+        rows: [...progress.rows, data.row],
+        secret: data.correct ? data.secret : null,
+        answer: data.secret ?? null,
+        ticket: data.ticket,
+      };
+      setProgress(next);
+      saveDaily(data.date, universe, next, mode);
+      if (data.correct) markSolvedToday(data.date);
+    } catch {
+      toast('Não consegui enviar o chute.');
+    } finally {
+      setSending(false);
+    }
+  }, [info, over, sending, universe, mode, progress, toast]);
+
   const attempts = progress.rows.length;
 
   /**
@@ -184,10 +240,15 @@ export default function DailyScreen({ toast, onExit }) {
    */
   const semImagem = info ? info.hasPicture === false : false;
 
+  const semTermo = info ? info.hasTermo === false : false;
+
   const pickMode = (next) => {
     if (next === mode) return;
     if (next === 'imagem' && semImagem) {
       return toast(`${schema.label} não tem desafio de imagem hoje.`);
+    }
+    if (next === 'termo' && semTermo) {
+      return toast(`${schema.label} não tem termo hoje.`);
     }
     setMode(next);
   };
@@ -214,59 +275,90 @@ export default function DailyScreen({ toast, onExit }) {
       </header>
 
       <main className="page">
-        <section className={`turn-banner ${solved ? 'you' : ''}`}>
+        <section className={`turn-banner ${solved ? 'you' : termoLost ? 'warn' : ''}`}>
           <span className="badge">
             {solved
               ? <CheckIcon width={22} height={22} />
-              : picture ? <ImageIcon width={22} height={22} /> : <TargetIcon width={22} height={22} />}
+              : picture ? <ImageIcon width={22} height={22} />
+              : termo ? <TermoIcon width={22} height={22} />
+              : <TargetIcon width={22} height={22} />}
           </span>
           <div>
-            <h1>{solved ? 'Você descobriu!' : picture ? 'Quem está na imagem?' : 'Desafio de hoje'}</h1>
+            <h1>
+              {solved ? 'Você descobriu!'
+                : termoLost ? 'Não foi dessa vez'
+                : picture ? 'Quem está na imagem?'
+                : termo ? 'Termo de hoje'
+                : 'Desafio de hoje'}
+            </h1>
             <p>
               {!info
                 ? 'Carregando...'
                 : solved
                   ? `Acertou em ${attempts} ${attempts === 1 ? 'chute' : 'chutes'}. Volte amanhã para o próximo.`
+                  : termoLost
+                    ? `As ${tries} linhas acabaram. Amanhã tem outro nome.`
                   : picture
                     ? 'A figura começa irreconhecível e ganha nitidez a cada erro. Sem tabela de dicas.'
+                  : termo
+                    ? `Uma palavra de ${schema.label} — um nome ou algo do tema —, letra por letra, em ${tries} ${tries === 1 ? 'tentativa' : 'tentativas'}. Verde no lugar certo, amarelo em outro lugar.`
                     : 'Um segredo por tema, o mesmo para todo mundo. Chutes ilimitados.'}
             </p>
           </div>
           <div className="clock" style={{ minWidth: 120 }}>
-            <div className="k">Chutes</div>
-            <div className="v">{attempts}</div>
+            <div className="k">{termo ? 'Linhas' : 'Chutes'}</div>
+            <div className="v">{termo ? `${attempts}/${tries}` : attempts}</div>
           </div>
         </section>
 
-        {/* dois desafios por universo, com segredos diferentes: trocar de aba
-            aqui é trocar de jogo, não de jeito de olhar o mesmo */}
-        <div className="field" style={{ marginTop: 2 }}>
-          <div className="mode-pick">
-            <button type="button" className={!picture ? 'on' : ''} onClick={() => pickMode('dicas')}>
-              <span className="ico"><TargetIcon width={17} height={17} /></span>
-              <span>
-                <b>Dicas</b>
-                <small>A tabela pinta a cada chute: verde, amarelo, vermelho.</small>
-              </span>
-            </button>
-            <button
-              type="button"
-              className={picture ? 'on' : ''}
-              disabled={semImagem}
-              onClick={() => pickMode('imagem')}
-            >
-              <span className="ico"><ImageIcon width={17} height={17} /></span>
-              <span>
-                <b>Imagem</b>
-                <small>
-                  {semImagem
-                    ? `${schema.label} não tem imagem para jogar hoje.`
-                    : 'A figura do segredo, clareando a cada erro.'}
-                </small>
-              </span>
-            </button>
-          </div>
+        {/* o modo do dia, como na home: o Segredo (com seus dois desafios, a
+            tabela e a imagem) ou o Termo. Cada desafio tem segredo proprio:
+            trocar aqui e trocar de jogo, nao de jeito de olhar o mesmo */}
+        <div className="seg" role="group" aria-label="Modo do diário">
+          <button type="button" className={!termo ? 'on' : ''} aria-pressed={!termo} onClick={() => pickMode('dicas')}>
+            <TargetIcon width={15} height={15} /> Segredo
+          </button>
+          <button
+            type="button"
+            className={termo ? 'on' : ''}
+            aria-pressed={termo}
+            disabled={semTermo}
+            title={semTermo ? `${schema.label} não tem termo hoje.` : undefined}
+            onClick={() => pickMode('termo')}
+          >
+            <TermoIcon width={15} height={15} /> Termo
+          </button>
         </div>
+
+        {!termo && (
+          <div className="field" style={{ marginTop: 2 }}>
+            <div className="mode-pick">
+              <button type="button" className={!picture ? 'on' : ''} onClick={() => pickMode('dicas')}>
+                <span className="ico"><TargetIcon width={17} height={17} /></span>
+                <span>
+                  <b>Dicas</b>
+                  <small>A tabela pinta a cada chute: verde, amarelo, vermelho.</small>
+                </span>
+              </button>
+              <button
+                type="button"
+                className={picture ? 'on' : ''}
+                disabled={semImagem}
+                onClick={() => pickMode('imagem')}
+              >
+                <span className="ico"><ImageIcon width={17} height={17} /></span>
+                <span>
+                  <b>Imagem</b>
+                  <small>
+                    {semImagem
+                      ? `${schema.label} não tem imagem para jogar hoje.`
+                      : 'A figura do segredo, clareando a cada erro.'}
+                  </small>
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* trocar de universo aqui é trocar de desafio: cada um tem o seu */}
         <section className="progress-bar">
@@ -278,11 +370,29 @@ export default function DailyScreen({ toast, onExit }) {
           {epoca && <span className="pill"><ClockIcon width={14} height={14} />{epoca}</span>}
           {categoria && <span className="pill"><TargetIcon width={14} height={14} />{categoria}</span>}
           <span className="left">
-            {info ? <><b>{info.poolSize}</b> nomes possíveis hoje</> : ' '}
+            {!info ? ' '
+              : termo && info.termo
+                ? <><b>{info.termo.length}</b> letras{info.termo.pattern.length > 1 ? ` em ${info.termo.pattern.length} palavras` : ''}</>
+                : <><b>{info.poolSize}</b> nomes possíveis hoje</>}
           </span>
         </section>
 
-        {solved ? (
+        {termo ? (
+          <>
+            {over && <TermoReveal answer={progress.answer ?? progress.secret} />}
+            {info?.termo && (
+              <TermoBoard
+                pattern={info.termo.pattern}
+                tries={tries}
+                rows={progress.rows}
+                active={!over && !sending}
+                cat={info.termo.cat}
+                toast={toast}
+                onSubmit={submitWord}
+              />
+            )}
+          </>
+        ) : solved ? (
           <Reveal universe={schema} secret={progress.secret} />
         ) : (
           <>
@@ -305,7 +415,7 @@ export default function DailyScreen({ toast, onExit }) {
           </>
         )}
 
-        <HintsTable universe={schema} rows={progress.rows} hints={!picture} />
+        {!termo && <HintsTable universe={schema} rows={progress.rows} hints={!picture} />}
       </main>
     </>
   );

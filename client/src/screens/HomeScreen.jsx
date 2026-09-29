@@ -7,7 +7,7 @@ import Avatar from '../components/Avatar.jsx';
 import MarkArt from '../components/MarkArt.jsx';
 import {
   BackIcon, CheckIcon, ChartIcon, ClockIcon, EnterIcon, ExitIcon, FlameIcon,
-  GoogleIcon, LinkIcon, PaletteIcon, PlusIcon, UsersIcon,
+  GoogleIcon, LinkIcon, PaletteIcon, PlusIcon, TargetIcon, TermoIcon, UsersIcon,
 } from '../components/Icon.jsx';
 
 const TOTAL_UNIVERSES = Object.keys(UNIVERSES).length;
@@ -31,14 +31,15 @@ const today = () => {
 };
 
 /**
- * Onde cada universo parou hoje: resolvido (em qualquer um dos dois modos),
+ * Onde cada universo parou hoje: resolvido (em qualquer um dos modos),
  * com chutes na tabela, ou intocado. É o selo da grade de temas.
  */
 function dayOf(id) {
   const dicas = lastDaily(id);
   const imagem = lastDaily(id, 'imagem');
-  const solved = Boolean(dicas.secret || imagem.secret);
-  const guesses = dicas.rows.length + imagem.rows.length;
+  const termo = lastDaily(id, 'termo');
+  const solved = Boolean(dicas.secret || imagem.secret || termo.secret);
+  const guesses = dicas.rows.length + imagem.rows.length + termo.rows.length;
   return { solved, guesses, started: solved || guesses > 0 };
 }
 
@@ -57,6 +58,9 @@ export default function HomeScreen({
   const [codeFocus, setCodeFocus] = useState(false);
   // abre no tema que a pessoa mais joga no diario; quem nunca jogou, no Pokemon
   const [dailyUniverse, setDailyUniverse] = useState(() => mostPlayed(IDS) ?? 'pokemon');
+  // o modo do diario no cartao: o Segredo de sempre ou o Termo. Abre no Segredo
+  const [dailyGame, setDailyGame] = useState('segredo');
+  const termo = dailyGame === 'termo';
   const hubRef = useRef(null);
   const scrollTimer = useRef(null);
   const [filter, setFilter] = useState('todos');
@@ -83,6 +87,19 @@ export default function HomeScreen({
    */
   const stack = useMemo(() => {
     const schema = getUniverse(dailyUniverse);
+    /**
+     * No Termo a miniatura e a ultima linha do tabuleiro, letra e cor. Sem
+     * chute ainda, cinco casas vazias; resolvido, a palavra inteira em verde.
+     */
+    if (termo) {
+      const { rows, secret, answer } = lastDaily(dailyUniverse, 'termo');
+      const last = rows[rows.length - 1] ?? null;
+      const tone = { hit: 'hit', near: 'part', miss: 'miss' };
+      const cells = last?.word
+        ? [...last.word].map((letter, i) => ({ key: i, label: letter, tone: tone[last.marks?.[i]] ?? 'none' }))
+        : Array.from({ length: 5 }, (_, i) => ({ key: i, label: '', tone: 'none' }));
+      return { rows, secret, answer, last, cells, hits: 0 };
+    }
     const { rows, secret } = lastDaily(dailyUniverse);
     const last = rows[rows.length - 1] ?? null;
     const cells = schema.columns.slice(0, 5).map(column => {
@@ -95,8 +112,8 @@ export default function HomeScreen({
       return { key: column.key, label: column.label, tone };
     });
     const hits = cells.filter(c => c.tone === 'hit').length;
-    return { rows, secret, last, cells, hits };
-  }, [dailyUniverse]);
+    return { rows, secret, answer: null, last, cells, hits };
+  }, [dailyUniverse, termo]);
 
   // a grade de temas, na ordem de quem mais joga, com o selo de hoje em cada um
   const tiles = useMemo(() => byUse(IDS).map(id => ({ id, label: UNIVERSES[id].label, ...dayOf(id) })), []);
@@ -138,10 +155,16 @@ export default function HomeScreen({
       if (box && box.bottom < 120) hubRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 350);
   };
+  const dailyMode = termo ? 'termo' : 'dicas';
   const playTheme = (id) => {
     clearTimeout(scrollTimer.current);
-    onDaily(id, 'dicas');
+    onDaily(id, dailyMode);
   };
+
+  // Termo perdido: as linhas acabaram, o nome veio, mas o dia nao conta
+  const termoLost = termo && !stack.secret && Boolean(stack.answer);
+  const reveal = stack.secret ?? stack.answer;
+  const revealName = reveal?.label ?? reveal?.name;
 
   const label = UNIVERSES[dailyUniverse].label;
 
@@ -219,10 +242,21 @@ export default function HomeScreen({
               <span className="renew">troca à <b>meia-noite</b></span>
             </div>
 
+            {/* o modo do diario: cada tema tem um desafio de cada, com segredos
+                diferentes — trocar aqui troca o cartao e o que o Jogar abre */}
+            <div className="seg" role="group" aria-label="Modo do diário">
+              <button type="button" className={!termo ? 'on' : ''} aria-pressed={!termo} onClick={() => setDailyGame('segredo')}>
+                <TargetIcon width={15} height={15} /> Segredo
+              </button>
+              <button type="button" className={termo ? 'on' : ''} aria-pressed={termo} onClick={() => setDailyGame('termo')}>
+                <TermoIcon width={15} height={15} /> Termo
+              </button>
+            </div>
+
             <div className="daily-body">
               <div className="silhouette">
-                {stack.secret?.sprite ? (
-                  <img className="face" src={stack.secret.sprite} alt={stack.secret.name} />
+                {reveal?.sprite ? (
+                  <img className="face" src={reveal.sprite} alt={revealName} />
                 ) : (
                   <>
                     <MarkArt universe={dailyUniverse} />
@@ -238,15 +272,23 @@ export default function HomeScreen({
                   <span className={`tag ${stack.secret ? 'green' : stack.rows.length ? 'amber' : 'ghost'}`}>
                     {stack.secret
                       ? 'resolvido'
+                      : termoLost
+                        ? 'não foi hoje'
                       : stack.rows.length
-                        ? `${stack.rows.length} ${stack.rows.length === 1 ? 'chute' : 'chutes'}`
+                        ? termo
+                          ? `${stack.rows.length} ${stack.rows.length === 1 ? 'linha' : 'linhas'}`
+                          : `${stack.rows.length} ${stack.rows.length === 1 ? 'chute' : 'chutes'}`
                         : 'sem chutes'}
                   </span>
                 </div>
 
                 <p className="daily-last">
                   {stack.secret ? (
-                    <>Era <b>{stack.secret.name}</b>, em {stack.rows.length} {stack.rows.length === 1 ? 'chute' : 'chutes'}.</>
+                    <>Era <b>{revealName}</b>, em {stack.rows.length} {termo ? (stack.rows.length === 1 ? 'linha' : 'linhas') : (stack.rows.length === 1 ? 'chute' : 'chutes')}.</>
+                  ) : termoLost ? (
+                    <>Era <b>{revealName}</b>. As linhas acabaram — amanhã tem outra.</>
+                  ) : termo ? (
+                    <>Uma palavra do tema — um nome ou algo do universo —, letra por letra. A categoria fica à vista; quanto menor ela, menos linhas.</>
                   ) : stack.last ? (
                     <>Último chute: <b>{stack.last.name}</b> — {stack.hits} de {stack.cells.length} colunas certas.</>
                   ) : (
@@ -261,8 +303,9 @@ export default function HomeScreen({
                 </div>
 
                 <div className="daily-actions">
-                  <button className="btn primary" onClick={() => onDaily(dailyUniverse, 'dicas')}>
-                    {stack.rows.length && !stack.secret ? 'Continuar' : 'Jogar'}
+                  <button className="btn primary" onClick={() => onDaily(dailyUniverse, dailyMode)}>
+                    {stack.rows.length && !stack.secret && !termoLost ? 'Continuar' : 'Jogar'}
+                    {termo ? ' o Termo' : ''}
                   </button>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { getUniverse, scopeFilter, scopeReach } from '@shared/universes.js';
 import { socket } from '../socket.js';
 import { useDataset } from '../hooks/useDataset.js';
@@ -16,12 +16,15 @@ import GameOver from '../components/GameOver.jsx';
 import { ImpostorModal, RoleCard } from '../components/ImpostorPanels.jsx';
 import { BattleTabs, MySecretCard } from '../components/BattlePanels.jsx';
 import QuizPanel from '../components/QuizPanel.jsx';
+import TermoTable, { TermoBattleBoard, TermoChooser, termoBanner } from '../components/TermoPanels.jsx';
+import { TermoReveal } from '../components/TermoBoard.jsx';
+import { SpeedBoard, SpeedFx, SpeedTrack, speedBanner } from '../components/SpeedPanels.jsx';
 import Modal from '../components/Modal.jsx';
 import { CardPlayFx, DraftModal, HandBar } from '../components/CardPanels.jsx';
-import { AnchorIcon, CardsIcon, ClockIcon, ExitIcon, ImageIcon, MaskIcon, PaletteIcon, QuestionIcon, TargetIcon, UsersIcon } from '../components/Icon.jsx';
+import { AnchorIcon, CardsIcon, ClockIcon, ExitIcon, ImageIcon, MaskIcon, PaletteIcon, QuestionIcon, TargetIcon, TermoIcon, UsersIcon } from '../components/Icon.jsx';
 import { openThemePicker } from '../lib/theme.js';
 
-const RULES = { hunt: 'Caça ao segredo', duel: 'Duelo', impostor: 'Impostor', battle: 'Batalha naval', quiz: 'Qual deles?' };
+const RULES = { hunt: 'Caça ao segredo', duel: 'Duelo', impostor: 'Impostor', battle: 'Batalha naval', quiz: 'Qual deles?', speed: 'Velocidade' };
 
 export default function GameScreen({ state, myId, toast, onLeave }) {
   const universe = getUniverse(state.settings.universe);
@@ -61,6 +64,16 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   const isMyTurn = (state.phase === 'playing' && state.turnPlayerId === myId) || isMyLastGuess;
   const battle = state.settings.mode === 'battle';
   const quiz = state.settings.mode === 'quiz';
+  // Termo: a palavra letra a letra, sem busca de nomes nem tabela. Na caca e
+  // no duelo e corrida (cada um no seu tabuleiro, sem vez); na batalha e de
+  // turno, no tabuleiro do alvo
+  const termo = state.settings.game === 'termo';
+  // velocidade: cada um na propria fila, sem vez; tem tela propria (SpeedPanels)
+  const speed = state.settings.mode === 'speed';
+  const termoRace = termo && !battle && !speed;
+  // o fim da corrida ja visto: mora aqui porque a tela troca de galho no fim
+  // da partida, e o aviso tem de sobreviver a troca (ver SpeedFx)
+  const speedSeen = useRef(state.speed?.seq ?? 0);
   // as cartas sao uma chave da sala, que vale em qualquer modo
   const withCards = Boolean(state.settings.cards);
   // a mao acende na propria vez; no "Qual deles?" nao ha vez, e ela vale ate responder
@@ -122,7 +135,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
   }
 
   // o draft e igual em todo modo: vem antes do aviso de cada um
-  const banner = state.phase === 'drafting'
+  const banner = speed ? speedBanner({ state, myId }) : state.phase === 'drafting'
     ? {
       title: 'Draft de cartas',
       text: `Cada um escolhe 1 de 3 cartas. ${state.drafting.length ? `Faltam ${state.drafting.length}.` : ''}`,
@@ -132,7 +145,9 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
     : impostorMode
     ? impostorBanner({ state, myId, universe, isMyTurn, nameOf })
     : battle
-      ? battleBanner({ state, myId, universe, isMyTurn, target, canShoot, nameOf })
+      ? battleBanner({ state, myId, universe, isMyTurn, target, canShoot, nameOf, termo })
+      : termo
+      ? termoBanner({ state, myId, nameOf })
       : quiz
       ? quizBanner({ state, myId })
       : buildBanner({ state, myId, universe, isMyTurn, isMyChoice, nameOf });
@@ -165,6 +180,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
             onLeave={onLeave}
           />
         </main>
+        {speed && <SpeedFx state={state} myId={myId} seenRef={speedSeen} />}
       </>
     );
   }
@@ -184,7 +200,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
             </div>
             {left !== null && (
               <div className={`clock ${urgent ? 'urgent' : ''}`}>
-                <div className="k">{quiz ? 'Tempo' : isMyTurn || isMyChoice ? 'Seu turno' : 'Turno'}</div>
+                <div className="k">{quiz || speed || (termoRace && state.phase === 'playing') ? 'Tempo' : isMyTurn || isMyChoice ? 'Seu turno' : 'Turno'}</div>
                 <div className="v">{String(left).padStart(2, '0')}s</div>
               </div>
             )}
@@ -260,7 +276,13 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
               {battle && state.phase === 'playing' && (
                 <BattleTabs state={state} myId={myId} targetId={target} onPick={setPickedTarget} />
               )}
-              {battle && state.phase === 'playing' && state.sunk[target] && state.secrets[target] && (
+              {battle && termo && state.phase === 'playing' && state.sunk[target] && state.secrets[target] && (
+                <TermoReveal
+                  answer={state.secrets[target]}
+                  caption={`Afundada por ${state.sunk[target].by === myId ? 'você' : nameOf(state.sunk[target].by)} — a palavra de ${nameOf(target)} era`}
+                />
+              )}
+              {battle && !termo && state.phase === 'playing' && state.sunk[target] && state.secrets[target] && (
                 <Reveal
                   universe={universe}
                   secret={state.secrets[target]}
@@ -287,7 +309,25 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
                 <HandBar state={state} universe={universe} myTurn={canPlayCard} myId={myId} />
               )}
 
-              {state.phase !== 'voting' && !quiz && <GuessBar
+              {/* Termo: escolher a palavra que se esconde (duelo e batalha) e,
+                  na batalha, o tabuleiro do alvo com o teclado */}
+              {termo && isMyChoice && <TermoChooser state={state} universe={universe} items={items} />}
+              {termo && battle && state.phase === 'playing' && (
+                <TermoBattleBoard
+                  state={state}
+                  targetId={target}
+                  active={isMyTurn && canShoot}
+                  toast={toast}
+                />
+              )}
+
+              {/* velocidade: o placar da corrida e o seu tabuleiro */}
+              {speed && <SpeedTrack state={state} myId={myId} />}
+              {speed && (
+                <SpeedBoard state={state} universe={universe} items={items} inScope={inScope} toast={toast} />
+              )}
+
+              {state.phase !== 'voting' && !quiz && !termo && !speed && <GuessBar
                 items={items}
                 guessedIds={battle && isMyChoice ? [] : shownRows.map(row => row.id)}
                 groups={state.settings.groups}
@@ -299,7 +339,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
               />}
 
               {/* quantos chutes já foram e quantos sobram, em número e em forma */}
-              {state.phase === 'playing' && !quiz && (
+              {state.phase === 'playing' && !quiz && !termo && !speed && (
                 <section className="progress-bar">
                   <span className="txt">
                     Você já deu <b>{myGuesses} {myGuesses === 1 ? 'chute' : 'chutes'}</b>
@@ -323,7 +363,10 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
           )}
 
           {/* na escolha da batalha ainda nao ha tabuleiro para mostrar */}
-          {!(battle && state.phase === 'choosing') && !quiz && (
+          {/* Termo: o seu tabuleiro e os dos outros; fechada a rodada, com as letras */}
+          {termoRace && <TermoTable state={state} myId={myId} toast={toast} />}
+
+          {!(battle && state.phase === 'choosing') && !quiz && !termo && !speed && (
             <HintsTable universe={universe} rows={shownRows} hints={!byPicture} counts={impostorRound} />
           )}
 
@@ -345,6 +388,7 @@ export default function GameScreen({ state, myId, toast, onLeave }) {
 
       {withCards && state.phase === 'drafting' && <DraftModal state={state} />}
       {withCards && <CardPlayFx state={state} myId={myId} />}
+      {speed && <SpeedFx state={state} myId={myId} seenRef={speedSeen} />}
 
       {showModal && (
         <ImpostorModal
@@ -388,16 +432,21 @@ function TopBar({ state, universe, meta, onBack }) {
         <button type="button" className="wordmark" onClick={onBack}>
           <span className="glyph">?</span>Palpite
         </button>
-        <span className="pill"><ClockIcon width={14} height={14} />Rodada <b>{state.round}</b>/{state.settings.rounds}</span>
+        <span className="pill"><ClockIcon width={14} height={14} />Rodada <b>{state.round}</b>/{state.settings.rounds || '∞'}</span>
         <span className="pill">
           <UniverseIcon universe={universe.id} size="xs" />
-          {universe.label} · {rules}
+          {universe.label} · {state.settings.game === 'termo' ? `Termo · ${rules}` : rules}
         </span>
         {state.settings.picture && (
           <span className="pill"><ImageIcon width={14} height={14} />Pela imagem</span>
         )}
         {state.settings.cards && (
           <span className="pill"><CardsIcon width={14} height={14} />Com cartas</span>
+        )}
+        {/* Termo: a categoria da palavra fica a vista a rodada inteira, para
+            quem joga e para quem so assiste (na batalha ela vai em cada alvo) */}
+        {state.termo?.cat && (
+          <span className="pill"><TermoIcon width={14} height={14} />Categoria: <b>{state.termo.cat}</b></span>
         )}
         <span className="pill"><UsersIcon width={14} height={14} />{state.players.length}</span>
         <span className="spacer" />
@@ -428,7 +477,7 @@ function quizBanner({ state, myId }) {
   };
 }
 
-function battleBanner({ state, myId, universe, isMyTurn, target, canShoot, nameOf }) {
+function battleBanner({ state, myId, universe, isMyTurn, target, canShoot, nameOf, termo = false }) {
   const anchor = <AnchorIcon width={22} height={22} />;
 
   if (state.phase === 'choosing') {
@@ -446,7 +495,7 @@ function battleBanner({ state, myId, universe, isMyTurn, target, canShoot, nameO
       }
       : {
         title: 'Esconda o seu segredo',
-        text: `Escolha ${universe.secretLabel} que os outros vão ter de afundar. ${done}`,
+        text: `Escolha ${termo ? 'a palavra' : universe.secretLabel} que os outros vão ter de afundar. ${done}`,
         tone: 'warn',
         icon: anchor,
       };

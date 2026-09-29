@@ -10,12 +10,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { UNIVERSES, getUniverse, scopeReach } from '../shared/universes.js';
-import { datasetOf, indexOf } from './catalog.js';
+import { datasetOf, indexOf, termoBankOf } from './catalog.js';
 import { compareGuess } from './game.js';
 import {
   DEFAULT_MODE, hasPictureChallenge, inSlice, isKnownMode, isKnownUniverse, nextPictureLevel,
-  pictureLevel, pictureTicket, poolSizeOf, secretOf, sliceOf, today,
+  pictureLevel, pictureTicket, poolSizeOf, secretOf, sliceOf, termoTicket, termoUsed, today,
 } from './daily.js';
+import { scoreTermo, termoAnswer, termoKey, termoPattern, termoTriesFor } from '../shared/termo.js';
 import { TOP as PICTURE_TOP, frameFor } from './picture.js';
 import { spendDailyGuess } from './limits.js';
 import * as db from './db.js';
@@ -72,6 +73,9 @@ const playerKey = (req) => (req.user ? `conta:${req.user.id}` : `ip:${req.ip}`);
 
 /** O desafio pedido. Modo desconhecido cai no classico, em vez de dar erro. */
 const modeOf = (req) => (isKnownMode(req.query.modo) ? req.query.modo : DEFAULT_MODE);
+
+/** As linhas da palavra do dia: menos quando a categoria dela e pequena (ver termoTriesFor). */
+const dailyTries = (universe, entry) => termoTriesFor(termoBankOf(universe).sizes.get(entry.cat) ?? 0);
 
 /** O quadro do degrau + o bilhete que devolve o jogador a ele no proximo pedido. */
 async function frameOf(universe, secret, level, day) {
@@ -177,7 +181,28 @@ export function createApp() {
       // o seletor de modo precisa saber disso antes de trocar de aba: universo
       // sem miniatura espelhada (os carros) nao tem desafio de imagem nenhum
       hasPicture: hasPictureChallenge(universe, day),
+      hasTermo: Boolean(secretOf(universe, day, 'termo')),
     };
+
+    /**
+     * O Termo manda so o desenho da palavra — quantas letras em cada pedaco —,
+     * a categoria (a dica de sempre: "Arma", "Lugar", "Personagem") e quantas
+     * tentativas o bilhete diz que ja foram. O resto ele pergunta a cada chute.
+     */
+    if (mode === 'termo') {
+      const entry = secretOf(universe, day, mode);
+      if (!entry) return res.status(503).json({ error: 'Sem termo hoje neste tema.', date: day });
+      return res.json({
+        ...info,
+        termo: {
+          pattern: termoPattern(entry.label),
+          length: entry.key.length,
+          cat: entry.cat,
+          tries: dailyTries(universe, entry),
+          used: termoUsed(universe, req.query.t, day),
+        },
+      });
+    }
 
     if (mode !== 'imagem') return res.json(info);
 
@@ -199,11 +224,66 @@ export function createApp() {
    * informacao de graca. Quem paga a ficha e a conta de quem esta logado, ou o
    * IP de quem nao esta.
    */
+  /**
+   * Um chute do Termo: uma palavra, nao um id — qualquer uma com o tamanho do
+   * segredo (ver o cabecalho de shared/termo.js). Gasta ficha do mesmo freio
+   * dos outros modos.
+   */
+  app.get('/api/daily/:universe/termo', (req, res) => {
+    const { universe } = req.params;
+    if (!isKnownUniverse(universe)) return res.status(404).json({ error: 'Tema desconhecido.' });
+
+    res.set('Cache-Control', 'no-store');
+    const day = today();
+    const entry = secretOf(universe, day, 'termo');
+    if (!entry) return res.status(503).json({ error: 'Sem termo hoje neste tema.', date: day });
+
+    const answer = entry.key;
+    const word = termoKey(req.query.palavra);
+    if (word.length !== answer.length || /[0-9]/.test(word)) {
+      return res.status(400).json({ error: `A palavra de hoje tem ${answer.length} letras.`, date: day });
+    }
+
+    const tries = dailyTries(universe, entry);
+    const used = termoUsed(universe, req.query.t, day);
+    if (used >= tries) {
+      return res.status(409).json({ error: 'As tentativas de hoje acabaram.', date: day, secret: termoAnswer(entry) });
+    }
+
+    const freio = spendDailyGuess(playerKey(req), universe, day, 'termo');
+    if (!freio.ok) {
+      res.set('Retry-After', String(freio.retryAfter));
+      return res.status(429).json({ error: freio.error, retryAfter: freio.retryAfter, date: day });
+    }
+
+    const marks = scoreTermo(word, answer);
+    const correct = word === answer;
+    const spent = used + 1;
+    const over = correct || spent >= tries;
+
+    if (req.user) {
+      db.bumpDailyResult({ userId: req.user.id, day, universe, solved: correct })
+        .catch(err => console.error('[api] não anotei o chute na conta:', err.message));
+    }
+
+    // o segredo so viaja com o jogo fechado: acertou, ou gastou a ultima
+    res.json({
+      date: day,
+      row: { word, marks, correct },
+      correct,
+      over,
+      ticket: termoTicket(universe, spent, day),
+      secret: over ? termoAnswer(entry) : null,
+    });
+  });
+
   app.get('/api/daily/:universe/guess/:id', async (req, res) => {
     const { universe, id } = req.params;
     if (!isKnownUniverse(universe)) return res.status(404).json({ error: 'Tema desconhecido.' });
 
     const mode = modeOf(req);
+    // o Termo chuta palavra, nao id: ele tem a porta propria logo acima
+    if (mode === 'termo') return res.status(400).json({ error: 'O termo chuta pela palavra.' });
     res.set('Cache-Control', 'no-store');
     const freio = spendDailyGuess(playerKey(req), universe, today(), mode);
     if (!freio.ok) {

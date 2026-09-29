@@ -67,7 +67,7 @@ const DAILY_PREFIX = 'palpite:daily:';
 const dailyKey = (date, universe, mode) =>
   `${DAILY_PREFIX}${date}:${universe}${mode && mode !== 'dicas' ? `:${mode}` : ''}`;
 
-const EMPTY = { rows: [], secret: null, ticket: null };
+const EMPTY = { rows: [], secret: null, ticket: null, answer: null };
 
 export function loadDaily(date, universe, mode = 'dicas') {
   const raw = safe(() => localStorage.getItem(dailyKey(date, universe, mode)));
@@ -80,6 +80,9 @@ export function loadDaily(date, universe, mode = 'dicas') {
       // o bilhete do degrau da imagem (ver src/daily.js): guardado com o
       // progresso porque e ele que devolve a nitidez ja ganha depois de um F5
       ticket: saved.ticket ?? null,
+      // Termo: quem era, quando as linhas acabaram sem acerto. Fica fora de
+      // `secret` de proposito — `secret` e o que conta como resolvido
+      answer: saved.answer ?? null,
     };
   } catch {
     return { ...EMPTY };
@@ -157,10 +160,12 @@ export function lastDaily(universe, mode = 'dicas') {
       return {
         rows: Array.isArray(saved?.rows) ? saved.rows : [],
         secret: saved?.secret ?? null,
+        // Termo: a palavra de um dia perdido (as linhas acabaram sem acerto)
+        answer: saved?.answer ?? null,
       };
     }
-    return { rows: [], secret: null };
-  }, { rows: [], secret: null });
+    return { rows: [], secret: null, answer: null };
+  }, { rows: [], secret: null, answer: null });
 }
 
 // ------------------------------------------------- temas mais jogados

@@ -18,6 +18,7 @@ import zlib from 'node:zlib';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { UNIVERSES, getUniverse, scopeKeys } from '../shared/universes.js';
+import { termoCatSizes, termoNames, termoThemeWords } from '../shared/termo.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -96,3 +97,21 @@ export const datasetOf = (universeId) => catalog.get(universeId) ?? catalog.get(
 
 /** Indice enxuto para o navegador — null quando o universo nao existe. */
 export const indexOf = (universeId) => catalog.get(universeId)?.index ?? null;
+
+/**
+ * Os dois sacos do Termo de um universo: os nomes que cabem no tabuleiro e as
+ * palavras do tema (ver shared/termo.js). Nao muda dentro do deploy, entao sai
+ * uma vez so — o desafio do dia e as salas dividem a conta.
+ */
+const termos = new Map();
+export function termoBankOf(universeId) {
+  const universe = getUniverse(universeId);
+  let bank = termos.get(universe.id);
+  if (!bank) {
+    const names = termoNames(datasetOf(universe.id).list, universe);
+    const words = termoThemeWords(universe.id);
+    bank = { names, words, sizes: termoCatSizes(names, words) };
+    termos.set(universe.id, bank);
+  }
+  return bank;
+}

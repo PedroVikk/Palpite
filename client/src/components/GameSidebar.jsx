@@ -93,8 +93,8 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
       <section className="card">
         <h3>
           <UsersIcon width={13} height={13} strokeWidth={2.2} />
-          {state.phase === 'choosing' ? 'Escolhendo' : 'Próximo turno'}
-          <span className="n">rodada {state.round}/{state.settings.rounds}</span>
+          {state.phase === 'choosing' ? 'Escolhendo' : (state.settings.game === 'termo' && state.settings.mode !== 'battle') || state.settings.mode === 'speed' ? 'Placar' : 'Próximo turno'}
+          <span className="n">rodada {state.round}/{state.settings.rounds || '∞'}</span>
         </h3>
         <ul className="queue">
           {state.players.map(player => {
@@ -120,6 +120,10 @@ export default function GameSidebar({ state, myId, universe, onLeave }) {
                 {isTurn && <span className="state">Agora</span>}
                 {isChooser && !isTurn && <span className="state">Escondeu</span>}
                 {state.phase === 'voting' && state.voted.includes(player.id) && <span className="state">Votou</span>}
+                {/* termo: quem ja fechou o tabuleiro, e como */}
+                {state.phase === 'playing' && state.termo?.done?.[player.id] && (
+                  <span className="state">{state.termo.done[player.id].solved ? 'Acertou' : 'Esgotou'}</span>
+                )}
                 {state.sunk?.[player.id] && !isTurn && <span className="state">Afundou</span>}
                 {state.phase === 'choosing' && state.chosen?.includes(player.id) && <span className="state">Escondeu</span>}
                 {/* cartas: quantas na mão (nunca quais) e quem está congelado */}

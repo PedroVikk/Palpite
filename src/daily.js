@@ -18,7 +18,8 @@
  */
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { UNIVERSES, scopeFilter, scopeOptions } from '../shared/universes.js';
-import { datasetOf } from './catalog.js';
+import { datasetOf, termoBankOf } from './catalog.js';
+import { TERMO_TRIES, pickTermo } from '../shared/termo.js';
 import { TOP as TOP_LEVEL, hasPicture } from './picture.js';
 
 /**
@@ -32,7 +33,7 @@ import { TOP as TOP_LEVEL, hasPicture } from './picture.js';
  * figura. Separados, cada modo pega o melhor do seu pedaço — e resolver um não
  * estraga o outro, que é o que faz valer a pena jogar os dois.
  */
-export const MODES = ['dicas', 'imagem'];
+export const MODES = ['dicas', 'imagem', 'termo'];
 export const DEFAULT_MODE = 'dicas';
 export const isKnownMode = (mode) => MODES.includes(mode);
 
@@ -168,6 +169,26 @@ function dayOf(universeId, date, mode = DEFAULT_MODE) {
   const pronto = dias.get(key);
   if (pronto) return pronto;
 
+  /**
+   * O Termo nao herda o recorte do dia: o segredo pode nem ser um nome (KUNAI,
+   * KONOHA), e trancar os nomes numa epoca que a tela nao mostra seria dica
+   * escondida. O `secret` aqui e a entrada do Termo, nao um item do dataset
+   * (ver shared/termo.js).
+   */
+  if (mode === 'termo') {
+    const { names, words } = termoBankOf(universeId);
+    const dia = {
+      scope: null,
+      group: null,
+      matches: () => false,
+      pool: [...names, ...words],
+      secret: pickTermo(names, words, (list, salt) => pickFrom(list, `${date}:${universeId}:${mode}:${salt}`)),
+    };
+    for (const [antiga] of dias) if (!antiga.includes(`:${date}:`)) dias.delete(antiga);
+    dias.set(key, dia);
+    return dia;
+  }
+
   const universe = UNIVERSES[universeId];
   const { scope, group } = cutOf(universeId, date);
   const noScope = scope ? scopeFilter(universe, scope) : null;
@@ -300,3 +321,34 @@ export function pictureLevel(universeId, ticket, date = today()) {
 
 /** O degrau seguinte, depois de um chute gasto. O topo da escada não sobe mais. */
 export const nextPictureLevel = (level) => Math.min(TOP_LEVEL, level + 1);
+
+// ------------------------------------------------------- tentativas do termo
+
+/**
+ * O bilhete do Termo: quantas tentativas o jogador ja gastou hoje, assinado do
+ * mesmo jeito que o degrau da imagem. E ele que decide quando o segredo pode
+ * ser contado a quem nao acertou — sem isso, "perdi, me diz quem era" seria um
+ * pedido que qualquer um faz sem ter jogado.
+ *
+ * Jogar fora o bilhete volta a conta para zero, e isso nao da para impedir sem
+ * guardar estado de quem nao tem conta. O que ele garante e o que importa: a
+ * resposta so sai de graca depois de seis chutes validos de verdade.
+ */
+const termoStamp = (date, universeId, used) =>
+  createHmac('sha256', SALT)
+    .update(`termo:${date}:${universeId}:${used}`)
+    .digest('base64url')
+    .slice(0, 22);
+
+export const termoTicket = (universeId, used, date = today()) =>
+  `${used}.${termoStamp(date, universeId, used)}`;
+
+/** Tentativas ja gastas segundo o bilhete. Torto ou de outro dia vale zero. */
+export function termoUsed(universeId, ticket, date = today()) {
+  const [head, mark] = String(ticket ?? '').split('.');
+  const used = Number(head);
+  if (!Number.isInteger(used) || used < 0 || used > TERMO_TRIES || !mark) return 0;
+  const expected = termoStamp(date, universeId, used);
+  if (mark.length !== expected.length) return 0;
+  return timingSafeEqual(Buffer.from(mark), Buffer.from(expected)) ? used : 0;
+}

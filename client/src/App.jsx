@@ -16,7 +16,8 @@ import ThemeChooser from './components/ThemeChooser.jsx';
 
 /** Com o que uma sala nasce. O host ajusta tudo depois, no lobby. */
 const NEW_ROOM = {
-  mode: 'hunt',
+  game: 'segredo',   // o modo: o Segredo de sempre ou o Termo (a palavra letra a letra)
+  mode: 'hunt',      // o estilo: caca, duelo, impostor, batalha naval ou "Qual deles?"
   universe: DEFAULT_UNIVERSE,
   groups: [...UNIVERSES[DEFAULT_UNIVERSE].defaultGroups],
   rounds: 5,
@@ -199,7 +200,7 @@ export default function App() {
     // o modo tambem mora no endereco: e o que deixa "manda o de imagem de hoje"
     // virar um link, e o que a tela do dia le para abrir na aba certa
     if (universe) {
-      const modo = mode === 'imagem' ? '&modo=imagem' : '';
+      const modo = mode === 'imagem' || mode === 'termo' ? `&modo=${mode}` : '';
       history.replaceState(null, '', `?diario=${universe}${modo}`);
     }
     setDaily(true);

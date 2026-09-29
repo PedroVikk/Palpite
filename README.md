@@ -1,6 +1,6 @@
 # Palpite
 
-Um jogo de adivinhação multiplayer no estilo Pokédle, com **vinte e três universos**.
+Um jogo de adivinhação multiplayer no estilo Pokédle, com **vinte e seis universos**.
 Um secreto por rodada, todo mundo na mesma sala, **um chute por vez**. Cada
 chute vira uma linha de dicas visível para todos — verde acerta, amarelo chega
 perto, seta indica se o secreto é maior ou menor.
@@ -57,6 +57,7 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Bandas** | 336 | 336 | 6 estilos | Gênero, País, Formação, Integrantes, Fundação, Estado |
 | **Deuses** | 253 | 137 | 10 panteões | Panteão, Gênero, Domínio, Posição, Reino |
 | **Desenhos animados** | 471 | 471 | 4 canais | Desenho, Espécie, Gênero, Na história, Idade, Estreia |
+| **Animais** | 290 | 278 | 5 classes | Classe, Alimentação, Habitat, Continente, Locomoção, Peso |
 
 **Sorteáveis** são os que entram na partida: viram segredo e são os únicos
 nomes que a busca de chute oferece. Quem fica de fora não existe para a sala —
@@ -366,6 +367,44 @@ amigo, vilão, família — o rival que atormenta conta como vilão), *Idade* (a
 o desenho mostra: a Marceline tem mil anos e é adulta) e *Estreia*, o ano do
 desenho, com dois de tolerância.
 
+Em **Animais** o elenco é **curado à mão** também, em
+[build-animais.mjs](scripts/build-animais.mjs): 290 bichos, do beija-flor à
+baleia-azul, com o peso da fauna brasileira — capivara, lobo-guará, tuiuiú,
+pirarucu, aranha-armadeira, barbeiro. A Wikidata tem a árvore inteira de
+espécies, mas não tem o que a sala pergunta (come carne? vive no mar? voa?) do
+jeito que o jogador pensa. O nome é o do nível em que a sala fala: "Formiga" e
+"Barata", mas "Tubarão-branco" e "Tubarão-martelo" em vez de "Tubarão"; o nome
+genérico vira apelido da espécie mais conhecida ("Coruja" acha a buraqueira).
+A Wikipédia em inglês empresta a foto e o id da Wikidata, e dez fotos foram
+trocadas à mão onde o topo do artigo era mosaico, gravura ou esqueleto — no
+modo imagem, reduzida a pixels, a foto precisa ser o bicho.
+
+**A régua de fama olha dois artigos.** A zebra da tabela é a zebra-da-planície
+(6 mil visitas no ano na Wikipédia em português), mas quem procura "Zebra" cai
+no artigo do gênero; o mesmo com o pardal, o canguru e a barata. Por isso vale o
+maior entre o artigo ligado à espécie e o que o nome em português abre. Sorteia
+quem passa de 5 mil, com três garantidos à mão que a enciclopédia subestima e o
+desenho não: o peixe-palhaço (o Nemo), o ouriço (o Sonic) e o porco-espinho.
+Ficam fora do sorteio doze, como o urso-negro, a rã-de-vidro e a raposa-voadora.
+
+Os grupos são as classes — mamíferos, aves, répteis e anfíbios, peixes e
+invertebrados —, e a coluna *Classe* separa por dentro o inseto da aranha e do
+caranguejo. *Alimentação* tem quatro respostas: carnívoro (quem come inseto
+conta, o tamanduá é carnívoro), herbívoro, onívoro e *sangue*, que é do
+mosquito, da pulga, do carrapato e do morcego-vampiro. *Habitat*, *Continente* e
+*Locomoção* são `list`: a capivara é da água doce e do campo e fecha amarelo
+contra o jacaré, e o bicho do mundo todo (o cachorro, a baleia, a barata) tem
+os seis continentes habitados e fecha amarelo contra qualquer um. Em
+*Locomoção* vale o costume, não a capacidade: o tigre nada quando precisa e é
+só "anda"; a capivara vive na água e é "anda, nada". O bicho de casa e de
+fazenda mora em *Casa e fazenda*; a praga da rua, em *Cidade*.
+
+*Peso* é faixa, não número: ninguém sabe que o leão pesa 190 kg, mas todo mundo
+sabe que ele pesa mais que um cachorro e menos que um cavalo. São sete faixas
+de dez em dez vezes (até 10 g, até 1 kg, até 10 kg… mais de 10 t), com seta. O
+peso em quilos fica na tabela para quem quiser conferir. Sem trava no desafio
+do dia: 278 cabem numa partida, e a classe não é linha do tempo para girar.
+
 ### As épocas
 
 Toda obra com linha do tempo tem um segundo eixo na sala, ao lado dos grupos: as
@@ -579,18 +618,45 @@ e azul* — o matiz dele fica exatamente na fronteira entre os dois, e duas core
 ali dizem a verdade que uma só não diz. 257 Pokémon ficaram com uma cor, 558 com
 duas e 210 com três.
 
-## Modos
+## Modos e estilos
 
-| Modo | Como funciona |
+A sala escolhe duas coisas. O **modo de jogo** é o que se adivinha: o
+**Segredo** (o padrão — um item do tema, pela tabela de dicas ou pela imagem) ou
+o **Termo** (uma palavra do tema, letra por letra). O **estilo de jogo** é como a
+mesa joga, e são os cinco da tabela abaixo. O Termo encaixa em três deles:
+
+- **Caça ao segredo** — todos correm atrás da mesma palavra ao mesmo tempo, cada
+  um no seu tabuleiro. Você vê as cores dos outros, nunca as letras.
+- **Duelo** — quem está na vez da fila escolhe a palavra (um nome ou uma palavra
+  do tema) e o resto corre atrás dela. Ninguém acertou, quem escolheu leva 50.
+- **Batalha naval** — cada um esconde uma palavra e, na sua vez, chuta no
+  tabuleiro de um alvo; os tabuleiros são de todo mundo, com letra e cor.
+
+A palavra do Termo sai meio a meio de dois sacos: os nomes do tema e as palavras
+do universo (Kunai, Chakra e Konoha no Naruto; Pokébola e Ginásio no Pokémon —
+lista em `shared/termo-words.js`). A categoria dela fica à vista como dica.
+Vale chutar qualquer palavra com o número certo de letras; acento, espaço e
+pontuação não contam, e o vão entre as palavras aparece no tabuleiro. Na
+corrida são de 4 a 10 linhas (6 por padrão) com um relógio para a rodada
+inteira. Sem imagem e sem cartas.
+
+- **Velocidade** — a fila é de palavras, cada uma com as suas linhas; gastou as
+  linhas de uma, ela sai (riscada) e entra a próxima, então queimar chutes não
+  encurta a corrida.
+
+Impostor e "Qual deles?" ficam só no Segredo.
+
+| Estilo | Como funciona (no Segredo) |
 | --- | --- |
 | **Caça ao segredo** | O servidor sorteia o secreto e **ninguém** sabe qual é. Todos adivinham, um por turno, até alguém acertar (ou os chutes acabarem). |
 | **Duelo** | A cada rodada um jogador escolhe o secreto e assiste, **na vez dele numa fila**; os outros se revezam nos chutes. Se ninguém acertar, quem escolheu leva 50 pontos. |
 | **Impostor** | Todo mundo vê o secreto, **menos um** jogador, tirado da mesma fila do duelo. Cada um chuta por um número fixo de voltas, e a mesa vê só **quantas colunas** cada chute acertou em cheio, não quais. Quem sabe não pode chutar o secreto; se o impostor chutar, ganha na hora. Quando as voltas acabam, todos votam. Empate salva o impostor, e quem for pego ainda tem **um chute final** para dizer o secreto. Precisa de 3 jogadores. |
 | **Batalha naval** | **Cada um esconde o próprio secreto**, todos ao mesmo tempo (dois não escondem o mesmo). Na sua vez você escolhe o **alvo** e chuta contra o secreto dele; cada jogador tem um tabuleiro próprio, e os tabuleiros são públicos. Quem tem o secreto descoberto **afunda** e sai da batalha: não atira mais, só assiste. A partida é **uma batalha só**, sem teto de chutes, e acaba quando sobra um secreto de pé. Precisa de 2 jogadores. |
 | **Qual deles?** | A cada rodada sai uma **pergunta de múltipla escolha** montada das colunas do tema — qual deles tem tal tipo, qual NÃO tem, qual é o mais pesado, qual estreou primeiro — com 2 a 5 opções (o host escolhe). **Todos respondem ao mesmo tempo**, uma vez só; a pergunta fecha quando todo mundo respondeu ou o tempo acaba, e o gabarito mostra o valor de cada opção e quem marcou o quê. Sem segredo, sem vez. Nos temas de figura recortada (Pokémon, Ben 10, Ordem Paranormal e as armas do Valorant), uma pergunta em quatro é o **"Quem é esse Pokémon?!"**: a figura em preto, gerada no servidor e embutida na pergunta, e as opções só com nome — a cor acende no gabarito. |
+| **Velocidade** | Todo mundo ao mesmo tempo, **cada um no próprio tabuleiro**, com uma fila de segredos (1 a 20, 3 por padrão). Chutes ilimitados: errar só custa tempo. **Quem terminar a fila primeiro vence** e a partida acaba ali — quem perdeu recebe o aviso na tela, no feitio do das cartas. A fila pode ser **a mesma para todos** ou **uma para cada um**. Com relógio (que pode ser infinito), se o tempo acabar vence quem resolveu mais; no empate, quem chegou lá antes. Cada segredo resolvido vale 10, e o vencedor leva mais 100. |
 
 **Jogar com cartas** é um interruptor, não um modo: vale em qualquer um dos
-cinco. Ligado, a cada N rodadas (o host escolhe, de 1 a 5) cada jogador recebe
+estilos do Segredo — o Termo joga sem elas. Ligado, a cada N rodadas (o host escolhe, de 1 a 5) cada jogador recebe
 3 cartas e fica com 1. A sala vê quantas cartas cada um tem, nunca quais. Carta
 se usa na própria vez, antes de chutar — no "Qual deles?", que não tem vez,
 antes de responder. São 17: as de informação (Raio-X, Letra, Bússola, Peneira,
@@ -697,6 +763,7 @@ esperar a hora de `max-age`.
 - No impostor, ele leva 100 se escapar da votação, acertar o chute final ou chutar o segredo nas voltas. Pego e errando, cada um da mesa leva 50, e quem votou nele leva mais 20.
 - Na batalha naval, afundar alguém vale `100 - 5 × (tiros já dados naquele tabuleiro)`, com piso de 25, e quem termina com o segredo de pé leva mais 50.
 - No "Qual deles?", acertar vale de 50 a 100: quanto mais cedo a resposta, mais perto de 100. Errar ou não responder vale 0.
+- No Termo, acertar vale `10 × (linhas que sobraram + 1)` — em 6 linhas, 60 na primeira e 10 na última —, e quem acerta primeiro leva mais 20.
 
 ## Como ler as dicas
 
@@ -864,8 +931,12 @@ build:data`). As respostas ficam em `.cache/`, que não vai para o git.
 
 ## O desafio do dia, e o que protege ele
 
-**Dois** segredos por universo, iguais para todo mundo, trocando à meia-noite de
-Brasília: um para a tabela de dicas, outro para a imagem. Não há sorteio
+**Três** segredos por universo, iguais para todo mundo, trocando à meia-noite de
+Brasília: um para a tabela de dicas, outro para a imagem e outro para o Termo
+(uma palavra letra por letra, em 6 tentativas). O Termo não herda o recorte do dia:
+sorteia meio a meio entre os nomes e as palavras do tema, de 4 a 12 letras, e
+um bilhete assinado conta as tentativas — é ele que libera o nome
+quando as seis acabam sem acerto. Não há sorteio
 guardado em lugar nenhum: o item sai de um `sha256` de (tempero, data,
 universo, modo), então o servidor reiniciado — ou uma segunda instância — chega
 no mesmo resultado sem combinar nada com ninguém.

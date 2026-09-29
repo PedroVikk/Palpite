@@ -69,6 +69,8 @@ export function BattleTabs({ state, myId, targetId, onPick }) {
                 {sunk
                   ? `Afundado${sunk.by ? ` por ${sunk.by === myId ? 'você' : nameOf(sunk.by)}` : ''}`
                   : `${shots} ${shots === 1 ? 'tiro' : 'tiros'}`}
+                {/* Termo: a categoria da palavra que cada um escondeu */}
+                {state.termo?.targets?.[player.id]?.cat && ` · ${state.termo.targets[player.id].cat}`}
               </small>
             </span>
             {sunk && <span className="tag-sunk">Afundou</span>}

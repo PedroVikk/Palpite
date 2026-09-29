@@ -10,9 +10,12 @@ import {
   MODES, getUniverse, sanitizeSettings, isUntilRight, scopeFilter, scopeReach, scopeLabel,
   compareGuess, scoreForWin, SCORE_CHOOSER_SURVIVED, pickSecret,
   IMPOSTOR_MIN_PLAYERS, SCORE_IMPOSTOR_WINS, SCORE_CREW_WINS, SCORE_RIGHT_VOTE, hitsOf, tallyVotes,
-  BATTLE_MIN_PLAYERS, SCORE_BATTLE_SURVIVOR,
+  BATTLE_MIN_PLAYERS, SCORE_BATTLE_SURVIVOR, scoreForTermo, GAMES, SCORE_SPEED_EACH, SCORE_SPEED_WIN,
 } from './game.js';
-import { datasetOf as datasetFor } from './catalog.js';
+import { datasetOf as datasetFor, termoBankOf } from './catalog.js';
+import {
+  pickTermo, scoreTermo, termoAnswer, termoCatSizes, termoKey, termoPattern, termoTriesFor,
+} from '../shared/termo.js';
 import { makeQuestion, makeWhoQuestion, scoreForAnswer } from './quiz.js';
 import {
   CARDS, drawCard, drawOffer, isDraftRound, playsIn, HAND_LIMIT, STEAL_POINTS, BET_PENALTY, EXTRA_SECONDS,
@@ -96,6 +99,12 @@ function createRoom(settings) {
     shields: {},        // Escudo: jogador -> ataque nao pega ate o fim da rodada
     mirrors: {},        // Espelho: jogador -> o proximo ataque volta (segredo dele)
     rushed: {},         // Pressa: jogador -> a proxima vez dele e curta
+    boards: {},         // termo: jogador -> [{ word, marks, correct }] (as letras so ele ve)
+    termoDone: {},      // termo: jogador -> { solved, used, ms, points } quando ele fecha o tabuleiro
+    termoEntry: null,   // termo: a palavra da rodada (nome ou palavra do tema), so o servidor ve
+    termoTries: 0,      // termo: as linhas desta palavra (categoria pequena ganha menos)
+    speed: null,        // velocidade: a corrida (filas, progresso de cada um, quem terminou)
+    speedSeq: 0,        // velocidade: sobe a cada corrida que fecha, para a tela animar o fim
     rows: [],
     turnPlayerId: null,
     pausedAfter: null,  // de quem era a vez quando a rodada parou (ver pauseRound)
@@ -159,6 +168,20 @@ const activePlayers = (room) => room.order.map(id => room.players.get(id)).filte
 const isImpostorMode = (room) => room.settings.mode === MODES.IMPOSTOR;
 const isBattle = (room) => room.settings.mode === MODES.BATTLE;
 const isQuiz = (room) => room.settings.mode === MODES.QUIZ;
+/** O modo Termo (a palavra letra a letra), em qualquer um dos estilos que ele aceita. */
+const isTermo = (room) => room.settings.game === GAMES.TERMO;
+/**
+ * A corrida do Termo: caca e duelo, em que todo mundo joga junto, cada um no
+ * seu tabuleiro, sem vez. A batalha do Termo e de turno, como a do segredo.
+ */
+const isTermoRace = (room) => isTermo(room) && !isBattle(room) && !isSpeed(room);
+/** Velocidade: cada um na propria fila de segredos (ou palavras), sem vez. */
+const isSpeed = (room) => room.settings.mode === MODES.SPEED;
+/** A rodada que acabou era a ultima? Rodadas 0 e o infinito do Termo: so o host encerra. */
+const lastRound = (room) => room.settings.rounds > 0 && room.round >= room.settings.rounds;
+
+/** Como a mesa chama o segredo: o item tem `name`, a palavra do Termo tem `label`. */
+const labelOf = (secret) => secret?.label ?? secret?.name ?? '???';
 /** As cartas sao uma chave da sala, nao um modo: valem em qualquer um. */
 const cardsOn = (room) => Boolean(room.settings.cards);
 
@@ -211,6 +234,43 @@ function cardsStateFor(room, viewerId) {
   };
 }
 
+/**
+ * O Termo visto por um jogador. Na corrida, as cores dos outros sao publicas —
+ * e isso que faz o x1 ter torcida: da para ver o adversario a uma letra do
+ * fim. As letras nao: com elas, o tabuleiro de quem esta na frente seria cola.
+ *
+ * Na batalha e ao contrario, como na do segredo: os tabuleiros sao da mesa
+ * inteira (as linhas vao em `rows`, com letra), e daqui sai so o desenho e a
+ * categoria da palavra de cada alvo.
+ */
+function termoStateFor(room, viewerId, over) {
+  if (isBattle(room)) {
+    const targets = {};
+    for (const [id, entry] of Object.entries(room.secrets)) {
+      targets[id] = { pattern: termoPattern(entry.label), length: entry.key.length, cat: entry.cat };
+    }
+    return { battle: true, targets };
+  }
+  const entry = room.termoEntry;
+  if (!entry) return null;
+  const boards = {};
+  for (const [id, rows] of Object.entries(room.boards)) {
+    boards[id] = over || id === viewerId
+      ? rows
+      : rows.map(row => ({ marks: row.marks, correct: row.correct }));
+  }
+  return {
+    pattern: termoPattern(entry.label),
+    length: entry.key.length,
+    cat: entry.cat,
+    tries: room.termoTries,
+    boards,
+    done: room.termoDone,
+    // a palavra so viaja com a rodada fechada — ou para quem a escolheu, no duelo
+    answer: over || viewerId === room.chooserId ? termoAnswer(entry) : null,
+  };
+}
+
 /** Batalha naval: quem esta na batalha e ainda tem o segredo de pe. */
 const afloat = (room) => room.cast.filter(id => !room.sunk[id]);
 
@@ -221,9 +281,12 @@ const afloat = (room) => room.cast.filter(id => !room.sunk[id]);
 function battleSecretsFor(room, viewerId, over) {
   const out = {};
   for (const [id, item] of Object.entries(room.secrets)) {
+    if (!(over || id === viewerId || room.sunk[id])) continue;
     // o item inteiro, como o `secret` dos outros modos: o gabarito do afundado
-    // mostra as colunas dele, e so com o nome as fichas saiam todas em branco
-    if (over || id === viewerId || room.sunk[id]) out[id] = item;
+    // mostra as colunas dele, e so com o nome as fichas saiam todas em branco.
+    // No Termo e a palavra, no formato da revelacao dele (com `name` para as
+    // fichas da batalha, que sao as mesmas)
+    out[id] = isTermo(room) ? { ...termoAnswer(item), name: item.label } : item;
   }
   return out;
 }
@@ -288,7 +351,7 @@ function publicState(room, viewerId = null) {
     // (ou na hora do chute final, quando a mesa ja apontou para ele)
     role: inRound ? (isImpostor ? 'impostor' : 'crew') : null,
     impostorId: impostorMode && (over || room.phase === 'lastGuess') ? room.impostorId : null,
-    cast: impostorMode || isBattle(room) || isQuiz(room) ? room.cast : [],
+    cast: impostorMode || isBattle(room) || isQuiz(room) || isTermoRace(room) || isSpeed(room) ? room.cast : [],
     // batalha naval: quem ja escondeu (na escolha), quem afundou, e os segredos
     // que quem olha tem direito de ver
     chosen: isBattle(room) && room.phase === 'choosing' ? Object.keys(room.secrets) : [],
@@ -300,6 +363,10 @@ function publicState(room, viewerId = null) {
     answered: isQuiz(room) && room.phase === 'playing' ? Object.keys(room.answers) : [],
     myAnswer: isQuiz(room) && viewerId ? room.answers[viewerId]?.index ?? null : null,
     quizResult: isQuiz(room) && over ? room.quizResult : null,
+    // termo: o desenho do nome e os tabuleiros — o proprio inteiro, os dos
+    // outros so com as cores ate a rodada fechar
+    termo: isTermo(room) && !isSpeed(room) ? termoStateFor(room, viewerId, over) : null,
+    speed: isSpeed(room) ? speedStateFor(room, viewerId) : null,
     // cartas: a propria mao inteira; dos outros, so quantas (em players)
     ...(cardsOn(room) ? cardsStateFor(room, viewerId) : {}),
     // com a urna aberta so aparece quem ja votou; em quem, so quando ela fecha
@@ -452,10 +519,17 @@ function startRound(room) {
   room.shields = {};
   room.mirrors = {};
   room.rushed = {};
+  room.boards = {};
+  room.termoDone = {};
+  room.termoEntry = null;
+  room.speed = null;
   room.guessesLeft = {};
   for (const p of room.players.values()) room.guessesLeft[p.id] = guessBudget(room);
 
   if (isQuiz(room)) return draftDue(room) ? startDraft(room) : askQuestion(room);
+  // a batalha do Termo segue pela batalha de sempre, logo abaixo
+  if (isSpeed(room)) return startSpeed(room);
+  if (isTermoRace(room)) return startTermo(room);
 
   if (isBattle(room)) {
     // todo mundo esconde ao mesmo tempo; quem nao escolher a tempo ganha um
@@ -507,7 +581,8 @@ function startRound(room) {
  * para quem passar a bola, entao nao ha tempo: o jogador pensa a vontade.
  */
 function armTurnTimer(room) {
-  if (activePlayers(room).length < 2) return clearTimer(room);
+  // tempo 0 e o infinito do Termo: a vez espera o chute
+  if (activePlayers(room).length < 2 || !room.settings.turnSeconds) return clearTimer(room);
   const rushed = room.rushed[room.turnPlayerId];
   delete room.rushed[room.turnPlayerId];
   const seconds = rushed ? Math.min(RUSH_SECONDS, room.settings.turnSeconds) : room.settings.turnSeconds;
@@ -566,6 +641,10 @@ function pauseRound(room, afterId) {
  * fecha como teria fechado se a queda nao tivesse acontecido.
  */
 function unpause(room) {
+  // sem vez nao ha rodizio para destravar: no "Qual deles?" e no Termo todo
+  // mundo joga junto, e puxar uma vez aqui trocaria o relogio da rodada pelo
+  // de turno
+  if (isQuiz(room) || isTermoRace(room) || isSpeed(room)) return;
   if (room.phase !== 'playing' || room.turnPlayerId) return;
   const next = nextTurn(room, room.pausedAfter);
   if (next) {
@@ -709,7 +788,7 @@ function endImpostorRound(room, how, finalGuess = null, leaverName = null) {
     finalGuess: finalGuess && { id: finalGuess.id, name: finalGuess.name },
   };
 
-  if (room.round >= room.settings.rounds) return finishMatch(room);
+  if (lastRound(room)) return finishMatch(room);
   broadcast(room);
   armTimer(room, 15, () => {
     if (room.phase === 'roundEnd') startRound(room);
@@ -1182,7 +1261,7 @@ function revealQuiz(room) {
   room.winnerId = fastest?.id ?? null;
   room.phase = 'roundEnd';
 
-  if (room.round >= room.settings.rounds) return finishMatch(room);
+  if (lastRound(room)) return finishMatch(room);
   broadcast(room);
   armTimer(room, 8, () => {
     if (room.phase === 'roundEnd') startRound(room);
@@ -1212,6 +1291,12 @@ function secretProblem(room, mon) {
  * o do outro so de olhar para o proprio.
  */
 function pickFreeSecret(room) {
+  if (isTermo(room)) {
+    const taken = new Set(Object.values(room.secrets).map(entry => entry.key));
+    const { names, words } = termoSacks(room);
+    const free = (list) => list.filter(entry => !taken.has(entry.key));
+    return pickTermo(free(names), free(words), randomPick) ?? pickTermo(names, words, randomPick);
+  }
   const taken = new Set(Object.values(room.secrets).map(item => item.id));
   const free = pool(room).filter(item => !taken.has(item.id));
   return pickSecret(free.length ? free : pool(room));
@@ -1245,7 +1330,7 @@ function sink(room, attacker, targetId) {
   const points = scoreForWin(board);
   attacker.score += points;
   room.sunk[targetId] = { by: attacker.id };
-  room.message = `${attacker.name} afundou ${target?.name ?? 'alguém'}: era ${room.secrets[targetId].name}! +${points} pontos.`;
+  room.message = `${attacker.name} afundou ${target?.name ?? 'alguém'}: era ${labelOf(room.secrets[targetId])}! +${points} pontos.`;
   if (afloat(room).length <= 1) return endBattle(room);
   advance(room);
 }
@@ -1318,6 +1403,403 @@ function finalGuess(room, player, pokemonId, socket) {
   endImpostorRound(room, guess.id === room.secret.id ? 'final' : 'caught', guess);
 }
 
+// ---------------------------------------------------------------- termo
+
+/**
+ * Os sacos do Termo nesta sala. Os nomes obedecem ao recorte da sala (grupos,
+ * epocas) — recorte que nao deixa nenhum cai para o universo inteiro, como o
+ * `pool` faz com os proprios filtros. As palavras do tema valem sempre.
+ */
+function termoSacks(room) {
+  const { names, words } = termoBankOf(room.settings.universe);
+  const ids = new Set(pool(room).map(item => item.id));
+  const inRoom = names.filter(entry => ids.has(entry.item.id));
+  return { names: inRoom.length ? inRoom : names, words };
+}
+
+const randomPick = (list) => list[Math.floor(Math.random() * list.length)];
+
+/** Uma palavra sorteada dos sacos da sala, ou null se o tema nao tiver nenhuma. */
+function randomTermo(room) {
+  const { names, words } = termoSacks(room);
+  return pickTermo(names, words, randomPick);
+}
+
+/** A palavra que alguem escolheu para esconder, desde que esteja nos sacos da sala. */
+function termoEntryOf(room, raw) {
+  const key = termoKey(raw);
+  const { names, words } = termoSacks(room);
+  return names.find(entry => entry.key === key) ?? words.find(entry => entry.key === key) ?? null;
+}
+
+/**
+ * Abre a rodada do Termo. Na caca a palavra sai do sorteio e a corrida comeca
+ * ja; no duelo quem esta na vez da fila escolhe a palavra — e, se deixar o
+ * tempo passar, o servidor sorteia, como no segredo.
+ */
+function startTermo(room) {
+  if (room.settings.mode === MODES.DUEL) {
+    room.chooserId = nextChooser(room);
+    room.guessesLeft[room.chooserId] = 0;
+    room.phase = 'choosing';
+    room.turnPlayerId = null;
+    broadcast(room);
+    armTimer(room, 40, () => {
+      if (room.phase !== 'choosing') return;
+      room.termoEntry = randomTermo(room);
+      room.message = 'Tempo esgotado: a palavra foi sorteada pelo servidor.';
+      startTermoRace(room);
+    });
+    return;
+  }
+  room.chooserId = null;
+  room.termoEntry = randomTermo(room);
+  startTermoRace(room);
+}
+
+/**
+ * A corrida: todo mundo — menos quem escondeu, no duelo — no proprio tabuleiro
+ * ao mesmo tempo, sem vez. O relogio e da rodada inteira (o "tempo por turno"
+ * da sala), e ela fecha antes se todo mundo terminar.
+ */
+function startTermoRace(room) {
+  clearTimer(room);
+  if (!room.termoEntry) {
+    room.message = `${universeOf(room).label} não tem palavras que caibam no termo.`;
+    return finishMatch(room);
+  }
+  room.cast = activePlayers(room).map(p => p.id).filter(id => id !== room.chooserId);
+  // as linhas saem da base da sala, cortada pelo tamanho da categoria da palavra
+  const { names, words } = termoSacks(room);
+  const catSize = termoCatSizes(names, words).get(room.termoEntry.cat) ?? 0;
+  room.termoTries = termoTriesFor(catSize, room.settings.guessesPerPlayer);
+  for (const id of room.cast) {
+    room.boards[id] = [];
+    room.guessesLeft[id] = room.termoTries || null;   // 0 = linhas infinitas
+  }
+  room.phase = 'playing';
+  room.turnPlayerId = null;
+  room.askedAt = Date.now();
+  // tempo 0 e o infinito: sem relogio, a rodada fecha quando todo mundo terminar
+  if (room.settings.turnSeconds) {
+    armTimer(room, room.settings.turnSeconds, () => {
+      if (room.phase === 'playing' && isTermoRace(room)) revealTermo(room);
+    });
+  } else {
+    clearTimer(room);
+  }
+  broadcast(room);
+}
+
+/** Uma linha no tabuleiro de quem chutou. A palavra passa pelo dicionario do universo. */
+function termoWord(room, player, raw, socket) {
+  if (!room.cast.includes(player.id)) return socket.emit('room:error', 'Você entrou no meio da rodada: joga a próxima.');
+  if (room.termoDone[player.id]) return socket.emit('room:error', 'Seu tabuleiro já fechou nesta rodada.');
+
+  const answer = room.termoEntry.key;
+  const word = termoKey(raw);
+  if (word.length !== answer.length || /[0-9]/.test(word)) {
+    return socket.emit('room:error', `A palavra tem ${answer.length} letras.`);
+  }
+
+  const rows = room.boards[player.id] ?? (room.boards[player.id] = []);
+  const correct = word === answer;
+  rows.push({ word, marks: scoreTermo(word, answer), correct });
+  const tries = room.termoTries;   // 0 = infinitas
+  room.guessesLeft[player.id] = tries ? Math.max(0, tries - rows.length) : null;
+
+  if (correct) {
+    const first = !Object.values(room.termoDone).some(d => d.solved);
+    const points = scoreForTermo(rows.length, tries, first);
+    player.score += points;
+    room.termoDone[player.id] = { solved: true, used: rows.length, ms: Date.now() - room.askedAt, points };
+    room.message = first
+      ? `${player.name} acertou primeiro, em ${rows.length} ${rows.length === 1 ? 'linha' : 'linhas'}!`
+      : `${player.name} também acertou, em ${rows.length}.`;
+  } else if (tries && rows.length >= tries) {
+    room.termoDone[player.id] = { solved: false, used: rows.length, ms: Date.now() - room.askedAt, points: 0 };
+    room.message = `${player.name} gastou as ${tries} linhas.`;
+  }
+
+  broadcast(room);
+  maybeRevealTermo(room);
+}
+
+/** Todo mundo da rodada que esta conectado ja fechou o tabuleiro: nao espera o relogio. */
+function maybeRevealTermo(room) {
+  if (room.phase !== 'playing' || !isTermoRace(room)) return;
+  const waiting = room.cast.filter(id => room.players.get(id)?.connected && !room.termoDone[id]);
+  if (!waiting.length) revealTermo(room);
+}
+
+/** Fecha a rodada: quem nao terminou fica sem pontos, e a mesa ve as letras de todos. */
+function revealTermo(room) {
+  clearTimer(room);
+  for (const id of room.cast) {
+    room.termoDone[id] ??= { solved: false, used: room.boards[id]?.length ?? 0, ms: null, points: 0 };
+  }
+  const solvers = Object.entries(room.termoDone)
+    .filter(([, d]) => d.solved)
+    .sort((a, b) => a[1].ms - b[1].ms);
+  room.winnerId = solvers[0]?.[0] ?? null;
+
+  const answer = room.termoEntry?.label ?? '???';
+  const nameOf = (id) => room.players.get(id)?.name ?? 'alguém';
+  const [first] = solvers;
+  room.message = first
+    ? `Era ${answer}. ${nameOf(first[0])} acertou primeiro, em ${first[1].used}`
+      + `${solvers.length > 1 ? `; ${solvers.length} acertaram no total` : ''}.`
+    : `Era ${answer}. Ninguém acertou.`;
+  // duelo: quem escolheu a palavra defendeu, e pontua como no segredo
+  const chooser = !first && room.chooserId ? room.players.get(room.chooserId) : null;
+  if (chooser) {
+    chooser.score += SCORE_CHOOSER_SURVIVED;
+    room.message += ` ${chooser.name} defendeu a palavra: +${SCORE_CHOOSER_SURVIVED} pontos.`;
+  }
+  room.phase = 'roundEnd';
+  room.turnPlayerId = null;
+
+  if (lastRound(room)) return finishMatch(room);
+  broadcast(room);
+  armTimer(room, 12, () => {
+    if (room.phase === 'roundEnd') startRound(room);
+  });
+}
+
+/**
+ * Um tiro da batalha do Termo: a palavra vai contra a de um alvo, e a linha
+ * entra no tabuleiro dele, com letra e cor para a mesa inteira — como os tiros
+ * da batalha do segredo, que tambem sao de todo mundo.
+ */
+function termoShot(room, player, raw, targetId, socket) {
+  if (room.turnPlayerId !== player.id) return socket.emit('room:error', 'Não é a sua vez.');
+  const target = room.players.get(targetId);
+  if (!target || !room.cast.includes(targetId) || !room.secrets[targetId]) return socket.emit('room:error', 'Escolha em quem atirar.');
+  if (targetId === player.id) return socket.emit('room:error', 'Não dá para atirar na própria palavra.');
+  if (room.sunk[targetId]) return socket.emit('room:error', `${target.name} já afundou. Escolha outro alvo.`);
+
+  const answer = room.secrets[targetId].key;
+  const word = termoKey(raw);
+  if (word.length !== answer.length || /[0-9]/.test(word)) {
+    return socket.emit('room:error', `A palavra de ${target.name} tem ${answer.length} letras.`);
+  }
+  if (room.rows.some(r => r.targetId === targetId && r.word === word)) {
+    return socket.emit('room:error', `${word} já foi tentada no tabuleiro de ${target.name}.`);
+  }
+
+  const correct = word === answer;
+  room.rows.push({
+    word,
+    marks: scoreTermo(word, answer),
+    correct,
+    playerId: player.id,
+    playerName: player.name,
+    targetId,
+    targetName: target.name,
+  });
+  room.message = null;
+  if (correct) return sink(room, player, targetId);
+  afterMiss(room, player);
+}
+
+// ---------------------------------------------------------------- velocidade
+
+/** O que identifica um segredo na fila: o id do item, ou as letras da palavra do Termo. */
+const speedKeyOf = (room, secret) => (isTermo(room) ? secret.key : secret.id);
+
+/** Um segredo novo para a fila, fora dos que ja estao nela (se ainda sobrar algum). */
+function speedDraw(room, taken) {
+  if (isTermo(room)) {
+    const { names, words } = termoSacks(room);
+    const free = (list) => list.filter(entry => !taken.has(entry.key));
+    return pickTermo(free(names), free(words), randomPick) ?? pickTermo(names, words, randomPick);
+  }
+  const all = pool(room);
+  const free = all.filter(item => !taken.has(item.id));
+  return free.length ? pickSecret(free) : all.length ? pickSecret(all) : null;
+}
+
+/**
+ * Uma fila de segredos: os que contam para terminar e mais uma sobra. A sobra
+ * e do Termo — quem gasta as linhas de uma palavra perde ela e recebe a
+ * proxima, entao queimar chutes nao encurta a corrida.
+ */
+function speedQueue(room) {
+  const queue = [];
+  const taken = new Set();
+  for (let i = 0; i < room.settings.rounds + 10; i++) {
+    const secret = speedDraw(room, taken);
+    if (!secret) break;
+    taken.add(speedKeyOf(room, secret));
+    queue.push(secret);
+  }
+  return queue;
+}
+
+/** As linhas da palavra do Termo na corrida, com o corte da categoria pequena. */
+function speedTries(room, entry) {
+  const { names, words } = termoSacks(room);
+  return termoTriesFor(termoCatSizes(names, words).get(entry.cat) ?? 0, room.settings.guessesPerPlayer);
+}
+
+/**
+ * A largada: todo mundo ao mesmo tempo, cada um no proprio tabuleiro. Com
+ * `speedSame` a fila e uma so (todos correm atras dos mesmos segredos, na
+ * mesma ordem); sem ela, cada um tem a sua sorteada.
+ */
+function startSpeed(room) {
+  room.chooserId = null;
+  room.turnPlayerId = null;
+  room.cast = activePlayers(room).map(p => p.id);
+  const shared = room.settings.speedSame ? speedQueue(room) : null;
+  const runners = {};
+  for (const id of room.cast) {
+    runners[id] = { queue: shared ?? speedQueue(room), index: 0, solved: 0, rows: [], done: [], lastAt: null };
+    room.guessesLeft[id] = null;
+  }
+  if (!Object.values(runners).every(r => r.queue.length)) {
+    room.message = `${universeOf(room).label} não tem segredos para essa corrida com essa seleção.`;
+    return finishMatch(room);
+  }
+  room.speed = { total: room.settings.rounds, same: room.settings.speedSame, startedAt: Date.now(), runners, winnerId: null, how: null };
+  room.phase = 'playing';
+  room.message = 'Valendo! Quem terminar a fila primeiro vence.';
+  if (room.settings.turnSeconds) {
+    armTimer(room, room.settings.turnSeconds, () => {
+      if (room.phase === 'playing' && isSpeed(room)) finishSpeed(room, null);
+    });
+  } else {
+    clearTimer(room);
+  }
+  broadcast(room);
+}
+
+/**
+ * O que cada um ve da corrida: de todos, so o placar (quantos resolveu, em
+ * quantos chutes esta no segredo atual); do proprio tabuleiro, tudo. O
+ * segredo atual nunca viaja — so o desenho e a categoria, no Termo.
+ */
+function speedStateFor(room, viewerId) {
+  const race = room.speed;
+  if (!race) return null;
+  const runners = {};
+  for (const [id, r] of Object.entries(race.runners)) {
+    runners[id] = { solved: r.solved, tries: r.rows.length, lastAt: r.lastAt };
+  }
+  const mine = race.runners[viewerId];
+  let me = null;
+  if (mine) {
+    const current = mine.queue[mine.index];
+    me = {
+      rows: mine.rows,
+      done: mine.done,
+      termo: isTermo(room) && current
+        ? { pattern: termoPattern(current.label), length: current.key.length, cat: current.cat, tries: speedTries(room, current) }
+        : null,
+    };
+  }
+  return {
+    total: race.total,
+    same: race.same,
+    startedAt: race.startedAt,
+    runners,
+    me,
+    winnerId: race.winnerId,
+    how: race.how,
+    seq: room.speedSeq,
+  };
+}
+
+/** Um chute na propria fila: o id do item no segredo, a palavra no Termo. */
+function speedGuess(room, player, { pokemonId, word } = {}, socket) {
+  const race = room.speed;
+  const runner = race?.runners[player.id];
+  if (!runner) return socket.emit('room:error', 'Você entrou no meio da corrida: assiste esta.');
+  if (race.winnerId) return;
+  const secret = runner.queue[runner.index];
+  if (!secret) return;
+
+  let row;
+  if (isTermo(room)) {
+    const key = termoKey(word);
+    if (key.length !== secret.key.length || /[0-9]/.test(key)) {
+      return socket.emit('room:error', `A palavra tem ${secret.key.length} letras.`);
+    }
+    row = { word: key, marks: scoreTermo(key, secret.key), correct: key === secret.key };
+  } else {
+    const guess = itemById(room, pokemonId);
+    if (!guess) return socket.emit('room:error', 'Chute inválido.');
+    if (runner.rows.some(r => r.id === guess.id)) return socket.emit('room:error', `${guess.name} já foi chutado neste segredo.`);
+    if (!scopeFilter(universeOf(room), room.settings.scope)(guess)) {
+      return socket.emit('room:error', `Esta sala está em "${scopeLabel(universeOf(room), room.settings.scope)}", e ${guess.name} fica de fora.`);
+    }
+    row = compareGuess(guess, secret, universeOf(room), scopeReach(universeOf(room), room.settings.scope));
+  }
+  runner.rows.push(row);
+
+  const label = labelOf(secret);
+  const sprite = isTermo(room) ? secret.item?.sprite ?? null : secret.sprite ?? null;
+  const next = () => {
+    runner.index += 1;
+    runner.rows = [];
+    // a fila acabou antes da corrida (Termo com muita palavra perdida): mais uma
+    if (!runner.queue[runner.index]) {
+      const extra = speedDraw(room, new Set(runner.queue.map(s => speedKeyOf(room, s))));
+      if (extra) runner.queue.push(extra);
+    }
+  };
+
+  if (row.correct) {
+    runner.solved += 1;
+    runner.lastAt = Date.now();
+    runner.done.push({ label, sprite, tries: runner.rows.length, failed: false });
+    next();
+    if (runner.solved >= race.total) return finishSpeed(room, player.id);
+  } else if (isTermo(room)) {
+    const tries = speedTries(room, secret);
+    if (tries && runner.rows.length >= tries) {
+      runner.done.push({ label, sprite, tries: runner.rows.length, failed: true });
+      next();
+    }
+  }
+  broadcast(room);
+}
+
+/**
+ * Fecha a corrida. Com `winnerId` alguem terminou a fila; sem ele o relogio
+ * acabou, e vence quem resolveu mais (no empate, quem chegou la antes). Cada
+ * segredo resolvido pontua, o vencedor leva o bonus, e a partida acaba aqui:
+ * a velocidade e uma corrida so.
+ */
+function finishSpeed(room, winnerId) {
+  clearTimer(room);
+  const race = room.speed;
+  const nameOf = (id) => room.players.get(id)?.name ?? 'Alguém';
+  let how = 'finished';
+  if (!winnerId) {
+    how = 'time';
+    const best = Object.entries(race.runners)
+      .filter(([, r]) => r.solved > 0)
+      .sort((a, b) => b[1].solved - a[1].solved || a[1].lastAt - b[1].lastAt)[0];
+    winnerId = best?.[0] ?? null;
+  }
+  for (const [id, r] of Object.entries(race.runners)) {
+    const p = room.players.get(id);
+    if (p) p.score += r.solved * SCORE_SPEED_EACH + (id === winnerId ? SCORE_SPEED_WIN : 0);
+  }
+  race.winnerId = winnerId;
+  race.how = winnerId ? how : 'none';
+  room.winnerId = winnerId;
+  room.speedSeq += 1;
+  const secs = Math.round((Date.now() - race.startedAt) / 1000);
+  room.message = how === 'finished'
+    ? `${nameOf(winnerId)} terminou a fila primeiro, em ${secs}s!`
+    : winnerId
+      ? `Tempo esgotado: ${nameOf(winnerId)} resolveu mais (${race.runners[winnerId].solved} de ${race.total}).`
+      : 'Tempo esgotado: ninguém resolveu nenhum.';
+  finishMatch(room);
+}
+
 /** Fecha a partida e anuncia o placar final. */
 function finishMatch(room) {
   clearTimer(room);
@@ -1363,7 +1845,7 @@ function endRound(room, winnerId) {
     }
   }
 
-  if (room.round >= room.settings.rounds) {
+  if (lastRound(room)) {
     return finishMatch(room);
   }
 
@@ -1475,6 +1957,12 @@ function handleDisconnect(socket, permanent) {
     broadcast(room);
     return maybeCloseVoting(room);
   }
+  if (room.phase === 'choosing' && room.chooserId === player.id && isTermo(room)) {
+    room.chooserId = null;
+    room.termoEntry = randomTermo(room);
+    room.message = `${player.name} ${verb}: a palavra foi sorteada.`;
+    return startTermoRace(room);
+  }
   if (room.phase === 'choosing' && room.chooserId === player.id) {
     room.chooserId = null;
     room.secret = pickSecret(pool(room));
@@ -1490,6 +1978,11 @@ function handleDisconnect(socket, permanent) {
   if (isQuiz(room) && room.phase === 'playing') {
     broadcast(room);
     return maybeRevealQuiz(room);
+  }
+  // Termo: se so faltava ele terminar, a rodada fecha agora
+  if (isTermoRace(room) && room.phase === 'playing') {
+    broadcast(room);
+    return maybeRevealTermo(room);
   }
   // na escolha da batalha, cair nao segura os outros: se so faltava ele, comeca
   if (room.phase === 'choosing' && isBattle(room)) {
@@ -1548,7 +2041,7 @@ function onConnection(socket) {
 
   socket.on('game:choose', ({ pokemonId }) => {
     const { room, player } = findPlayerRoom(socket);
-    if (!room || !player || room.phase !== 'choosing') return;
+    if (!room || !player || room.phase !== 'choosing' || isTermo(room)) return;
     const mon = itemById(room, pokemonId);
     const problem = secretProblem(room, mon);
 
@@ -1574,7 +2067,10 @@ function onConnection(socket) {
 
   socket.on('game:guess', ({ pokemonId, targetId }) => {
     const { room, player } = findPlayerRoom(socket);
-    if (!room || !player) return;
+    if (room && player && isSpeed(room) && !isTermo(room) && room.phase === 'playing') {
+      return speedGuess(room, player, { pokemonId }, socket);
+    }
+    if (!room || !player || isTermo(room) || isSpeed(room)) return;
     if (room.phase === 'lastGuess') return finalGuess(room, player, pokemonId, socket);
     if (room.phase !== 'playing') return;
     if (room.turnPlayerId !== player.id) return socket.emit('room:error', 'Não é a sua vez.');
@@ -1670,6 +2166,42 @@ function onConnection(socket) {
     room.answers[player.id] = { index: choice, ms: Date.now() - room.askedAt };
     broadcast(room);
     maybeRevealQuiz(room);
+  });
+
+  /**
+   * Termo, a palavra escolhida para esconder: a de quem esconde no duelo, ou a
+   * de cada um na batalha. Tem de estar nos sacos da sala (nome no recorte ou
+   * palavra do tema) — palavra inventada nao teria como ser achada.
+   */
+  socket.on('game:chooseWord', ({ word } = {}) => {
+    const { room, player } = findPlayerRoom(socket);
+    if (!room || !player || !isTermo(room) || room.phase !== 'choosing') return;
+    const entry = termoEntryOf(room, word);
+    if (!entry) return socket.emit('room:error', 'Escolha uma palavra da lista.');
+
+    if (isBattle(room)) {
+      if (!room.cast.includes(player.id)) return socket.emit('room:error', 'Você entrou depois: espera a próxima batalha.');
+      const takenBy = Object.entries(room.secrets).find(([id, e]) => id !== player.id && e.key === entry.key);
+      if (takenBy) return socket.emit('room:error', `${entry.label} já foi escondida por outra pessoa. Escolha outra.`);
+      room.secrets[player.id] = entry;
+      broadcast(room);
+      return maybeStartBattle(room);
+    }
+
+    if (room.chooserId !== player.id) return;
+    room.termoEntry = entry;
+    room.message = `${player.name} escolheu a palavra.`;
+    startTermoRace(room);
+  });
+
+  // Termo: uma palavra no proprio tabuleiro (corrida) ou no do alvo (batalha)
+  socket.on('game:word', ({ word, targetId } = {}) => {
+    const { room, player } = findPlayerRoom(socket);
+    if (!room || !player || !isTermo(room) || room.phase !== 'playing') return;
+    if (isSpeed(room)) return speedGuess(room, player, { word }, socket);
+    if (isBattle(room)) return termoShot(room, player, word, targetId, socket);
+    if (!room.termoEntry) return;
+    termoWord(room, player, word, socket);
   });
 
   // valvula de escape do host: uma rodada "ate acertar" nao fecha sozinha

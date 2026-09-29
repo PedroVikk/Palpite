@@ -7,6 +7,7 @@ import {
   UNIVERSES, DEFAULT_UNIVERSE, getUniverse,
   scopeFilter, scopeReach, scopeLabel, sanitizeScope, valueOf,
 } from '../shared/universes.js';
+import { TERMO_TRIES, TERMO_TRIES_RANGE } from '../shared/termo.js';
 
 export { UNIVERSES, getUniverse, scopeFilter, scopeReach, scopeLabel };
 
@@ -16,7 +17,21 @@ export const MODES = {
   IMPOSTOR: 'impostor', // todos SABEM o segredo, menos um; a mesa chuta sem entregar e vota em quem nao sabia
   BATTLE: 'battle', // cada um ESCONDE o proprio segredo e ataca o dos outros; ganha quem ficar de pe
   QUIZ: 'quiz', // "Qual deles?": pergunta de multipla escolha, todos respondem juntos, rapidez pontua
+  SPEED: 'speed', // velocidade: cada um na sua fila de segredos, ao mesmo tempo; quem termina primeiro vence
 };
+
+/**
+ * O modo de jogo, acima do estilo (`mode`, logo acima): o que se adivinha. No
+ * `segredo` e um item do tema, pela tabela de dicas ou pela imagem; no `termo`
+ * e uma palavra, letra por letra (ver shared/termo.js).
+ *
+ * O Termo encaixa em tres estilos: na caca todo mundo corre atras da mesma
+ * palavra, cada um no seu tabuleiro; no duelo quem esconde escolhe a palavra;
+ * na batalha naval cada um esconde a sua. Impostor e "Qual deles?" nao tem
+ * palavra para montar letra a letra e ficam so no segredo.
+ */
+export const GAMES = { SEGREDO: 'segredo', TERMO: 'termo' };
+export const TERMO_STYLES = [MODES.HUNT, MODES.DUEL, MODES.BATTLE, MODES.SPEED];
 
 /**
  * O modo cartas virou a chave `cards`, que vale em qualquer modo. Uma aba de
@@ -35,6 +50,7 @@ export const BATTLE_MIN_PLAYERS = 2;
 export const IMPOSTOR_MIN_PLAYERS = 3;
 
 export const DEFAULT_SETTINGS = {
+  game: GAMES.SEGREDO,
   mode: MODES.HUNT,
   universe: DEFAULT_UNIVERSE,
   groups: UNIVERSES[DEFAULT_UNIVERSE].defaultGroups,
@@ -47,6 +63,7 @@ export const DEFAULT_SETTINGS = {
   choices: 3,          // "Qual deles?": opcoes por pergunta
   cards: false,        // cartas de efeito, com draft a cada `draftEvery` rodadas (qualquer modo)
   draftEvery: 2,       // cartas: a cada quantas rodadas sai um draft
+  speedSame: true,     // velocidade: a mesma fila de segredos para todos (ou uma para cada)
 };
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
@@ -67,10 +84,16 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
   const scope = sanitizeScope(universe, requestedScope);
 
   const legacyCards = raw.mode === LEGACY_CARDS_MODE;
-  const mode = Object.values(MODES).includes(raw.mode) ? raw.mode : MODES.HUNT;
+  const askedGame = raw.game ?? base.game;
+  const game = Object.values(GAMES).includes(askedGame) ? askedGame : GAMES.SEGREDO;
+  const termo = game === GAMES.TERMO;
+  const askedMode = Object.values(MODES).includes(raw.mode) ? raw.mode : MODES.HUNT;
+  // estilo que nao existe no Termo volta para a caca, em vez de travar a sala
+  const mode = termo && !TERMO_STYLES.includes(askedMode) ? MODES.HUNT : askedMode;
   const impostor = mode === MODES.IMPOSTOR;
   const battle = mode === MODES.BATTLE;
   const quiz = mode === MODES.QUIZ;
+  const speed = mode === MODES.SPEED;
 
   // "ate acertar" (guessesPerPlayer 0): a rodada so fecha quando alguem acerta,
   // sem teto de chutes. So vale no modo caca ao segredo — no duelo quem esconde
@@ -86,16 +109,35 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
   // entao nao ha teto — com ele a batalha podia travar com tres navios boiando.
   const untilRight = battle || (mode === MODES.HUNT && (!Number.isFinite(rawGuesses) || rawGuesses <= 0));
   const fallbackGuesses = impostor ? 2 : 6;
+  // no Termo o saldo e o numero de linhas do tabuleiro, e ele tem teto proprio
+  const termoTries = clamp(rawGuesses > 0 ? rawGuesses : TERMO_TRIES, TERMO_TRIES_RANGE.min, TERMO_TRIES_RANGE.max);
+  /**
+   * O Termo aceita infinito (0) nos tres ajustes: rodadas sem fim (o host
+   * encerra), rodada sem relogio e tabuleiro sem teto de linhas. Nos outros
+   * modos o 0 continua caindo no padrao, como sempre.
+   */
+  const rawRounds = Math.round(Number(raw.rounds ?? base.rounds));
+  const rawSeconds = Math.round(Number(raw.turnSeconds ?? base.turnSeconds));
 
   return {
+    game,
     mode,
     universe: universeId,
     groups: groups.length ? [...new Set(groups)] : [...universe.defaultGroups],
     scope,
     // a batalha naval e uma partida de uma batalha so
-    rounds: battle ? 1 : clamp(Math.round(Number(raw.rounds ?? base.rounds)) || 5, 1, 20),
-    turnSeconds: clamp(Math.round(Number(raw.turnSeconds ?? base.turnSeconds)) || 45, 5, 180),
-    guessesPerPlayer: untilRight ? 0 : clamp(rawGuesses > 0 ? rawGuesses : fallbackGuesses, 1, 20),
+    //
+    // Na velocidade, `rounds` e o tamanho da fila (quantos segredos cada um
+    // tem de resolver) e `turnSeconds` e o relogio da corrida inteira — que
+    // tambem pode ser infinito, no segredo e no Termo.
+    rounds: battle ? 1 : speed ? clamp(rawRounds || 3, 1, 20)
+      : termo && rawRounds === 0 ? 0 : clamp(rawRounds || 5, 1, 20),
+    turnSeconds: (termo || speed) && rawSeconds === 0 ? 0 : clamp(rawSeconds || 45, 5, 180),
+    // na batalha do Termo o tabuleiro de cada alvo nao tem teto, como na do segredo
+    // na velocidade do segredo errar so custa tempo: chutes sem teto
+    guessesPerPlayer: speed && !termo ? 0
+      : termo && !battle ? (rawGuesses === 0 ? 0 : termoTries)
+      : untilRight ? 0 : clamp(rawGuesses > 0 ? rawGuesses : fallbackGuesses, 1, 20),
     /**
      * O interruptor da imagem atravessa os dois modos: tanto a caca ao segredo
      * quanto o duelo podem ser jogados pela figura. Ele nao substitui `mode`,
@@ -108,7 +150,9 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
     //
     // Na batalha naval cada tabuleiro teria a propria figura, e a tela viraria
     // um mosaico de quadros borrados: por ora ela joga so pela tabela.
-    picture: !impostor && !battle && !quiz && Boolean(raw.picture ?? base.picture),
+    // No Termo o que se le sao as letras: nao ha figura nem tabela.
+    // Na velocidade cada um tem o proprio segredo na tela: joga pela tabela.
+    picture: !impostor && !battle && !quiz && !termo && !speed && Boolean(raw.picture ?? base.picture),
     card: Boolean(raw.card ?? base.card),
     /**
      * As cartas sao outra chave que atravessa os modos, como a imagem. O que
@@ -116,9 +160,14 @@ export function sanitizeSettings(raw = {}, base = DEFAULT_SETTINGS) {
      * ali (Tempo extra sem vez, Raio-X sem segredo unico) nem sai no draft —
      * ver `off` em src/cards.js.
      */
-    cards: legacyCards || Boolean(raw.cards ?? base.cards),
+    //
+    // O Termo fica sem cartas: nao ha vez para jogar a carta, e todo o baralho
+    // fala de colunas e da busca de nomes, que ele nao tem.
+    // A velocidade tambem: sem vez nem mesa comum, a carta nao tem em quem mexer.
+    cards: !termo && !speed && (legacyCards || Boolean(raw.cards ?? base.cards)),
     choices: clamp(Math.round(Number(raw.choices ?? base.choices)) || QUIZ_CHOICES.fallback, QUIZ_CHOICES.min, QUIZ_CHOICES.max),
     draftEvery: clamp(Math.round(Number(raw.draftEvery ?? base.draftEvery)) || 2, 1, 5),
+    speedSame: Boolean(raw.speedSame ?? base.speedSame ?? true),
   };
 }
 
@@ -226,6 +275,24 @@ export function compareGuess(guess, secret, universe, scope = null) {
 export function scoreForWin(totalGuessesInRound) {
   return Math.max(25, 100 - 5 * Math.max(0, totalGuessesInRound - 1));
 }
+
+/**
+ * Termo: acertar vale mais quanto menos linhas gastou (10 por linha que
+ * sobrou, mais 10 do acerto), e o primeiro a fechar leva um bonus — e o que
+ * faz o x1 ser corrida alem de conta.
+ */
+export const SCORE_TERMO_FIRST = 20;
+//
+// Sem teto de linhas (tries 0), a conta usa as 6 do Termo, com piso de 10.
+export const scoreForTermo = (used, tries, first) =>
+  Math.max(10, 10 * ((tries || TERMO_TRIES) - used + 1)) + (first ? SCORE_TERMO_FIRST : 0);
+
+/**
+ * Velocidade: cada segredo resolvido vale 10, e quem termina a fila primeiro
+ * (ou, no fim do relogio, quem resolveu mais) leva 100.
+ */
+export const SCORE_SPEED_EACH = 10;
+export const SCORE_SPEED_WIN = 100;
 
 /** No modo duelo, o dono do segredo pontua se ninguem acertar. */
 export const SCORE_CHOOSER_SURVIVED = 50;

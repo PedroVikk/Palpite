@@ -96,7 +96,7 @@ export default function GameOver({ state, universe, myId, isHost, onRestart, onL
       <section className="summary">
         <div className="tile">
           <div className="k"><CalendarIcon width={14} height={14} />Rodadas</div>
-          <div className="v">{state.settings.rounds}</div>
+          <div className="v">{state.settings.rounds || state.round}</div>
         </div>
         <div className="tile">
           <div className="k"><TargetIcon width={14} height={14} />Chutes na última</div>

@@ -163,6 +163,23 @@ export const QuestionIcon = (props) => (
   </svg>
 );
 
+/** Raio, da velocidade. */
+export const BoltIcon = (props) => (
+  <svg {...base} {...props}>
+    <path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2Z" />
+  </svg>
+);
+
+/** Casas de letra, do Termo. */
+export const TermoIcon = (props) => (
+  <svg {...base} {...props}>
+    <rect x="2.5" y="8" width="5.5" height="8" rx="1.2" />
+    <rect x="9.25" y="8" width="5.5" height="8" rx="1.2" />
+    <rect x="16" y="8" width="5.5" height="8" rx="1.2" />
+    <path d="M4 5h3M17.5 19h3" />
+  </svg>
+);
+
 /** Âncora da batalha naval. */
 export const AnchorIcon = (props) => (
   <svg {...base} {...props}>

@@ -3,11 +3,12 @@ import { getUniverse, roomDefaults, scopeFilter, sanitizeScope } from '@shared/u
 import { socket } from '../socket.js';
 import { useDataset } from '../hooks/useDataset.js';
 import { canPlayPicture, hasPicture } from '../lib/picture.js';
+import { termoNames, termoThemeWords } from '@shared/termo.js';
 import Avatar from './Avatar.jsx';
 import UniverseSelect from './UniverseSelect.jsx';
 import UniverseIcon from './UniverseIcon.jsx';
 import Stepper from './Stepper.jsx';
-import ModePick from './ModePick.jsx';
+import ModePick, { GamePick, styleFits } from './ModePick.jsx';
 import { CardsSwitch, DraftStepper } from './CardsRules.jsx';
 import {
   CalendarIcon, CardIcon, CheckIcon, ClockIcon, CopyIcon, ExitIcon, ImageIcon,
@@ -25,11 +26,12 @@ const MAX_SEATS = 8;
  * "chutes por jogador" pisque enquanto o "ate acertar" esta ligado.
  */
 const fromSettings = (s) => ({
+  game: s.game ?? 'segredo',
   mode: s.mode,
   universe: s.universe,
   groups: s.groups,
   scope: s.scope ?? null,
-  rounds: s.rounds || 5,
+  rounds: s.rounds ?? 5,   // 0 e o infinito do Termo
   turnSeconds: s.turnSeconds,
   guessesPerPlayer: s.guessesPerPlayer || 6,
   untilRight: s.guessesPerPlayer === 0,
@@ -38,9 +40,11 @@ const fromSettings = (s) => ({
   choices: s.choices || 3,
   cards: Boolean(s.cards),
   draftEvery: s.draftEvery || 2,
+  speedSame: s.speedSame ?? true,
 });
 
 const toSettings = (f) => ({
+  game: f.game,
   mode: f.mode,
   universe: f.universe,
   groups: f.groups,
@@ -53,6 +57,7 @@ const toSettings = (f) => ({
   choices: f.choices,
   cards: f.cards,
   draftEvery: f.draftEvery,
+  speedSame: f.speedSame,
 });
 
 /**
@@ -78,16 +83,21 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
 
   // quantos podem sair no sorteio com a selecao atual. A imagem entra na
   // conta: com a chave ligada, quem nao tem figura nao e sorteavel
+  // no Termo conta quem cabe no tabuleiro, mais as palavras do tema, que
+  // valem com qualquer recorte (ver shared/termo.js)
   const poolSize = useMemo(() => {
     if (!items) return null;
     const groups = new Set(form.groups);
     const inScope = scopeFilter(universe, form.scope);
-    return items.filter(item =>
+    const termo = form.game === 'termo';
+    const base = termo ? termoNames(items, universe).map(entry => entry.item) : items;
+    const names = base.filter(item =>
       item.eligible
       && groups.has(item.group)
       && inScope(item)
       && (!form.picture || hasPicture(item))).length;
-  }, [items, form.groups, form.scope, form.picture, universe]);
+    return termo ? names + termoThemeWords(universe.id).length : names;
+  }, [items, form.groups, form.scope, form.picture, form.game, universe]);
 
   function change(patch) {
     const next = { ...form, ...patch };
@@ -106,6 +116,37 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
       next.rounds = 10;
       next.turnSeconds = 15;
       next.picture = false;
+    }
+    // Termo: sem figura e sem cartas, e so nos estilos que ele tem. Entrar
+    // nele poe 6 linhas; o relogio vira o da rodada inteira na corrida (caca e
+    // duelo) e volta a ser o do turno na batalha
+    if (next.game === 'termo') {
+      if (!styleFits('termo', next.mode)) next.mode = 'hunt';
+      if (form.game !== 'termo') {
+        next.guessesPerPlayer = 6;
+        next.untilRight = false;
+      }
+      const race = next.mode !== 'battle';
+      const wasRace = form.game === 'termo' && form.mode !== 'battle';
+      if (race !== wasRace) next.turnSeconds = race ? 120 : 45;
+      next.picture = false;
+      next.cards = false;
+    } else if (form.game === 'termo') {
+      // o infinito e so do Termo: de volta ao Segredo, tudo volta a ter fim
+      next.turnSeconds = 45;
+      if (next.rounds === 0) next.rounds = 5;
+    }
+    // velocidade: 3 segredos na fila e 3 minutos de corrida; sem figura nem cartas
+    if (next.mode === 'speed') {
+      if (form.mode !== 'speed') {
+        next.rounds = 3;
+        next.turnSeconds = 180;
+      }
+      next.picture = false;
+      next.cards = false;
+    } else if (form.mode === 'speed') {
+      next.rounds = 5;
+      next.turnSeconds = next.game === 'termo' && next.mode !== 'battle' ? 120 : 45;
     }
     // universo sem figura espelhada nao joga de imagem; trocar para um deles
     // com a chave ligada desliga ela, em vez de sortear um segredo invisivel
@@ -153,6 +194,9 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
   const impostor = form.mode === 'impostor';
   const battle = form.mode === 'battle';
   const quiz = form.mode === 'quiz';
+  const termo = form.game === 'termo';
+  const speed = form.mode === 'speed';
+  const termoRace = termo && !battle;
   const minPlayers = impostor ? IMPOSTOR_MIN : duel || battle ? 2 : 1;
   const enoughPlayers = state.players.length >= minPlayers;
   const seatsLeft = Math.max(0, MAX_SEATS - state.players.length);
@@ -263,7 +307,12 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
         <div className="stack">
           <div className="field">
             <div className="f-label">Modo de jogo</div>
-            <ModePick value={form.mode} disabled={!isHost} onChange={(mode) => change({ mode })} />
+            <GamePick value={form.game} disabled={!isHost} onChange={(game) => change({ game })} />
+          </div>
+
+          <div className="field">
+            <div className="f-label">Estilo de jogo</div>
+            <ModePick value={form.mode} game={form.game} disabled={!isHost} onChange={(mode) => change({ mode })} />
           </div>
 
           <div className="field">
@@ -327,17 +376,39 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
               </button>
             )}
 
-            {/* as cartas atravessam todos os modos, como a imagem */}
-            <CardsSwitch
+            {/* velocidade: a mesma fila para todos, ou uma para cada */}
+            {speed && (
+              <button
+                type="button"
+                className={`switch-row ${form.speedSame ? 'on' : ''}`}
+                disabled={!isHost}
+                style={{ marginBottom: 10 }}
+                onClick={() => change({ speedSame: !form.speedSame })}
+              >
+                <span className="ico"><TargetIcon width={18} height={18} /></span>
+                <span className="txt">
+                  <b>{termo ? 'Palavras iguais para todos' : 'Segredos iguais para todos'}</b>
+                  <small>
+                    {form.speedSame
+                      ? 'Todo mundo corre atrás da mesma fila, na mesma ordem.'
+                      : 'Cada um recebe a própria fila, sorteada só para ele.'}
+                  </small>
+                </span>
+                <span className="switch"><i /></span>
+              </button>
+            )}
+
+            {/* as cartas atravessam os modos, como a imagem — menos o Termo e a velocidade */}
+            {!termo && !speed && <CardsSwitch
               on={form.cards}
               mode={form.mode}
               disabled={!isHost}
               style={{ marginBottom: quiz ? 0 : 10 }}
               onToggle={() => change({ cards: !form.cards })}
-            />
+            />}
 
             {/* no "Qual deles?" nao ha segredo nem chute: imagem e "ate acertar" nao se aplicam */}
-            {!quiz && <>
+            {!quiz && !termo && !speed && <>
             <button
               type="button"
               className={`switch-row ${form.picture && comImagem && !impostor && !battle ? 'on' : ''}`}
@@ -386,19 +457,26 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
 
             <div className="steppers" style={{ marginTop: 12 }}>
               <Stepper
-                label={quiz ? 'Perguntas' : 'Rodadas'}
+                label={quiz ? 'Perguntas' : speed ? (termo ? 'Palavras' : 'Segredos') : 'Rodadas'}
                 icon={<CalendarIcon width={14} height={14} />}
                 value={form.rounds} min={1} max={20}
                 off={battle} offValue="1"
-                hint={battle ? 'Uma batalha por partida' : 'Total da partida'}
+                hint={battle ? 'Uma batalha por partida' : speed ? 'Na fila de cada um' : form.rounds === 0 ? 'Até o host encerrar' : 'Total da partida'}
                 disabled={!isHost}
+                infinite={termo && !speed && form.rounds === 0}
+                onInfinite={termo && !speed ? () => change({ rounds: form.rounds === 0 ? 5 : 0 }) : null}
                 onChange={(v) => change({ rounds: v })}
               />
               <Stepper
-                label={quiz ? 'Tempo por pergunta' : 'Tempo por turno'}
+                label={quiz ? 'Tempo por pergunta' : speed ? 'Tempo da corrida' : termoRace ? 'Tempo da rodada' : 'Tempo por turno'}
                 icon={<ClockIcon width={14} height={14} />}
                 value={form.turnSeconds} min={5} max={180} step={5} suffix="s"
-                hint={quiz ? 'Para todos responderem' : 'Para mandar o chute'}
+                hint={(termo || speed) && form.turnSeconds === 0 ? 'Sem relógio'
+                  : quiz ? 'Para todos responderem' : speed ? 'Acabou, vence quem resolveu mais' : termoRace ? 'Para fechar o tabuleiro' : 'Para mandar o chute'}
+                infinite={(termo || speed) && form.turnSeconds === 0}
+                onInfinite={termo || speed
+                  ? () => change({ turnSeconds: form.turnSeconds === 0 ? (speed ? 180 : termoRace ? 120 : 45) : 0 })
+                  : null}
                 disabled={!isHost}
                 onChange={(v) => change({ turnSeconds: v })}
               />
@@ -411,19 +489,32 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
                   disabled={!isHost}
                   onChange={(v) => change({ choices: v })}
                 />
+              ) : termoRace ? (
+                <Stepper
+                  label="Tentativas"
+                  icon={<TargetIcon width={14} height={14} />}
+                  value={form.guessesPerPlayer} min={4} max={10}
+                  hint={form.untilRight ? 'Linhas sem fim' : 'Linhas do tabuleiro'}
+                  disabled={!isHost}
+                  infinite={form.untilRight}
+                  onInfinite={() => change({ untilRight: !form.untilRight })}
+                  onChange={(v) => change({ guessesPerPlayer: v })}
+                />
               ) : <Stepper
                 label={impostor ? 'Voltas' : 'Chutes por jogador'}
                 icon={<TargetIcon width={14} height={14} />}
                 value={form.guessesPerPlayer} min={1} max={impostor ? 5 : 20}
-                off={form.untilRight || battle}
-                hint={impostor
+                off={form.untilRight || battle || speed}
+                hint={speed
+                  ? 'Errar só custa tempo'
+                  : impostor
                   ? 'Um chute de cada por volta'
                   : form.untilRight ? '“Até acertar” ignora o teto' : 'Máximo por rodada'}
                 disabled={!isHost}
                 /* mexer aqui desliga o "ate acertar" */
                 onChange={(v) => change({ guessesPerPlayer: v, untilRight: false })}
               />}
-              {form.cards && (
+              {form.cards && !termo && (
                 <DraftStepper
                   value={form.draftEvery}
                   mode={form.mode}
@@ -457,7 +548,7 @@ export default function LobbyPanel({ state, myId, toast, onLeave }) {
           <p className="f-help center-text" style={{ marginTop: 10 }}>
             {enoughPlayers
               ? 'Todo mundo cai direto na primeira rodada.'
-              : `O modo ${impostor ? 'impostor' : battle ? 'batalha naval' : 'duelo'} precisa de pelo menos ${minPlayers} jogadores.`}
+              : `O estilo ${impostor ? 'impostor' : battle ? 'batalha naval' : 'duelo'} precisa de pelo menos ${minPlayers} jogadores.`}
           </p>
         )}
       </div>

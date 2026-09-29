@@ -6,7 +6,7 @@ import UniverseSelect from './UniverseSelect.jsx';
 import UniverseIcon from './UniverseIcon.jsx';
 import MarkArt from './MarkArt.jsx';
 import Stepper from './Stepper.jsx';
-import ModePick from './ModePick.jsx';
+import ModePick, { GamePick, styleFits } from './ModePick.jsx';
 import { CardsSwitch, DraftStepper } from './CardsRules.jsx';
 import {
   BulbIcon, CalendarIcon, CardIcon, CheckIcon, ClockIcon, ImageIcon,
@@ -20,6 +20,8 @@ import {
  * lugar ao da sala dentro do mesmo modal — nada de mudar de tela.
  */
 export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
+  // o modo (o que se adivinha) abre no Segredo, que e o jogo de sempre
+  const [game, setGame] = useState('segredo');
   const [mode, setMode] = useState('hunt');
   const [universeId, setUniverseId] = useState('pokemon');
   // o formulario abre so com a primeira opcao marcada (ver roomDefaults)
@@ -34,12 +36,20 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
   const [choices, setChoices] = useState(3);
   const [cards, setCards] = useState(false);
   const [draftEvery, setDraftEvery] = useState(2);
+  const [speedSame, setSpeedSame] = useState(true);
 
   const universe = getUniverse(universeId);
   const duel = mode === 'duel';
   const impostor = mode === 'impostor';
   const battle = mode === 'battle';
   const quiz = mode === 'quiz';
+  // velocidade: cada um na propria fila, ao mesmo tempo; o relogio e da corrida
+  const speed = mode === 'speed';
+  // Termo: sem figura, sem tabela, sem cartas — so o tabuleiro de letras. Na
+  // caca e no duelo ele e corrida (relogio da rodada, linhas contadas); na
+  // batalha e de turno, como a do segredo
+  const termo = game === 'termo';
+  const termoRace = termo && !battle;
 
   // o interruptor da imagem so existe onde ha figura espelhada: os carros nao
   // tem nenhuma, e universo assim mostra a chave apagada em vez de escondida —
@@ -92,7 +102,37 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
     : universe.scope.nested ? [groupAxis, scopeAxis]
     : [scopeAxis];
 
+  /** Entrar e sair da corrida do Termo troca o sentido do relogio: rodada inteira ou turno. */
+  const retime = (race) => setTurnSeconds(race ? 120 : 45);
+
+  const pickGame = (next) => {
+    if (next === game) return;
+    setGame(next);
+    const style = styleFits(next, mode) ? mode : 'hunt';
+    if (style !== mode) setMode(style);
+    if (next === 'termo') {
+      // 6 linhas e 2 minutos de rodada, como uma partida de Termo
+      setUntilRight(false);
+      setGuessesPerPlayer(6);
+      retime(style !== 'battle');
+    } else {
+      retime(false);
+      // o infinito e so do Termo: de volta ao Segredo, os ajustes voltam a ter fim
+      if (rounds === 0) setRounds(5);
+      if (guessesPerPlayer === 0) setGuessesPerPlayer(6);
+    }
+  };
+
   const pickMode = (next) => {
+    if (termo && (next === 'battle') !== battle) retime(next !== 'battle');
+    // velocidade: 3 segredos na fila e 3 minutos de corrida; saindo dela, o de sempre
+    if (next === 'speed' && !speed) {
+      setRounds(3);
+      setTurnSeconds(180);
+    } else if (speed && next !== 'speed') {
+      setRounds(5);
+      retime(termo && next !== 'battle');
+    }
     setMode(next);
     // no duelo quem esconde só pontua quando os chutes dos outros acabam
     if (next === 'duel') setUntilRight(false);
@@ -109,17 +149,19 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
   };
 
   const create = () => onCreate({
+    game,
     mode,
     universe: universeId,
     groups,
     scope,
     rounds,
     turnSeconds,
-    guessesPerPlayer: untilRight && !impostor ? 0 : guessesPerPlayer,
-    picture: picture && comImagem && !impostor && !battle && !quiz,
+    guessesPerPlayer: untilRight && !impostor && !termoRace ? 0 : guessesPerPlayer,
+    picture: picture && comImagem && !impostor && !battle && !quiz && !termo && !speed,
     card,
     choices,
-    cards,
+    cards: cards && !termo && !speed,
+    speedSame,
     draftEvery,
   });
 
@@ -131,7 +173,15 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
         <div className="side-note">
           <div className="h"><BulbIcon width={14} height={14} />Dica</div>
           <p>
-            {impostor
+            {speed
+              ? `Na velocidade, cada um joga no seu tabuleiro ao mesmo tempo, com uma fila de ${termo ? 'palavras' : 'segredos'}. Quem terminar a fila primeiro vence${termo ? '; gastou as linhas de uma palavra, ela é trocada por outra' : ''}.`
+              : termo
+              ? (battle
+                ? 'Na batalha do termo, cada um esconde uma palavra do tema e, na sua vez, chuta no tabuleiro de um alvo. Os tabuleiros são de todo mundo: dá para aproveitar as letras que os outros já acharam.'
+                : duel
+                ? 'No duelo do termo, quem está na vez escolhe a palavra — um nome ou algo do tema — e o resto corre atrás dela. Se ninguém acertar, quem escolheu pontua.'
+                : 'No termo, todo mundo tenta a mesma palavra ao mesmo tempo — um nome ou algo do tema, como Kunai ou Konoha. Você vê as cores dos outros, nunca as letras. Quem acerta em menos linhas pontua mais, e o primeiro leva bônus.')
+              : impostor
               ? 'No impostor, a mesa vê só quantas colunas cada chute acertou. Funciona melhor com 4 ou mais pessoas e um recorte de 50 a 200 opções.'
               : battle
               ? 'Na batalha naval, os tabuleiros são públicos: dá para aproveitar os tiros dos outros e roubar o afundamento.'
@@ -185,7 +235,12 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
 
           <div className="field wide">
             <div className="f-label">Modo de jogo</div>
-            <ModePick value={mode} onChange={pickMode} />
+            <GamePick value={game} onChange={pickGame} />
+          </div>
+
+          <div className="field wide">
+            <div className="f-label">Estilo de jogo</div>
+            <ModePick value={mode} game={game} onChange={pickMode} />
           </div>
 
           {axes.map((axis, i) => (
@@ -246,18 +301,40 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
               </button>
             )}
 
-            {/* as cartas atravessam todos os modos, como a imagem */}
-            <CardsSwitch
+            {/* as cartas atravessam os modos, como a imagem — menos o Termo,
+                que nao tem vez nem busca de nomes para elas mexerem */}
+            {/* velocidade: a mesma fila para todos, ou uma para cada */}
+            {speed && (
+              <button
+                type="button"
+                className={`switch-row ${speedSame ? 'on' : ''}`}
+                style={{ marginBottom: 10 }}
+                onClick={() => setSpeedSame(v => !v)}
+              >
+                <span className="ico"><TargetIcon width={18} height={18} /></span>
+                <span className="txt">
+                  <b>{termo ? 'Palavras iguais para todos' : 'Segredos iguais para todos'}</b>
+                  <small>
+                    {speedSame
+                      ? 'Todo mundo corre atrás da mesma fila, na mesma ordem.'
+                      : 'Cada um recebe a própria fila, sorteada só para ele.'}
+                  </small>
+                </span>
+                <span className="switch"><i /></span>
+              </button>
+            )}
+
+            {!termo && !speed && <CardsSwitch
               on={cards}
               mode={mode}
               style={{ marginBottom: quiz ? 0 : 10 }}
               onToggle={() => setCards(v => !v)}
-            />
+            />}
 
             {/* o interruptor da imagem atravessa a caça ao segredo e o duelo;
                 no impostor cada chute clarearia a figura para quem nao sabe.
                 No "Qual deles?" nao ha segredo nem chute: os dois somem */}
-            {!quiz && <>
+            {!quiz && !termo && !speed && <>
             <button
               type="button"
               className={`switch-row ${picture && comImagem && !impostor && !battle ? 'on' : ''}`}
@@ -306,18 +383,25 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
 
             <div className="steppers" style={{ marginTop: 12 }}>
               <Stepper
-                label={quiz ? 'Perguntas' : 'Rodadas'}
+                label={quiz ? 'Perguntas' : speed ? (termo ? 'Palavras' : 'Segredos') : 'Rodadas'}
                 icon={<CalendarIcon width={14} height={14} />}
                 value={rounds} min={1} max={20}
                 off={battle} offValue="1"
-                hint={battle ? 'Uma batalha por partida' : 'Total da partida'}
+                hint={battle ? 'Uma batalha por partida' : speed ? 'Na fila de cada um' : rounds === 0 ? 'Até o host encerrar' : 'Total da partida'}
+                infinite={termo && !speed && rounds === 0}
+                onInfinite={termo && !speed ? () => setRounds(r => (r === 0 ? 5 : 0)) : null}
                 onChange={setRounds}
               />
               <Stepper
-                label={quiz ? 'Tempo por pergunta' : 'Tempo por turno'}
+                label={quiz ? 'Tempo por pergunta' : speed ? 'Tempo da corrida' : termoRace ? 'Tempo da rodada' : 'Tempo por turno'}
                 icon={<ClockIcon width={14} height={14} />}
                 value={turnSeconds} min={5} max={180} step={5} suffix="s"
-                hint={quiz ? 'Para todos responderem' : 'Para mandar o chute'}
+                hint={(termo || speed) && turnSeconds === 0 ? 'Sem relógio'
+                  : quiz ? 'Para todos responderem' : speed ? 'Acabou, vence quem resolveu mais' : termoRace ? 'Para fechar o tabuleiro' : 'Para mandar o chute'}
+                infinite={(termo || speed) && turnSeconds === 0}
+                onInfinite={termo || speed
+                  ? () => setTurnSeconds(t => (t === 0 ? (speed ? 180 : termoRace ? 120 : 45) : 0))
+                  : null}
                 onChange={setTurnSeconds}
               />
               {quiz ? (
@@ -328,19 +412,31 @@ export default function CreateRoomPanel({ name, onName, onClose, onCreate }) {
                   hint="Respostas por pergunta"
                   onChange={setChoices}
                 />
+              ) : termoRace ? (
+                <Stepper
+                  label="Tentativas"
+                  icon={<TargetIcon width={14} height={14} />}
+                  value={guessesPerPlayer} min={4} max={10}
+                  hint={guessesPerPlayer === 0 ? 'Linhas sem fim' : 'Linhas do tabuleiro'}
+                  infinite={guessesPerPlayer === 0}
+                  onInfinite={() => setGuessesPerPlayer(g => (g === 0 ? 6 : 0))}
+                  onChange={setGuessesPerPlayer}
+                />
               ) : (
                 <Stepper
                   label={impostor ? 'Voltas' : 'Chutes por jogador'}
                   icon={<TargetIcon width={14} height={14} />}
                   value={guessesPerPlayer} min={1} max={impostor ? 5 : 20}
-                  off={(untilRight && !impostor) || battle}
-                  hint={impostor
+                  off={(untilRight && !impostor) || battle || speed}
+                  hint={speed
+                    ? 'Errar só custa tempo'
+                    : impostor
                     ? 'Um chute de cada por volta'
                     : untilRight ? '“Até acertar” ignora o teto' : 'Máximo por rodada'}
                   onChange={(v) => { setGuessesPerPlayer(v); setUntilRight(false); }}
                 />
               )}
-              {cards && <DraftStepper value={draftEvery} mode={mode} onChange={setDraftEvery} />}
+              {cards && !termo && <DraftStepper value={draftEvery} mode={mode} onChange={setDraftEvery} />}
             </div>
           </div>
         </div>

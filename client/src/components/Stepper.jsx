@@ -8,17 +8,36 @@ import { MinusIcon, PlusIcon } from './Icon.jsx';
  *
  * `off` é para a regra que existe mas não vale agora ("até acertar" desliga o
  * teto de chutes): apaga, mostra o valor substituto e o `hint` diz por quê.
+ *
+ * `onInfinite` põe o botão ∞ no canto: ligado, o valor vira ∞ (sem fim, sem
+ * relógio, sem teto) e os botões de mais e menos descansam até desligar.
  */
 export default function Stepper({
   label, icon, value, min = 1, max = 20, step = 1, suffix = '',
   hint, off = false, offValue = '∞', disabled = false, onChange,
+  infinite = false, onInfinite = null,
 }) {
-  const locked = disabled || off;
+  const locked = disabled || off || infinite;
   const clamp = (n) => Math.min(max, Math.max(min, n));
 
   return (
-    <div className={`stepper ${off ? 'off' : ''}`}>
-      <div className="k">{icon}{label}</div>
+    <div className={`stepper ${off ? 'off' : ''} ${infinite ? 'inf' : ''}`}>
+      <div className="k">
+        {icon}{label}
+        {onInfinite && (
+          <button
+            type="button"
+            className={`inf-btn ${infinite ? 'on' : ''}`}
+            aria-pressed={infinite}
+            aria-label={`${label}: infinito`}
+            title={infinite ? 'Voltar a ter limite' : 'Sem limite'}
+            disabled={disabled || off}
+            onClick={onInfinite}
+          >
+            ∞
+          </button>
+        )}
+      </div>
       <div className="ctl">
         <button
           type="button"
@@ -28,7 +47,7 @@ export default function Stepper({
         >
           <MinusIcon width={14} height={14} strokeWidth={2.4} />
         </button>
-        <span className="v">{off ? offValue : `${value}${suffix}`}</span>
+        <span className="v">{off ? offValue : infinite ? '∞' : `${value}${suffix}`}</span>
         <button
           type="button"
           aria-label={`Mais ${label.toLowerCase()}`}
