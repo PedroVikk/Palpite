@@ -2444,11 +2444,17 @@ button.suspect:disabled { cursor: default; }
 /* ---------------------------------------------------- aniversario ---- */
 
 /* o parabens do dia: foto em cima, recado embaixo, uma coluna so */
-.modal.birthday { width: min(440px, 100%); grid-template-columns: 1fr; overflow: hidden; }
+.modal.birthday {
+  width: min(440px, 100%);
+  max-height: calc(100dvh - 64px);
+  grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
 .birthday-photo { display: block; width: 100%; aspect-ratio: 4 / 3; max-height: 36vh; object-fit: cover; object-position: center 20%; }
 /* o X fica sobre a foto: fundo escuro para nao sumir nela */
 .modal.birthday .close { background: #000000A6; color: #fff; border-color: var(--line-2); }
-.birthday-body { padding: 22px 26px 26px; display: flex; flex-direction: column; gap: 10px; }
+.birthday-body { padding: 22px 26px 26px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
 .birthday-tag {
   align-self: flex-start;
   padding: 5px 12px;
