@@ -1,6 +1,6 @@
 # Palpite
 
-Um jogo de adivinhação multiplayer no estilo Pokédle, com **vinte e seis universos**.
+Um jogo de adivinhação multiplayer no estilo Pokédle, com **vinte e oito universos**.
 Um secreto por rodada, todo mundo na mesma sala, **um chute por vez**. Cada
 chute vira uma linha de dicas visível para todos — verde acerta, amarelo chega
 perto, seta indica se o secreto é maior ou menor.
@@ -58,6 +58,8 @@ npx cloudflared tunnel --url http://localhost:3000
 | **Deuses** | 253 | 137 | 10 panteões | Panteão, Gênero, Domínio, Posição, Reino |
 | **Desenhos animados** | 471 | 471 | 4 canais | Desenho, Espécie, Gênero, Na história, Idade, Estreia |
 | **Animais** | 290 | 278 | 5 classes | Classe, Alimentação, Habitat, Continente, Locomoção, Peso |
+| **Cavaleiros do Zodíaco** | 125 | 99 | 4 exércitos + sem exército | Classe, Exército, Gênero, Origem, Estreia |
+| **Boku no Hero Academia** | 133 | 127 | Alunos, Heróis, Vilões, Civis | Afiliação, Individualidade, Gênero, Cabelo, Estreia |
 
 **Sorteáveis** são os que entram na partida: viram segredo e são os únicos
 nomes que a busca de chute oferece. Quem fica de fora não existe para a sala —
@@ -405,6 +407,46 @@ de dez em dez vezes (até 10 g, até 1 kg, até 10 kg… mais de 10 t), com seta
 peso em quilos fica na tabela para quem quiser conferir. Sem trava no desafio
 do dia: 278 cabem numa partida, e a classe não é linha do tempo para girar.
 
+**Cavaleiros do Zodíaco** vem do wiki **pt-br** da Seiyapedia, e não do inglês:
+o inglês tem três fichas diferentes, uma por geração de editor, e o pt-br tem
+uma só (`{{Personagens}}`) e já escreve os nomes como a dublagem consagrou —
+Saga de Gêmeos, Máscara da Morte de Câncer, Shun de Andrômeda. Fica **só a
+série clássica** (mangá, anime de 1986 e as OVAs de Hades): cada versão do
+Seiya tem página própria, com a obra entre parênteses, e a de Saintia Shô ou de
+Alma de Ouro escreve o próprio nome no campo de estreia. São 125, e entre eles o
+figurante não é sorteado: a página do wiki cresce com a história do personagem
+(o Seiya passa de 79 mil caracteres, os cavaleiros de ouro de 20 mil), e abaixo
+de 6 mil é soldado do Santuário. A Shunrei, a Seika e a Miho entram à mão.
+
+As colunas são *Classe* (ouro, prata, bronze, cavaleiro negro, marina,
+guerreiro deus, espectro, deus...), *Exército* (o deus a quem serve), *Gênero*,
+*Origem* e *Estreia*, numa das nove fases da história, com seta. A *Origem* é
+região e não país — Japão, Grécia e Asgard sozinhos, o resto por continente —,
+porque país por país eram 60 respostas que quase nunca fechavam verde.
+Constelação não é coluna pelo mesmo motivo: é única por personagem. As sagas
+são as épocas, e duas fichas mudam com elas: o **Kanon** é General Marina numa
+sala que parou em Poseidon e só vira cavaleiro de ouro em Hades, e o **Shion**
+estreia em Hades — o Grande Mestre do episódio 1 é o Saga no papel dele.
+
+**Boku no Hero Academia** vem da **My Hero Academia Wiki**, com a mesma régua do
+Dragon Ball: quantos capítulos e episódios citam o personagem (Izuku 590, All
+Might 530) e em quantos wikis de outros idiomas ele tem página. Fica de fora o
+elenco do Vigilantes, que estreia em campo próprio. Herói profissional e vilão
+atendem pelo codinome — All Might, Endeavor, Hawks, Twice, Stain —, aluno pelo
+nome, e o outro vale de apelido na busca.
+
+As colunas são *Afiliação* (classe 1-A, 1-B, outros alunos da U.A., professor,
+herói profissional, Liga dos Vilões, Shie Hassaikai...), *Individualidade* (o
+tipo: emissor, transformação ou mutante, lido da ficha da própria
+individualidade), *Gênero*, *Cabelo* e *Estreia*, o arco do mangá em treze
+blocos. Aluno é aluno a série inteira, mesmo quem vira herói no epílogo. O
+*Cabelo* é `list` de até duas cores, e vale a de agora e a do anime: o
+Kirishima é vermelho, não o preto de antes, e o Todoroki é branco e vermelho.
+Sem épocas nem trava no dia: quase todo o elenco estreia nas duas primeiras
+temporadas, e um recorte da Guerra Final teria um personagem. O retrato do wiki
+é a figura de corpo inteiro recortada, então o tema tem a silhueta do *Qual
+deles?*.
+
 ### As épocas
 
 Toda obra com linha do tempo tem um segundo eixo na sala, ao lado dos grupos: as
@@ -423,6 +465,7 @@ parou no meio deixa só as que viu.
 | **JoJo** | As nove partes, de Phantom Blood (21) a The JOJOLands (5) |
 | **Desenhos animados** | Anos 90 (137) · Anos 2000 (152) · Anos 2010+ (182) |
 | **Dragon Ball** | Clássico (37) · Z, com o GT (52) · Super (28) |
+| **Cavaleiros do Zodíaco** | Santuário (60) · Asgard (11) · Poseidon (8) · Hades (20) |
 
 O corte sai sempre da estreia: capítulo do mangá, episódio, o que a fonte
 souber datar. Em Hunter × Hunter e nos super-heróis o eixo não é o tempo e sim
@@ -489,6 +532,8 @@ setas ▲/▼.
 | [Ordem Paranormal Wiki (MediaWiki)](https://ordemparanormal.fandom.com/) | não |
 | [Ben 10 Wiki (MediaWiki)](https://ben10.fandom.com/) | não |
 | [JoJo's Bizarre Encyclopedia (MediaWiki)](https://jojo.fandom.com/) | não |
+| [Seiyapedia pt-br (MediaWiki)](https://saintseiya.fandom.com/pt-br/) | não |
+| [My Hero Academia Wiki (MediaWiki)](https://myheroacademia.fandom.com/) | não |
 | [TheAudioDB](https://www.theaudiodb.com/free_music_api) | chave pública de teste |
 | [MusicBrainz](https://musicbrainz.org/doc/MusicBrainz_API) | não |
 

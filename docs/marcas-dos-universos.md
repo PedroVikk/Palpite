@@ -139,6 +139,8 @@ Desenhe o de: <UNIVERSO> — <SÍMBOLO>
 | `deuses` | Deuses | fachada de templo grego, com o vão do meio livre para o "?" |
 | `desenhos` | Desenhos animados | TV de tubo com antena, a tela vazada para o "?" |
 | `animais` | Animais | pegada de pata: o coxim grande é o miolo liso sob o "?", quatro dedos em arco em cima |
+| `cdz` | Cavaleiros do Zodíaco | cosmo alado: anel com o miolo vazado para o "?" e uma asa de três penas de cada lado |
+| `mha` | Boku no Hero Academia | estouro de quadrinho do "Smash": pontas desiguais, massa cheia e lisa sob o "?" |
 
 ## 6. Universo novo: o checklist
 

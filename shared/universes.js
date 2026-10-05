@@ -606,6 +606,61 @@ const ANIMAIS_WEIGHT_PT = {
   5: '100 kg a 1 t', 6: '1 a 10 t', 7: 'Mais de 10 t',
 };
 
+/**
+ * "Outro cavaleiro" e quem veste armadura fora das tres classes de Atena: os
+ * sem constelacao do Docrates, os de Aco, os fantasmas e o Cassios.
+ */
+const CDZ_CLASSE_PT = {
+  ouro: 'Ouro', prata: 'Prata', bronze: 'Bronze', negro: 'Cavaleiro Negro', marina: 'Marina',
+  'guerreiro-deus': 'Guerreiro Deus', espectro: 'Espectro', deus: 'Deus',
+  outro: 'Outro cavaleiro', 'sem-armadura': 'Sem armadura',
+};
+
+const CDZ_EXERCITO_PT = {
+  atena: 'Atena', poseidon: 'Poseidon', hades: 'Hades', odin: 'Odin', nenhum: 'Nenhum',
+};
+
+/** Japao, Grecia e Asgard sozinhos; o resto do mundo por continente (build-cdz.mjs). */
+const CDZ_ORIGEM_PT = {
+  japao: 'Japão', grecia: 'Grécia', asgard: 'Asgard', europa: 'Europa', asia: 'Ásia',
+  africa: 'África', americas: 'Américas', oceania: 'Oceania', 'nao-dita': 'Não dita',
+};
+
+/**
+ * As fases de estreia, na ordem da historia. O dataset guarda o indice
+ * (scripts/build-cdz.mjs, tabela FASES), entao a coluna e numerica.
+ */
+const CDZ_FASE_PT = {
+  0: 'Guerra Galáctica', 1: 'Cavaleiros Negros', 2: 'Cavaleiros de Prata', 3: 'Doze Casas',
+  4: 'Asgard', 5: 'Poseidon', 6: 'Hades: Santuário', 7: 'Hades: Inferno', 8: 'Hades: Elísios',
+};
+
+/** Aluno e aluno a serie inteira, mesmo quem vira herói no epilogo. */
+const MHA_AFILIACAO_PT = {
+  '1-a': 'Classe 1-A', '1-b': 'Classe 1-B', ua: 'Outros alunos da U.A.', 'outra-escola': 'Outra escola',
+  professor: 'Professor da U.A.', heroi: 'Herói profissional', liga: 'Liga dos Vilões',
+  libertacao: 'Exército de Libertação', hassaikai: 'Shie Hassaikai', vilao: 'Outros vilões',
+  civil: 'Civil',
+};
+
+const MHA_QUIRK_PT = {
+  emissor: 'Emissor', transformacao: 'Transformação', mutante: 'Mutante', sem: 'Sem individualidade',
+};
+
+const MHA_CABELO_PT = {
+  verde: 'Verde', loiro: 'Loiro', preto: 'Preto', castanho: 'Castanho', vermelho: 'Vermelho',
+  branco: 'Branco', cinza: 'Cinza', azul: 'Azul', roxo: 'Roxo', rosa: 'Rosa', laranja: 'Laranja',
+  careca: 'Careca', 'nao-aparece': 'Não aparece',
+};
+
+/** Os arcos do manga em blocos (scripts/build-mha.mjs, tabela FASES). */
+const MHA_FASE_PT = {
+  0: 'Ingresso na U.A.', 1: 'Festival Esportivo', 2: 'Matador de Heróis', 3: 'Provas e Acampamento',
+  4: 'Kamino', 5: 'Licença Provisória', 6: 'Shie Hassaikai', 7: 'Festival Escolar',
+  8: 'Treino Conjunto', 9: 'Exército de Libertação', 10: 'Guerra Paranormal', 11: 'Herói Sombrio',
+  12: 'Guerra Final',
+};
+
 export const UNIVERSES = {
   pokemon: {
     id: 'pokemon',
@@ -1611,6 +1666,84 @@ export const UNIVERSES = {
       // a faixa, nao o numero: ninguem sabe que o leao pesa 190 kg, mas todo
       // mundo sabe que ele pesa mais que um cachorro e menos que um cavalo
       { key: 'weight', label: 'Peso', kind: 'number', labels: ANIMAIS_WEIGHT_PT, quiz: ['Qual deles é o mais pesado?', 'Qual deles é o mais leve?'] },
+    ],
+  },
+
+  cdz: {
+    id: 'cdz',
+    label: 'Cavaleiros do Zodíaco',
+    secretLabel: 'o personagem secreto',
+    // sem `silhouette`: o retrato do wiki e quadro do anime, com cenario
+    dataFile: 'cdz.json',
+    daily: { rotate: 'scope' },
+    groupLabel: 'Exércitos',
+    // o grupo e o deus a quem cada um serve. "Sem exército" sao os Cavaleiros
+    // Negros e a familia — a Seika, a Natassia, a Shunrei
+    groups: [
+      { id: 'atena', label: 'Atena' },
+      { id: 'asgard', label: 'Asgard' },
+      { id: 'poseidon', label: 'Poseidon' },
+      { id: 'hades', label: 'Hades' },
+      { id: 'outros', label: 'Sem exército' },
+    ],
+    defaultGroups: ['atena', 'asgard', 'poseidon', 'hades', 'outros'],
+    // so a serie classica (manga e anime de 1986, e as OVAs de Hades). A saga
+    // e a de estreia: o Shion so conta em Hades, porque o Grande Mestre do
+    // comeco e o Saga no papel dele
+    scope: {
+      label: 'Sagas',
+      key: 'era',
+      options: [
+        { id: 'santuario', label: 'Santuário', hint: 'Da Guerra Galáctica às Doze Casas.' },
+        { id: 'asgard', label: 'Asgard', hint: 'Os Guerreiros Deuses da Hilda, só no anime.' },
+        { id: 'poseidon', label: 'Poseidon', hint: 'Os Generais Marinas e o Templo Submarino.' },
+        { id: 'hades', label: 'Hades', hint: 'Santuário, Inferno e Elísios.' },
+      ],
+    },
+    // constelacao nao e coluna: e unica por personagem e nunca fecharia verde.
+    // O Kanon e marina numa sala que parou em Poseidon (`byScope`)
+    columns: [
+      { key: 'classe', label: 'Classe', kind: 'text', labels: CDZ_CLASSE_PT },
+      { key: 'army', label: 'Exército', kind: 'text', labels: CDZ_EXERCITO_PT },
+      { key: 'gender', label: 'Gênero', kind: 'text' },
+      { key: 'origin', label: 'Origem', kind: 'text', labels: CDZ_ORIGEM_PT },
+      {
+        key: 'debut', label: 'Estreia', kind: 'number', nearby: 1, labels: CDZ_FASE_PT,
+        quiz: ['Qual deles estreou por último?', 'Qual deles estreou primeiro?'],
+      },
+    ],
+  },
+
+  mha: {
+    id: 'mha',
+    label: 'Boku no Hero Academia',
+    secretLabel: 'o personagem secreto',
+    // o retrato do wiki e a figura de corpo inteiro, recortada: 121 dos 127
+    // sorteaveis viram silhueta (os outros seis caem em outra pergunta)
+    silhouette: 'Quem é esse personagem?',
+    dataFile: 'mha.json',
+    // sem trava no dia nem epoca: quase todo o elenco estreia nas duas
+    // primeiras temporadas, e um recorte da Guerra Final teria um personagem
+    groupLabel: 'Quem entra',
+    groups: [
+      { id: 'alunos', label: 'Alunos' },
+      { id: 'herois', label: 'Heróis' },
+      { id: 'viloes', label: 'Vilões' },
+      { id: 'outros', label: 'Civis e família' },
+    ],
+    defaultGroups: ['alunos', 'herois', 'viloes', 'outros'],
+    // herói e vilao atendem pelo codinome (All Might, Twice), aluno pelo nome;
+    // o outro vale de apelido na busca
+    columns: [
+      { key: 'affiliation', label: 'Afiliação', kind: 'text', labels: MHA_AFILIACAO_PT },
+      { key: 'quirkType', label: 'Individualidade', kind: 'text', labels: MHA_QUIRK_PT },
+      { key: 'gender', label: 'Gênero', kind: 'text' },
+      // `list`, ate duas: o Todoroki e branco e vermelho
+      { key: 'hair', label: 'Cabelo', kind: 'list', labels: MHA_CABELO_PT },
+      {
+        key: 'debut', label: 'Estreia', kind: 'number', nearby: 1, labels: MHA_FASE_PT,
+        quiz: ['Qual deles estreou por último?', 'Qual deles estreou primeiro?'],
+      },
     ],
   },
 };

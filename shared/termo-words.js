@@ -149,4 +149,14 @@ export const THEME_WORDS = {
     Corpo: 'Pena, Escama, Garra, Juba, Chifre, Casco, Cauda, Presa, Bico, Tromba, Barbatana, Carapaça',
     Termo: 'Predador, Filhote, Manada, Cardume, Alcateia, Herbívoro, Carnívoro, Onívoro, Toca, Ninho, Migração, Hibernação',
   },
+  cdz: {
+    Termo: 'Cosmo, Armadura, Cavaleiro, Amazona, Constelação, Sétimo Sentido, Urna, Doze Casas, Grande Mestre, Escama, Sobrepeliz, Máscara, Relógio de Fogo',
+    Golpe: 'Meteoro de Pégaso, Cólera do Dragão, Pó de Diamante, Ave Fênix, Excalibur, Agulha Escarlate, Rosas Piranhas, Ondas do Inferno, Explosão Galáctica',
+    Lugar: 'Santuário, Asgard, Atlântida, Elísios, Giudecca, Rozan, Sibéria, Jamiel, Cinco Picos, Coliseu, Inferno, Cocytos',
+  },
+  mha: {
+    Termo: 'Individualidade, Herói, Vilão, Codinome, Licença, Agência, Sidekick, Ranking, Uniforme, Plus Ultra, Smash, Nomu, Símbolo da Paz',
+    Golpe: 'Detroit Smash, Delaware Smash, Full Cowl, Shoot Style, Black Whip, AP Shot, Recipro Burst, Howitzer Impact',
+    Lugar: 'Yuuei, Kamino, Hosu, Musutafu, Shiketsu, Tartarus, Jaku, Gunga',
+  },
 };
